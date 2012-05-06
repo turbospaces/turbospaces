@@ -1,7 +1,7 @@
 <para version="5.0" xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <para>elsecloud is another in-memory data grid (platform at some extent) written in java for applications where
+    <para>turbospaces is another in-memory data grid (platform at some extent) written in java for applications where
         distributed, concurrent, low-latency, failover, high throughput and linear-scalability is a key. Being a new
-        brand technology, elsecloud is elegant implementation of Java Spaces like API(without relying on SUN's JavaSpace
+        brand technology, turbospaces is elegant implementation of Java Spaces like API(without relying on SUN's JavaSpace
         technology and libraries), fully-transactional in-memory object-oriented database with elastic and flexible
         external data storage bindings, extremely fast off-heap store(meaning that java heap is not occupied by the
         application's data at all). Result of such off-heap memory orientation is that application does not spend time
@@ -10,10 +10,10 @@
         2.0 user-friendly license.</para>
     <para>Certainly our cloud is not limited to java space technical stack, off-heap persistent storage. We consider it
         as direct replacement for typical Enterprise Java Applications with a standard stack of RDMBS, EJB, JTA, JMS,
-        JPA. It is extremely easy to start using elsecloud just because it has minimal list of dependencies.</para>
+        JPA. It is extremely easy to start using turbospaces just because it has minimal list of dependencies.</para>
     <para>
         Given fact that there are few alternative in-memory data grid solutions available in the market, we declare
-        elsecloud as modern implementation of the best concepts taken from
+        turbospaces as modern implementation of the best concepts taken from
         <literal>Java Spaces, Gigaspaces, Ehcache, Hazelcast, Coherence, NOSQL.</literal>
         The ultimate goal is to match with real-world non-functional requirements like 99.999% application uptime,
         hot-deployment.
@@ -97,7 +97,7 @@
             <listitem>
                 <para>
                     <literal>Spring framework 3</literal>
-                    - elsecloud is built on top of spring framework and supports spring natively, making integration
+                    - turbospaces is built on top of spring framework and supports spring natively, making integration
                     super easy. In addition java space namespace has been created making beans declaration easier and
                     more informative. You can expect to see spring's exception hierarchy classes in place instead of any
                     custom.
@@ -106,7 +106,7 @@
             <listitem>
                 <para>
                     <literal>Jgroups 3</literal>
-                    - elsecloud internally uses this framework for network communications between members (over
+                    - turbospaces internally uses this framework for network communications between members (over
                     multicast and unicast protocols) as well as for members discovery. Jgroups provides very powerful
                     asynchronous message delivery mechanisms and extremely customizable.
                 </para>
@@ -131,7 +131,7 @@
         <note>You will find more information and argumentation for specific technologies on design concerns page</note>
     </section>
     <para>
-        After short introduction, something needs to be added! Elsecloud is in active development phaze, we appreciate
+        After short introduction, something needs to be added! Turbospaces is in active development phaze, we appreciate
         your feedback and help on getting thing around done. Please feel free to contact our team or me
         <email>aandrey.borisov@gmail.com</email>
         and participate in development.

@@ -15,10 +15,10 @@
 	<bean id="mongo.mapping.context" class="org.springframework.data.mongodb.core.mapping.MongoMappingContext">
 	   <property name="initialEntitySet">
 	      <list>
-	        <value>com.elsecloud.model.TestEntity1</value>
+	        <value>com.turbospaces.model.TestEntity1</value>
 	      </list>
 	   </property>
 	</bean>
 
-	<bean id="client.jspace.configuration" class="com.elsecloud.api.ClientSpaceConfiguration"/>	
+	<bean id="client.jspace.configuration" class="com.turbospaces.api.ClientSpaceConfiguration"/>	
 </beans>

@@ -45,15 +45,15 @@
             they can take any unit of work from the space and process the task.</para>
     </section>
     <section>
-        <title>elsecloud's space evolution</title>
+        <title>turbospaces's space evolution</title>
         <para>During development and evaluation of other Java Space implementation we realized that something needs to
             be changed in object space principles (and something needs to be extended) to match with modern
-            architectures and exchange patterns. As result of such evaluation first of all elsecloud is not just object
+            architectures and exchange patterns. As result of such evaluation first of all turbospaces is not just object
             space, but in fact it is transactional in-memory object storage(with proper row level concurrent data access
             protection) and support of Read Committed transaction isolation level plus some steroids (like exclusive
             read lock, not just exclusive write lock on row level which can). In fact SQL/NOSQL databases and space
             based storages are very similar in terminology, but very different in access patterns and performance. It is
-            also important to realize that elsecloud is not replacement for databases, quite the contrary we designed
+            also important to realize that turbospaces is not replacement for databases, quite the contrary we designed
             the system for tight integration with external data storages(like RDBMS) in terms of initial data load,
             durable data persistency. The goal is not to be the master(golden source) of data, but rather adopt
             application to use jspace as highly concurrent, ultra fast data manipulation engine (capable to persist
@@ -85,7 +85,7 @@
             </itemizedlist>
             <note>
                 <para>
-                    elsecloud API is a little different from original Java Spaces API and the main difference is that
+                    turbospaces API is a little different from original Java Spaces API and the main difference is that
                     there are no dedicated
                     <literal>take/read</literal>
                     methods, instead there is simple
@@ -135,7 +135,7 @@
                     would need to create template object, set filter properties(only those properties you are interested
                     in) and leave not needed fields with blank(null) value. jspace will take care and match template
                     with de-serialized property values for each entity.</para>
-                <para>Also it is very important to understand that elsecloud capable to do lookup by id extremely fast.
+                <para>Also it is very important to understand that turbospaces capable to do lookup by id extremely fast.
                     Also we have a concept of space indexes(this allows to get near id-based lookup performance for
                     non-id pattern matching).</para>
             </note>

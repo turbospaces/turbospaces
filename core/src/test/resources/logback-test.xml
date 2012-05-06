@@ -5,12 +5,12 @@
 		</encoder>
 	</appender>
 
-	<logger name="com.elsecloud.spaces" additivity="false">
+	<logger name="com.turbospaces.spaces" additivity="false">
 		<level value="INFO" />
 		<appender-ref ref="RootConsoleAppender" />
 	</logger>
     
-    <logger name="com.elsecloud.network" additivity="false">
+    <logger name="com.turbospaces.network" additivity="false">
         <level value="INFO" />
         <appender-ref ref="RootConsoleAppender" />
     </logger>
