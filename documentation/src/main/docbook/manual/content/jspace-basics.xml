@@ -1,0 +1,144 @@
+<para version="5.0" xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <section>
+        <title>tuple space</title>
+        <para>A tuple space is an implementation of the associative memory paradigm for parallel/distributed computing.
+            It provides a repository of tuples that can be accessed concurrently. As an illustrative example, consider
+            that there are a group of processors that produce pieces of data and a group of processors that use the
+            data. Producers post their data as tuples in the space, and the consumers then retrieve data from the space
+            that match a certain pattern. This is also known as the blackboard metaphor. Tuple space may be thought as a
+            form of distributed shared memory. Tuple spaces were the theoretical underpinning of the Linda language
+            developed by David Gelernter and Nicholas Carriero at Yale University.</para>
+    </section>
+    <section>
+        <title>object space</title>
+        <para>Object Spaces is a paradigm for development of distributed computing applications. It is characterized by
+            the existence of logical entities, called Object Spaces. All the participants of the distributed application
+            share an Object Space. A provider of a service encapsulates the service as an Object, and puts it in the
+            Object Space. Clients of a service then access the Object Space, find out which object provides the needed
+            service, and have the request serviced by the object. Object Spaces, as a computing paradigm, was put
+            forward by David Gelernter at Yale University. Gelernter developed a language called Linda to support the
+            concept of global object coordination. Object Space can be thought of as a virtual repository, shared
+            amongst providers and accessors of network services, which are themselves abstracted as objects. Processes
+            communicate among each other using these shared objects — by updating the state of the objects as and when
+            needed. An object, when deposited into a space, needs to be registered with an Object Directory in the
+            Object Space. Any processes can then identify the object from the Object Directory, using properties lookup,
+            where the property specifying the criteria for the lookup of the object is its name or some other property
+            which uniquely identifies it. A process may choose to wait for an object to be placed in the Object Space,
+            if the needed object is not already present. Objects, when deposited in an Object Space are passive, i.e.,
+            their methods cannot be invoked while the objects are in the Object Space. Instead, the accessing process
+            must retrieve it from the Object Space into its local memory, use the service provided by the object, update
+            the state of the object and place it back into the Object Space.</para>
+    </section>
+    <section>
+        <title>java space</title>
+        <para>JavaSpaces is a service specification providing a distributed object exchange and coordination mechanism
+            (which may or may not be persistent) for Java objects. It is used to store the distributed system state and
+            implement distributed algorithms. In a JavaSpace, all communication partners (peers) communicate and
+            coordinate by sharing state. JavaSpaces can be used to achieve scalability through parallel processing, it
+            can also be used to provide reliable storage of objects through distributed replication, although this won't
+            survive a total power failure like a disk; it is regarded by many to be reliable as long as the power is
+            reliable. Distribution can also be to remote locations; however, this is rare as JavaSpaces are usually used
+            to low-latency, high performance applications rather than reliable object caching. The most common software
+            pattern used in JavaSpaces is the Master-Worker pattern. The Master hands out units of work to the "space",
+            and these are read, processed and written back to the space by the workers. In a typical environment there
+            are several "spaces", several masters and many workers; the workers are usually designed to be generic, i.e.
+            they can take any unit of work from the space and process the task.</para>
+    </section>
+    <section>
+        <title>elsecloud's space evolution</title>
+        <para>During development and evaluation of other Java Space implementation we realized that something needs to
+            be changed in object space principles (and something needs to be extended) to match with modern
+            architectures and exchange patterns. As result of such evaluation first of all elsecloud is not just object
+            space, but in fact it is transactional in-memory object storage(with proper row level concurrent data access
+            protection) and support of Read Committed transaction isolation level plus some steroids (like exclusive
+            read lock, not just exclusive write lock on row level which can). In fact SQL/NOSQL databases and space
+            based storages are very similar in terminology, but very different in access patterns and performance. It is
+            also important to realize that elsecloud is not replacement for databases, quite the contrary we designed
+            the system for tight integration with external data storages(like RDBMS) in terms of initial data load,
+            durable data persistency. The goal is not to be the master(golden source) of data, but rather adopt
+            application to use jspace as highly concurrent, ultra fast data manipulation engine (capable to persist
+            changes back to the database in synchronous or asynchronous manner) during application's lifecycle.</para>
+    </section>
+    <section>
+        <title>java space API basics</title>
+        <para>
+            JavaSpace API is extremely lightweight and powerful. There are only 3 basic methods for data manipulation:
+            <itemizedlist>
+                <listitem>
+                    <para>
+                        <literal>write</literal>
+                        - save (or update) entry in space
+                    </para>
+                </listitem>
+                <listitem>
+                    <para>
+                        <literal>fetch</literal>
+                        - read (and optionally remove) entry from the space
+                    </para>
+                </listitem>
+                <listitem>
+                    <para>
+                        <literal>notify</literal>
+                        - notify space clients about changes in space (insert/update/delete)
+                    </para>
+                </listitem>
+            </itemizedlist>
+            <note>
+                <para>
+                    elsecloud API is a little different from original Java Spaces API and the main difference is that
+                    there are no dedicated
+                    <literal>take/read</literal>
+                    methods, instead there is simple
+                    <literal>fetch</literal>
+                    operation. Don't worry because of such low-level API, this is just core methods and technically you
+                    wouldn't use them directly. In most cases SimplisticJSpace proxy interface is something you are
+                    looking for - you will get sugar methods like
+                    <literal>take,read,takeById,readById,evict,evictById.</literal>
+                </para>
+                <para>
+                    Conversion:
+                    <emphasis role="bold">read/take</emphasis>
+                    is in fact just
+                    <emphasis role="bold">fetch</emphasis>
+                    operation (in terms of low-level API), but we will use read/take logical names further.
+                </para>
+            </note>
+            <para>
+                The combination of given 3 methods is really dark power.
+                <itemizedlist>
+                    <listitem>
+                        <para>
+                            <literal>write+read</literal>
+                            perfectly matches with network distributed/data caching oriented solutions.
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <literal>write+take</literal>
+                        is perfect for massive data processing systems with network decoupled data producers and data
+                        processing nodes (working fully asynchronously on top of map-reduce parallel processing
+                        pattern).
+                    </listitem>
+                    <listitem>
+                        <literal>write+take+notify</literal>
+                        great for messaging systems. Application code can be notified with space changes
+                        asynchronously(like JMS). Another great example for notify is so-called 'local cache' -
+                        something cached on remote client's side(in order to reduce network trips) and something that
+                        gets updated automatically in case of data changes on remote server node.
+                    </listitem>
+                </itemizedlist>
+            </para>
+            <note>
+                <title>Template Matching</title>
+                <para>Internally space entities are stored in form of off-heap byte array and jspace capable to
+                    de-serialized this blob to array of property values very efficiently. Data retrieval is done using
+                    so-called template matching mechanism(something similar to hibernate's findByExample method). You
+                    would need to create template object, set filter properties(only those properties you are interested
+                    in) and leave not needed fields with blank(null) value. jspace will take care and match template
+                    with de-serialized property values for each entity.</para>
+                <para>Also it is very important to understand that elsecloud capable to do lookup by id extremely fast.
+                    Also we have a concept of space indexes(this allows to get near id-based lookup performance for
+                    non-id pattern matching).</para>
+            </note>
+        </para>
+    </section>
+</para>

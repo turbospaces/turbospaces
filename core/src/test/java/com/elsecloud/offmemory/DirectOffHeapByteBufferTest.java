@@ -1,0 +1,601 @@
+package com.elsecloud.offmemory;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import junit.framework.Assert;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataRetrievalFailureException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.mapping.model.BasicPersistentEntity;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
+
+import com.elsecloud.api.CapacityRestriction;
+import com.elsecloud.api.JSpace;
+import com.elsecloud.api.SpaceCapacityOverflowException;
+import com.elsecloud.api.SpaceConfiguration;
+import com.elsecloud.core.SpaceUtility;
+import com.elsecloud.model.BO;
+import com.elsecloud.model.TestEntity1;
+import com.elsecloud.spaces.CacheStoreEntryWrapper;
+import com.elsecloud.spaces.CountingSpaceNotificationListener;
+import com.elsecloud.spaces.NotificationContext;
+import com.elsecloud.spaces.SpaceCapacityRestrictionHolder;
+import com.elsecloud.spaces.tx.TransactionModificationContext;
+
+@RunWith(Parameterized.class)
+@SuppressWarnings({ "javadoc", "rawtypes" })
+public class DirectOffHeapByteBufferTest {
+    OffHeapCacheStore buffer;
+    SpaceConfiguration configuration;
+    boolean matchById;
+    BO bo;
+
+    public DirectOffHeapByteBufferTest(final boolean matchById) {
+        this.matchById = matchById;
+    }
+
+    @Parameters
+    public static List<Object[]> data() {
+        return Arrays.asList( new Object[][] { { Boolean.TRUE } } );
+    }
+
+    @SuppressWarnings("unchecked")
+    @Before
+    public void before()
+                        throws Exception {
+        configuration = TestEntity1.configurationFor();
+        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
+        bo = new BO( (BasicPersistentEntity) configuration.getMappingContext().getPersistentEntity( TestEntity1.class ) );
+    }
+
+    @After
+    public void after()
+                       throws Exception {
+        System.out.println( buffer );
+        assertThat( buffer.getIndexManager(), is( notNullValue() ) );
+        buffer.destroy();
+        configuration.destroy();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void canGetSpaceOverflowException()
+                                              throws Exception {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        buffer.destroy();
+        configuration = new SpaceConfiguration();
+        MongoMappingContext mappingContext = new MongoMappingContext();
+        mappingContext.setInitialEntitySet( Collections.singleton( TestEntity1.class ) );
+        mappingContext.afterPropertiesSet();
+        configuration.setMappingContext( mappingContext );
+        CapacityRestriction capacityRestriction = new CapacityRestriction();
+        capacityRestriction.setMaxElements( 1 );
+        configuration.restrictCapacity( TestEntity1.class, capacityRestriction );
+        configuration.afterPropertiesSet();
+        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
+
+        TestEntity1 entity1 = new TestEntity1();
+        TestEntity1 entity2 = new TestEntity1();
+
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+
+        try {
+            modificationContext.flush( buffer );
+            Assert.fail();
+        }
+        catch ( SpaceCapacityOverflowException e ) {
+            assertThat( e.getMaxElements(), is( configuration.boFor( TestEntity1.class ).getCapacityRestriction().getMaxElements() ) );
+            assertThat( e.getObj(), anyOf( is( (Object) entity2 ), is( (Object) entity1 ) ) );
+        }
+        finally {
+            configuration.destroy();
+        }
+    }
+
+    @Test
+    public void bahaveCorrectly()
+                                 throws InterruptedException {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity = new TestEntity1();
+        entity.afterPropertiesSet();
+
+        int takeModifier = JSpace.TAKE_ONLY;
+        int readModifier = JSpace.READ_ONLY;
+        if ( matchById ) {
+            takeModifier = takeModifier | JSpace.MATCH_BY_ID;
+            readModifier = readModifier | JSpace.MATCH_BY_ID;
+        }
+
+        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, entity );
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.WRITE_ONLY );
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
+        buffer.fetch( wrapper, modificationContext, 0, 1, takeModifier );
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.WRITE_ONLY );
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
+        buffer.fetch( wrapper, modificationContext, 0, 1, takeModifier );
+
+        Assert.assertTrue( modificationContext.isDirty() );
+        modificationContext.flush( buffer );
+
+        entity.s1 = UUID.randomUUID().toString();
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.WRITE_ONLY );
+        CountingSpaceNotificationListener listener = new CountingSpaceNotificationListener();
+        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                listener,
+                readModifier ) ) );
+        Thread.sleep( 10 );
+        assertThat( listener.getWrites().size(), is( 1 ) );
+
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
+        listener = new CountingSpaceNotificationListener();
+        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                listener,
+                readModifier ) ) );
+        Thread.sleep( 10 );
+        assertThat( listener.getChanges().size(), is( 1 ) );
+
+        buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
+        buffer.fetch( wrapper, modificationContext, 0, 1, takeModifier );
+        assertThat( buffer.fetch( wrapper, modificationContext, 0, 1, readModifier ), is( nullValue() ) );
+        Assert.assertTrue( modificationContext.isDirty() );
+
+        listener = new CountingSpaceNotificationListener();
+        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                listener,
+                readModifier ) ) );
+        Thread.sleep( 10 );
+        assertThat( listener.getTakes().size(), is( 1 ) );
+    }
+
+    @Test
+    public void canAdd3EntitiesAndFindByItself()
+                                                throws CloneNotSupportedException,
+                                                InterruptedException {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity1 = new TestEntity1();
+        TestEntity1 entity2 = new TestEntity1();
+        TestEntity1 entity3 = new TestEntity1();
+
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+        entity3.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+
+        TestEntity1 entity1Clone = entity1.clone();
+        TestEntity1 entity2Clone = entity2.clone();
+        TestEntity1 entity3Clone = entity3.clone();
+
+        int modifier = JSpace.READ_ONLY;
+        if ( matchById )
+            modifier = modifier | JSpace.MATCH_BY_ID;
+
+        ByteBuffer[] match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1Clone ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2Clone ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3Clone ), modificationContext, 0, 1, modifier );
+
+        assertThat( match1.length, is( 1 ) );
+        assertThat( match2.length, is( 1 ) );
+        assertThat( match3.length, is( 1 ) );
+
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match1[0], TestEntity1.class ).getObject() ).assertMatch( entity1 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match3[0], TestEntity1.class ).getObject() ).assertMatch( entity3 );
+
+        buffer.cacheStatisticsSnapshot();
+        CountingSpaceNotificationListener listener = new CountingSpaceNotificationListener();
+        modificationContext.flush(
+                buffer,
+                Collections.singleton( new NotificationContext( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), listener, modifier ) ) );
+        Thread.sleep( 10 );
+        assertThat( listener.getWrites().size(), is( 1 ) );
+    }
+
+    @Test(expected = DuplicateKeyException.class)
+    public void canGetDuplicateExceptionInContextOfSingleTransaction() {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+
+        TestEntity1 entity1 = new TestEntity1();
+        TestEntity1 entity2 = new TestEntity1();
+
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+        entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+    }
+
+    @Test(expected = CannotAcquireLockException.class)
+    public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForWrite()
+                                                                                        throws Exception {
+        TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
+        TestEntity1 entity1 = new TestEntity1();
+
+        final TestEntity1 entity2 = new TestEntity1();
+        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+        entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext1,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    buffer.write(
+                            CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                            modificationContext2,
+                            JSpace.LEASE_FOREVER,
+                            1,
+                            JSpace.WRITE_ONLY );
+                }
+                finally {
+                    modificationContext2.discard( buffer );
+                }
+            }
+        } );
+    }
+
+    @Test(expected = DuplicateKeyException.class)
+    public void canGetDuplicateExceptionWithWriteOnlyModifier() {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity1 = new TestEntity1();
+        TestEntity1 entity2 = new TestEntity1();
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+        entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        modificationContext.flush( buffer );
+        try {
+            buffer.write(
+                    CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                    modificationContext,
+                    JSpace.LEASE_FOREVER,
+                    Integer.MAX_VALUE,
+                    JSpace.WRITE_ONLY );
+        }
+        finally {
+            modificationContext.discard( buffer );
+        }
+    }
+
+    @Test(expected = DataRetrievalFailureException.class)
+    public void canGetObjectRetrieveExceptionWithUpdateOnlyModifier() {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity = new TestEntity1();
+        entity.afterPropertiesSet();
+
+        try {
+            buffer.write(
+                    CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                    modificationContext,
+                    JSpace.LEASE_FOREVER,
+                    Integer.MAX_VALUE,
+                    JSpace.UPDATE_ONLY );
+        }
+        finally {
+            modificationContext.discard( buffer );
+        }
+    }
+
+    @Test
+    public void puttingObjectByTheSameUniqueIdentifierBehavesAsOverride()
+                                                                         throws CloneNotSupportedException {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity = new TestEntity1();
+        entity.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        modificationContext.flush( buffer );
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.UPDATE_ONLY );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.UPDATE_ONLY );
+        modificationContext.flush( buffer );
+    }
+
+    @Test
+    public void canAddEntitiesAndTakeByItself() {
+        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TestEntity1 entity1 = new TestEntity1();
+        TestEntity1 entity2 = new TestEntity1();
+        TestEntity1 entity3 = new TestEntity1();
+
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+        entity3.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ),
+                modificationContext,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_OR_UPDATE );
+
+        int modifier = JSpace.EXCLUSIVE_READ_LOCK;
+        if ( matchById )
+            modifier = modifier | JSpace.MATCH_BY_ID;
+
+        ByteBuffer[] match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
+
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match1[0], TestEntity1.class ).getObject() ).assertMatch( entity1 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match3[0], TestEntity1.class ).getObject() ).assertMatch( entity3 );
+
+        modifier = JSpace.TAKE_ONLY;
+        if ( matchById )
+            modifier = modifier | JSpace.MATCH_BY_ID;
+
+        match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
+        match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
+        match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
+
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match1[0], TestEntity1.class ).getObject() ).assertMatch( entity1 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
+        ( (TestEntity1) configuration.getEntitySerializer().deserialize( match3[0], TestEntity1.class ).getObject() ).assertMatch( entity3 );
+
+        modificationContext.flush( buffer );
+
+        buffer.resetCacheStatistics();
+
+        assertThat( match1.length, is( 1 ) );
+        assertThat( match2.length, is( 1 ) );
+        assertThat( match3.length, is( 1 ) );
+    }
+
+    @Test(expected = CannotAcquireLockException.class)
+    public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForTake()
+                                                                                       throws Exception {
+        final TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+
+        final TestEntity1 entity1 = new TestEntity1();
+        entity1.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext1,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        modificationContext1.flush( buffer );
+
+        final AtomicInteger modifier = new AtomicInteger( JSpace.TAKE_ONLY );
+        if ( matchById )
+            modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
+        // lock entity for delete, but do not flush transaction modification context immediately
+        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 0, modifier.intValue() );
+        throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    long timeout = 1;
+                    buffer.fetch(
+                            CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                            modificationContext2,
+                            timeout,
+                            10,
+                            modifier.intValue() );
+                }
+                finally {
+                    modificationContext2.discard( buffer );
+                }
+            }
+        } );
+    }
+
+    @Test(expected = CannotAcquireLockException.class)
+    public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForExclusiveRead()
+                                                                                                throws Exception {
+        final TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+
+        final TestEntity1 entity1 = new TestEntity1();
+        entity1.afterPropertiesSet();
+
+        buffer.write(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext1,
+                JSpace.LEASE_FOREVER,
+                Integer.MAX_VALUE,
+                JSpace.WRITE_ONLY );
+        modificationContext1.flush( buffer );
+
+        final AtomicInteger modifier = new AtomicInteger( JSpace.EXCLUSIVE_READ_LOCK );
+        if ( matchById )
+            modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
+        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 1, modifier.intValue() );
+        try {
+            throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+
+                @Override
+                public void run() {
+                    try {
+                        long timeout = 1;
+                        buffer.fetch(
+                                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                                modificationContext2,
+                                timeout,
+                                1,
+                                modifier.intValue() );
+                    }
+                    finally {
+                        modificationContext2.discard( buffer );
+                    }
+                }
+            } );
+        }
+        finally {
+            System.out.println( modificationContext1 );
+            modificationContext2.flush( buffer );
+            modificationContext1.flush( buffer );
+        }
+    }
+
+    @Test
+    public void canReleaseLockForPreviouslyUnstorredId() {
+        final TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        final TestEntity1 entity = new TestEntity1();
+        entity.afterPropertiesSet();
+
+        int takeModifier = JSpace.TAKE_ONLY;
+        int readModifier = JSpace.EXCLUSIVE_READ_LOCK;
+        if ( matchById ) {
+            takeModifier = takeModifier | JSpace.MATCH_BY_ID;
+            readModifier = readModifier | JSpace.MATCH_BY_ID;
+        }
+
+        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, takeModifier );
+        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, readModifier );
+    }
+
+    @Test
+    public void evictionWorksForReadTakeEvictOperations()
+                                                         throws InterruptedException {
+        final TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        final TestEntity1 entity1 = new TestEntity1();
+        final TestEntity1 entity2 = new TestEntity1();
+        entity1.afterPropertiesSet();
+        entity2.afterPropertiesSet();
+
+        buffer.write( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
+        buffer.write( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
+        modificationContext.flush( buffer );
+
+        Thread.sleep( 2 );
+
+        int takeModifier = JSpace.TAKE_ONLY;
+        int readModifier = JSpace.EXCLUSIVE_READ_LOCK;
+        if ( matchById ) {
+            takeModifier = takeModifier | JSpace.MATCH_BY_ID;
+            readModifier = readModifier | JSpace.MATCH_BY_ID;
+        }
+
+        ByteBuffer[] list = buffer.fetch(
+                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                modificationContext,
+                Long.MAX_VALUE,
+                1,
+                takeModifier );
+        assertThat( list, is( nullValue() ) );
+        list = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, Long.MAX_VALUE, 1, readModifier );
+        assertThat( list, is( nullValue() ) );
+    }
+}

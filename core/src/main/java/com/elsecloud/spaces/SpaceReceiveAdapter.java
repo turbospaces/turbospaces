@@ -1,0 +1,393 @@
+package com.elsecloud.spaces;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.concurrent.ThreadSafe;
+
+import org.jgroups.Address;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
+import org.jgroups.View;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.remoting.RemoteConnectFailureException;
+
+import com.elsecloud.api.AbstractSpaceConfiguration;
+import com.elsecloud.api.JSpace;
+import com.elsecloud.api.SpaceNotificationListener;
+import com.elsecloud.api.SpaceOperation;
+import com.elsecloud.core.SpaceUtility;
+import com.elsecloud.network.MethodCall;
+import com.elsecloud.network.MethodCall.BeginTransactionMethodCall;
+import com.elsecloud.network.MethodCall.CommitRollbackMethodCall;
+import com.elsecloud.network.MethodCall.FetchMethodCall;
+import com.elsecloud.network.MethodCall.NotifyListenerMethodCall;
+import com.elsecloud.network.MethodCall.WriteMethodCall;
+import com.elsecloud.pool.ObjectPool;
+import com.elsecloud.spaces.tx.SpaceTransactionHolder;
+import com.elsecloud.spaces.tx.TransactionModificationContext;
+import com.esotericsoftware.kryo.Kryo.RegisteredClass;
+import com.esotericsoftware.kryo.ObjectBuffer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
+
+/**
+ * jspace network communication adapter
+ * 
+ * @since 0.1
+ */
+@ThreadSafe
+class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, DisposableBean {
+    private final Logger LOGGER = LoggerFactory.getLogger( getClass() );
+
+    private final ObjectPool<ObjectBuffer> objectBufferPool;
+    private final ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>> durableTransactions;
+    private final AbstractJSpace jSpace;
+    private ScheduledFuture<?> cleaupFuture;
+    private volatile Address[] clientConnectors;
+
+    SpaceReceiveAdapter(final AbstractJSpace jSpace) {
+        this.jSpace = jSpace;
+        this.objectBufferPool = SpaceUtility.newObjectBufferPool();
+        this.durableTransactions = new ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>>();
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        ScheduledExecutorService scheduledExecutorService = jSpace.getSpaceConfiguration().getScheduledExecutorService();
+        cleaupFuture = scheduledExecutorService.scheduleWithFixedDelay( new Runnable() {
+            @Override
+            public void run() {
+                if ( !durableTransactions.isEmpty() ) {
+                    Collection<Cache<Long, SpaceTransactionHolder>> values = durableTransactions.values();
+                    for ( Cache<Long, SpaceTransactionHolder> cache : values ) {
+                        LOGGER.debug( "running automatic cleanup of dead transaction for {}", cache );
+                        cache.cleanUp();
+                    }
+                }
+            }
+        }, 0, 50, TimeUnit.MILLISECONDS );
+    }
+
+    @Override
+    public void destroy() {
+        if ( cleaupFuture != null )
+            cleaupFuture.cancel( false );
+    }
+
+    @Override
+    public void receive(final Message msg) {
+        final byte[] data = msg.getBuffer();
+        final ObjectBuffer objectBuffer = objectBufferPool.borrowObject();
+        final Address nodeRaised = msg.getSrc();
+        objectBuffer.setKryo( jSpace.getSpaceConfiguration().getKryo() );
+
+        try {
+            final MethodCall methodCall = (MethodCall) objectBuffer.readClassAndObject( data );
+            final short id = methodCall.getMethodId();
+
+            SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[methodCall.getMethodId()];
+            LOGGER.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
+
+            if ( id == SpaceMethodsMapping.BEGIN_TRANSACTION.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        /**
+                         * 1. read transaction timeout
+                         * 2. create local durable transaction for remote client and assign id
+                         * 3. propagate remote transaction timeout and apply to local transaction
+                         * 4. send transaction id back to client
+                         */
+                        BeginTransactionMethodCall beginTransactionMethodCall = (BeginTransactionMethodCall) methodCall;
+                        long transactionTimeout = beginTransactionMethodCall.getTransactionTimeout();
+                        SpaceTransactionHolder spaceTransactionHolder = new SpaceTransactionHolder();
+                        spaceTransactionHolder.setSynchronizedWithTransaction( true );
+                        spaceTransactionHolder.setTimeoutInMillis( transactionTimeout );
+                        TransactionModificationContext mc = TransactionModificationContext.borrowObject();
+                        mc.setProxyMode( true );
+                        spaceTransactionHolder.setModificationContext( mc );
+                        modificationContextFor( nodeRaised ).put( mc.getTransactionId(), spaceTransactionHolder );
+                        methodCall.setResponseBody( objectBuffer.writeObjectData( mc.getTransactionId() ) );
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.COMMIT_TRANSACTION.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
+                        try {
+                            SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
+                            Preconditions.checkState(
+                                    th != null,
+                                    "unable to find transaction with id = %s for commit",
+                                    commitMethodCall.getTransactionId() );
+                            jSpace.syncTx( th.getModificationContext(), true );
+                        }
+                        finally {
+                            durableTransactions.remove( commitMethodCall.getTransactionId() );
+                        }
+                    }
+                },
+                        nodeRaised,
+                        objectBuffer );
+            else if ( id == SpaceMethodsMapping.ROLLBACK_TRANSACTION.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
+                        try {
+                            SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
+                            Preconditions.checkState(
+                                    th != null,
+                                    "unable to find transaction with id = %s for rollback",
+                                    commitMethodCall.getTransactionId() );
+                            jSpace.syncTx( th.getModificationContext(), false );
+                        }
+                        finally {
+                            durableTransactions.remove( commitMethodCall.getTransactionId() );
+                        }
+                    }
+                },
+                        nodeRaised,
+                        objectBuffer );
+            else if ( id == SpaceMethodsMapping.WRITE.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        WriteMethodCall writeMethodCall = (WriteMethodCall) methodCall;
+                        byte[] entityAndClassData = writeMethodCall.getEntity();
+                        ByteBuffer byteBuffer = ByteBuffer.wrap( entityAndClassData );
+
+                        int modifiers = writeMethodCall.getModifiers();
+                        long timeout = writeMethodCall.getTimeout();
+                        long timeToLive = writeMethodCall.getTimeToLive();
+
+                        /**
+                         * 1. read registered class (without actual data)
+                         * 2. get the actual type of the remote entry
+                         * 3. copy serialized entry state from the byte buffer, omit redundant serialization later
+                         * 4. find appropriate transaction modification context if any
+                         * 5. call write method itself
+                         */
+                        RegisteredClass entryClass = jSpace.getSpaceConfiguration().getKryo().readClass( byteBuffer );
+                        Class<?> entryType = entryClass.getType();
+                        byte[] entityData = Arrays.copyOfRange( byteBuffer.array(), byteBuffer.position(), byteBuffer.capacity() );
+                        Object entry = jSpace.getSpaceConfiguration().getKryo().readObjectData( byteBuffer, entryType );
+
+                        SpaceTransactionHolder holder = null;
+                        if ( writeMethodCall.getTransactionId() != 0 )
+                            holder = modificationContextFor( nodeRaised ).getIfPresent( writeMethodCall.getTransactionId() );
+
+                        jSpace.write( holder, entry, entityData, timeToLive, timeout, modifiers );
+                        writeMethodCall.reset();
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.FETCH.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        FetchMethodCall fetchMethodCall = (FetchMethodCall) methodCall;
+                        byte[] entityData = fetchMethodCall.getEntity();
+
+                        int originalModifiers = fetchMethodCall.getModifiers();
+                        long timeout = fetchMethodCall.getTimeout();
+                        int maxResults = fetchMethodCall.getMaxResults();
+                        Object template = objectBuffer.readClassAndObject( entityData );
+                        int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
+
+                        SpaceTransactionHolder holder = null;
+                        if ( fetchMethodCall.getTransactionId() != 0 )
+                            holder = modificationContextFor( nodeRaised ).getIfPresent( fetchMethodCall.getTransactionId() );
+
+                        ByteBuffer[] buffers = (ByteBuffer[]) jSpace.fetch( holder, template, timeout, maxResults, modifiers );
+                        if ( buffers != null ) {
+                            byte[][] response = new byte[buffers.length][];
+                            for ( int i = 0; i < buffers.length; i++ ) {
+                                ByteBuffer buffer = buffers[i];
+                                response[i] = buffer.array();
+                            }
+                            fetchMethodCall.setResponseBody( objectBuffer.writeObjectData( response ) );
+                        }
+                        fetchMethodCall.reset();
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.NOTIFY.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        NotifyListenerMethodCall registerMethodCall = (NotifyListenerMethodCall) methodCall;
+                        byte[] entityData = registerMethodCall.getEntity();
+
+                        int originalModifiers = registerMethodCall.getModifiers();
+                        Object template = objectBuffer.readClassAndObject( entityData );
+                        int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
+                        jSpace.notify( template, new SpaceNotificationListener() {
+
+                            @Override
+                            public void handleNotification(final Object entity,
+                                                           final SpaceOperation operation) {
+                                ObjectBuffer innerObjectBuffer = objectBufferPool.borrowObject();
+                                innerObjectBuffer.setKryo( jSpace.getSpaceConfiguration().getKryo() );
+                                try {
+                                    sendResponseBackAfterExecution( methodCall, new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            NotifyListenerMethodCall methodCall = new NotifyListenerMethodCall();
+                                            methodCall.setEntity( ( (ByteBuffer) entity ).array() );
+                                            methodCall.setOperation( operation );
+                                        }
+                                    }, nodeRaised, innerObjectBuffer );
+                                }
+                                finally {
+                                    objectBufferPool.returnObject( innerObjectBuffer );
+                                }
+                            }
+                        }, modifiers );
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.SIZE.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.size() ) );
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.MB_USED.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.mbUsed() ) );
+                    }
+                }, nodeRaised, objectBuffer );
+            else if ( id == SpaceMethodsMapping.SPACE_TOPOLOGY.ordinal() )
+                sendResponseBackAfterExecution( methodCall, new Runnable() {
+                    @Override
+                    public void run() {
+                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.getSpaceConfiguration().getTopology() ) );
+                    }
+                }, nodeRaised, objectBuffer );
+        }
+        finally {
+            objectBufferPool.returnObject( objectBuffer );
+        }
+    }
+
+    private void sendResponseBackAfterExecution(final MethodCall methodCall,
+                                                final Runnable task,
+                                                final Address address,
+                                                final ObjectBuffer objectBuffer)
+                                                                                throws RemoteConnectFailureException {
+        try {
+            task.run();
+        }
+        catch ( Throwable ex ) {
+            methodCall.setException( ex );
+            LOGGER.error( ex.getMessage(), ex );
+        }
+        finally {
+            JChannel jChannel = jSpace.getSpaceConfiguration().getJChannel();
+            Message messageBack = new Message();
+            messageBack.setBuffer( objectBuffer.writeClassAndObject( methodCall ) );
+            messageBack.setDest( address );
+            messageBack.setSrc( jChannel.getAddress() );
+
+            try {
+                jChannel.send( messageBack );
+            }
+            catch ( Exception e ) {
+                LOGGER.error( e.getMessage(), e );
+                throw new RemoteConnectFailureException( "unable to send response back to " + address, e );
+            }
+        }
+    }
+
+    @Override
+    public void suspect(final Address mbr) {
+        Cache<Long, SpaceTransactionHolder> modificationContexts = modificationContextFor( mbr );
+        Set<Long> keys = modificationContexts.asMap().keySet();
+        if ( keys.size() > 0 )
+            LOGGER.warn( "Address {} has been suspected, this may cause automatic rollback for active transactions soon, ids = {}", mbr, keys );
+    }
+
+    @Override
+    public void viewAccepted(final View view) {
+        final Address[] prevConnectors = clientConnectors;
+        final Address[] newClientConnectors = getClientConnections( view );
+
+        if ( prevConnectors != null ) {
+            List<Address> l = new ArrayList<Address>( Arrays.asList( prevConnectors ) );
+            l.removeAll( Arrays.asList( newClientConnectors ) );
+
+            // automatically roll-back un-committed transactions, we can't leave them as this as they holds locks
+            for ( Address a : l ) {
+                Cache<Long, SpaceTransactionHolder> modificationContextFor = modificationContextFor( a );
+                ConcurrentMap<Long, SpaceTransactionHolder> asMap = modificationContextFor.asMap();
+                Set<Entry<Long, SpaceTransactionHolder>> entrySet = asMap.entrySet();
+                for ( Entry<Long, SpaceTransactionHolder> entry : entrySet ) {
+                    Long transactionId = entry.getKey();
+                    SpaceTransactionHolder transactionHolder = entry.getValue();
+                    LOGGER.warn( "automatically rolling back transaction id={} due to client's connection disconnect", transactionId );
+                    jSpace.syncTx( transactionHolder.getModificationContext(), false );
+                    modificationContextFor.invalidate( transactionId );
+                }
+            }
+        }
+
+        clientConnectors = newClientConnectors;
+    }
+
+    @VisibleForTesting
+    Cache<Long, SpaceTransactionHolder> modificationContextFor(final Address address) {
+        Cache<Long, SpaceTransactionHolder> cache = durableTransactions.get( address );
+        if ( cache == null )
+            synchronized ( this ) {
+                CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+                applyExpireAfterWriteSettings( cacheBuilder );
+                cache = cacheBuilder.removalListener( new RemovalListener<Long, SpaceTransactionHolder>() {
+
+                    @Override
+                    public void onRemoval(final RemovalNotification<Long, SpaceTransactionHolder> notification) {
+                        Long transactionId = notification.getKey();
+                        SpaceTransactionHolder txHolder = notification.getValue();
+
+                        if ( notification.wasEvicted() ) {
+                            LOGGER.warn( "cleaning up(rolling back) expired transaction id={}", transactionId );
+                            jSpace.syncTx( txHolder.getModificationContext(), false );
+                        }
+                    }
+                } ).build();
+                durableTransactions.putIfAbsent( address, cache );
+                cache = durableTransactions.get( address );
+            }
+        return cache;
+    }
+
+    @VisibleForTesting
+    void applyExpireAfterWriteSettings(final CacheBuilder<Object, Object> builder) {
+        builder.expireAfterWrite( AbstractSpaceConfiguration.defaultTransactionTimeout(), TimeUnit.SECONDS );
+    }
+
+    @VisibleForTesting
+    Address[] getClientConnections(@SuppressWarnings("unused") final View view) {
+        return jSpace.getSpaceConfiguration().getMessageDispatcher().getRawClientNodes();
+    }
+}

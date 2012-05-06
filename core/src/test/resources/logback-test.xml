@@ -1,0 +1,32 @@
+<configuration scan="false">
+	<appender name="RootConsoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS}|%p|%c{25}|%t|%m%n</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="com.elsecloud.spaces" additivity="false">
+		<level value="INFO" />
+		<appender-ref ref="RootConsoleAppender" />
+	</logger>
+    
+    <logger name="com.elsecloud.network" additivity="false">
+        <level value="INFO" />
+        <appender-ref ref="RootConsoleAppender" />
+    </logger>
+
+	<logger name="org.springframework.tx" additivity="false">
+		<level value="DEBUG" />
+		<appender-ref ref="RootConsoleAppender" />
+	</logger>
+
+	<logger name="org.jgroups" additivity="false">
+		<level value="INFO" />
+		<appender-ref ref="RootConsoleAppender" />
+	</logger>
+
+	<root>
+		<level value="INFO" />
+		<appender-ref ref="RootConsoleAppender" />
+	</root>
+</configuration>

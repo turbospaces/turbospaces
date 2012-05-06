@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:jspace="http://www.elsecloud.com/schema/jspace"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+       http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+       http://www.elsecloud.com/schema/jspace http://www.elsecloud.com/schema/jspace/elsecloud-spring.xsd">
+
+    <context:annotation-config/>
+    <tx:annotation-driven proxy-target-class="true" mode="proxy" />
+    <jspace:jspace-cfg id="jspace.configuration" 
+                       mappingContext="mongo.mapping.context" 
+                       group="tech-v${project.version}-jspace"
+                       conversionService="conversion.service"
+                       jChannel="jchannel"
+                       kryo="kryo"/>
+
+	<bean id="mongo.mapping.context" class="org.springframework.data.mongodb.core.mapping.MongoMappingContext">
+	   <property name="initialEntitySet">
+	      <list>
+	        <value>com.elsecloud.model.TestEntity1</value>
+	      </list>
+	   </property>
+	</bean>
+	
+	<bean id="conversion.service" class="org.springframework.core.convert.support.DefaultConversionService"/>
+	<bean id="jchannel" class="org.jgroups.JChannel"/>
+	<bean id="kryo" class="com.esotericsoftware.kryo.Kryo"/>
+</beans>

@@ -1,0 +1,139 @@
+<para version="5.0" xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <para>elsecloud is another in-memory data grid (platform at some extent) written in java for applications where
+        distributed, concurrent, low-latency, failover, high throughput and linear-scalability is a key. Being a new
+        brand technology, elsecloud is elegant implementation of Java Spaces like API(without relying on SUN's JavaSpace
+        technology and libraries), fully-transactional in-memory object-oriented database with elastic and flexible
+        external data storage bindings, extremely fast off-heap store(meaning that java heap is not occupied by the
+        application's data at all). Result of such off-heap memory orientation is that application does not spend time
+        on automatic garbage collections, but rather doing real job with millions transactions per second throughput and
+        minimal latency. You can get product for free just because it is open source project and distributed over Apache
+        2.0 user-friendly license.</para>
+    <para>Certainly our cloud is not limited to java space technical stack, off-heap persistent storage. We consider it
+        as direct replacement for typical Enterprise Java Applications with a standard stack of RDMBS, EJB, JTA, JMS,
+        JPA. It is extremely easy to start using elsecloud just because it has minimal list of dependencies.</para>
+    <para>
+        Given fact that there are few alternative in-memory data grid solutions available in the market, we declare
+        elsecloud as modern implementation of the best concepts taken from
+        <literal>Java Spaces, Gigaspaces, Ehcache, Hazelcast, Coherence, NOSQL.</literal>
+        The ultimate goal is to match with real-world non-functional requirements like 99.999% application uptime,
+        hot-deployment.
+    </para>
+    <section>
+        <title>main features</title>
+        <itemizedlist>
+            <listitem>
+                <para>
+                    OffHeap memory solution not bound and is not restricted by the java heap space similar to
+                    <literal>SUN's DirectBuffer</literal>
+                    with minimal GC impact(2-5% of JVM time) capable to handle millions transactions per second on
+                    standard (pretty cheap) machines running on any platform with minimal response time.
+                </para>
+            </listitem>
+            <listitem>
+                <para>In-memory object oriented transactional database.</para>
+            </listitem>
+            <listitem>
+                <para>User-controlled data partitioning, dynamic fail-over over back-up nodes</para>
+            </listitem>
+            <listitem>
+                <para>
+                    External data source bindings -
+                    <literal>JPA/MongoDB/JDBC/Redis</literal>
+                    or any other storage support by
+                    <link xlink:href="http://www.springsource.org/spring-data">spring-data.</link>
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Distributed and persistent(replicated or either partitioned) implementation of
+                    <literal>JavaSpace API.</literal>
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Powerful event-driven remoting via synchronous remote method invocation(don't confuse with RMI) or
+                    either asynchronous via
+                    <literal>write/notify message</literal>
+                    delivery model.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Support for message driven exchange pattern (integration with
+                    <literal>JMS API</literal>
+                    ).
+                </para>
+            </listitem>
+            <listitem>
+                <para>Unlimited and linear scalability.</para>
+            </listitem>
+            <listitem>
+                <para>Powerful web-based monitoring system and alerting engine(also can be exposed through JMX).</para>
+            </listitem>
+            <listitem>
+                <para>
+                    Distributed
+                    <literal>Lock/Executor Service.</literal>
+                </para>
+            </listitem>
+            <listitem>
+                <para>Multicast and unicast discovery.</para>
+            </listitem>
+            <listitem>
+                <para>Tight integration with spring framework (namespace, transaction management, lifecycle, events,
+                    caching layer).</para>
+            </listitem>
+            <listitem>
+                <para>Super small: near 250 KB</para>
+            </listitem>
+            <listitem>
+                <para>Customizable for concrete scenarios in terms of serialization, network communications</para>
+            </listitem>
+        </itemizedlist>
+    </section>
+    <section>
+        <title>technological stack</title>
+        <itemizedlist>
+            <listitem>
+                <para>
+                    <literal>Spring framework 3</literal>
+                    - elsecloud is built on top of spring framework and supports spring natively, making integration
+                    super easy. In addition java space namespace has been created making beans declaration easier and
+                    more informative. You can expect to see spring's exception hierarchy classes in place instead of any
+                    custom.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    <literal>Jgroups 3</literal>
+                    - elsecloud internally uses this framework for network communications between members (over
+                    multicast and unicast protocols) as well as for members discovery. Jgroups provides very powerful
+                    asynchronous message delivery mechanisms and extremely customizable.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    <literal>Spring data</literal>
+                    - we use this for data synchronization with 'so called external data sources engines. This can be
+                    JPA/JDBC/MongoDB/Redis, so using spring-data really simplifies the things around integration
+                    process. Also we re-use spring data's abstraction and commons stuff for meta-data handling(POJO
+                    field analyze, association handling, etc).
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    <literal>Kryo</literal>
+                    - we use this framework for serialization purposes(between remote client and server nodes or
+                    optionally for storing entities in serialized form in off-heap memory buffers).
+                </para>
+            </listitem>
+        </itemizedlist>
+        <note>You will find more information and argumentation for specific technologies on design concerns page</note>
+    </section>
+    <para>
+        After short introduction, something needs to be added! Elsecloud is in active development phaze, we appreciate
+        your feedback and help on getting thing around done. Please feel free to contact our team or me
+        <email>aandrey.borisov@gmail.com</email>
+        and participate in development.
+    </para>
+</para>
