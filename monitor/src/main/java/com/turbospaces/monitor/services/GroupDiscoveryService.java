@@ -26,8 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 
-import com.turbospaces.network.NetworkCommunicationDispatcher;
-
 /**
  * responsible for managing jgroups connections
  * 
@@ -55,7 +53,6 @@ public class GroupDiscoveryService {
             jChannel.setDiscardOwnMessages( true );
             ProtocolStack protocolStack = jChannel.getProtocolStack();
             protocolStack.getTransport().setValue( "enable_diagnostics", false );
-            jChannel.setReceiver( new NetworkCommunicationDispatcher( jChannel, 0 ) );
             logger.info( "joining network group {}", group );
             jChannel.connect( group );
             channels.put( group, jChannel );
