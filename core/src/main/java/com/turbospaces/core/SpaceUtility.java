@@ -94,6 +94,7 @@ import com.turbospaces.network.MethodCall.FetchMethodCall;
 import com.turbospaces.network.MethodCall.GetMbUsedMethodCall;
 import com.turbospaces.network.MethodCall.GetSizeMethodCall;
 import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
+import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.pool.ObjectFactory;
@@ -224,8 +225,6 @@ public abstract class SpaceUtility {
                                                       throws ClassNotFoundException {
         final Map<Class<?>, Serializer> serializers = new LinkedHashMap<Class<?>, Serializer>();
         final Kryo kryo = givenKryo == null ? new Kryo() {
-            private final Logger logger = LoggerFactory.getLogger( getClass() );
-
             @Override
             public String toString() {
                 StringBuilder builder = new StringBuilder();
@@ -237,13 +236,6 @@ public abstract class SpaceUtility {
                     builder.append( "\n" );
                 }
                 return "Kryo(" + builder.toString();
-            }
-
-            @Override
-            protected void handleUnregisteredClass(final Class type) {
-                super.handleUnregisteredClass( type );
-                Serializer serializer = getSerializer( type );
-                logger.warn( "automatically registered serializer {} for unregistered class {}", serializer, type );
             }
         } : givenKryo;
 
@@ -301,6 +293,7 @@ public abstract class SpaceUtility {
         serializers.put( GetSpaceTopologyMethodCall.class, new FieldSerializer( kryo, GetSpaceTopologyMethodCall.class ) );
         serializers.put( GetMbUsedMethodCall.class, new FieldSerializer( kryo, GetMbUsedMethodCall.class ) );
         serializers.put( GetSizeMethodCall.class, new FieldSerializer( kryo, GetSizeMethodCall.class ) );
+        serializers.put( NotifyListenerMethodCall.class, new FieldSerializer( kryo, NotifyListenerMethodCall.class ) );
 
         Collection<BasicPersistentEntity> persistentEntities = configuration.getMappingContext().getPersistentEntities();
         for ( BasicPersistentEntity e : persistentEntities ) {
