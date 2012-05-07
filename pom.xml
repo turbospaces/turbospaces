@@ -216,6 +216,10 @@
                             <includes>
                                 <include>**/*PerformanceTest.java</include>
                             </includes>
+                           <excludes>
+                                <exclude>com/turbospaces/logging/**/*.class</exclude>
+                                <exclude>com/turbospaces/core/PerformanceMonitor.class</exclude>
+                           </excludes>
                         </configuration>
                     </plugin>
                 </plugins>
