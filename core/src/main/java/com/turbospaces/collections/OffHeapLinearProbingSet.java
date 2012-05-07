@@ -16,6 +16,8 @@
 package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -28,11 +30,13 @@ import org.springframework.util.ObjectUtils;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.serialization.PropertiesSerializer;
+import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
 /**
  * Off-heap linear probing map which uses linear probing hash algorithm for collision handling.</p>
@@ -88,6 +92,46 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
         return (ByteBuffer) get( key, false );
     }
 
+    @Override
+    public List<ByteBuffer> match(final CacheStoreEntryWrapper template) {
+        final Lock lock = readLock();
+        lock.lock();
+
+        List<ByteBuffer> matchedEntries = null;
+        List<ExpiredEntry> expiredEntries = null;
+        try {
+            for ( long addresse : addresses ) {
+                final byte[] serializedData = ByteArrayPointer.getEntityState( addresse );
+                final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                final boolean matches = serializer.match( buffer, template );
+
+                if ( matches ) {
+                    if ( ByteArrayPointer.isExpired( addresse ) ) {
+                        if ( expiredEntries == null )
+                            expiredEntries = new LinkedList<ExpiredEntry>();
+                        ExpiredEntry expiredEntry = new ExpiredEntry( buffer, ByteArrayPointer.getTimeToLive( addresse ) );
+                        expiredEntry.id = serializer.readID( buffer );
+                        expiredEntries.add( expiredEntry );
+                        continue;
+                    }
+                    if ( matchedEntries == null )
+                        matchedEntries = new LinkedList<ByteBuffer>();
+                    buffer.clear();
+                    matchedEntries.add( buffer );
+                }
+            }
+        }
+        finally {
+            lock.unlock();
+            if ( expiredEntries != null )
+                for ( ExpiredEntry entry : expiredEntries )
+                    // potentially another thread removed entry? check if bytesOccupied > 0
+                    if ( remove( entry.id ) > 0 )
+                        notifyExpired( entry );
+        }
+        return matchedEntries;
+    }
+
     private Object get(final Object key,
                        final boolean asPointer) {
         final int index = hash2index( key );
@@ -113,10 +157,10 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
         }
         finally {
             lock.unlock();
-            if ( expired ) {
-                remove( key );
-                notifyExpired( buffer, ttl );
-            }
+            if ( expired )
+                // potentially another thread removed entry? check if bytesOccupied > 0
+                if ( remove( key ) > 0 )
+                    notifyExpired( new ExpiredEntry( buffer, ttl ) );
         }
         return null;
     }
@@ -165,7 +209,7 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
 
     @Override
     public int remove(final Object key) {
-        int length = 0;
+        int bytesOccupied = 0;
         final Lock lock = writeLock();
 
         lock.lock();
@@ -175,14 +219,14 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
                 final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
                 ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 if ( keyEquals( key, buffer ) ) {
-                    length = ByteArrayPointer.getBytesOccupied( addresses[i] );
+                    bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i] );
                     SpaceUtility.releaseMemory( addresses[i] );
                     break;
                 }
             }
 
-            if ( length == 0 )
-                return length;
+            if ( bytesOccupied == 0 )
+                return bytesOccupied;
 
             addresses[i] = 0;
             i = ( i + 1 ) % m;
@@ -202,16 +246,14 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
         finally {
             lock.unlock();
         }
-        return length;
+        return bytesOccupied;
     }
 
     @SuppressWarnings("unchecked")
-    private void notifyExpired(final ByteBuffer buffer,
-                               final long ttl) {
-        assert buffer != null;
-        assert ttl > 0;
+    private void notifyExpired(final ExpiredEntry expiredEntry) {
+        assert expiredEntry != null;
 
-        buffer.clear();
+        expiredEntry.buffer.clear();
         // do in background
         configuration.getExecutorService().submit( new Runnable() {
             @Override
@@ -221,15 +263,16 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
                     if ( expirationListener != null ) {
                         boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
                         if ( retrieveAsEntity ) {
-                            Object readObjectData = serializer.readObjectData( buffer, mutablePersistentEntity.getType() );
-                            expirationListener.handleNotification( readObjectData, mutablePersistentEntity.getType(), ttl );
+                            Object readObjectData = serializer.readObjectData( expiredEntry.buffer, mutablePersistentEntity.getType() );
+                            expirationListener.handleNotification( readObjectData, mutablePersistentEntity.getType(), expiredEntry.ttl );
                         }
                         else
-                            expirationListener.handleNotification( buffer, mutablePersistentEntity.getType(), ttl );
+                            expirationListener.handleNotification( expiredEntry.buffer, mutablePersistentEntity.getType(), expiredEntry.ttl );
                     }
                 }
-                catch ( RuntimeException e ) {
+                catch ( Exception e ) {
                     logger.error( "unable to properly notify expiration listener", e );
+                    Throwables.propagateIfPossible( e );
                 }
             }
         } );
@@ -281,10 +324,30 @@ public class OffHeapLinearProbingSet extends ReentrantReadWriteLock implements O
 
     @Override
     public String toString() {
-        int size = 0;
-        for ( int i = 0; i < m; i++ )
-            if ( addresses[i] != 0 )
-                size++;
-        return Objects.toStringHelper( this ).add( "size", size ).toString();
+        final Lock lock = readLock();
+
+        lock.lock();
+        try {
+            int size = 0;
+            for ( int i = 0; i < m; i++ )
+                if ( addresses[i] != 0 )
+                    size++;
+            return Objects.toStringHelper( this ).add( "size", size ).toString();
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    private static class ExpiredEntry {
+        ByteBuffer buffer;
+        long ttl;
+        Object id;
+
+        private ExpiredEntry(final ByteBuffer buffer, final long ttl) {
+            super();
+            this.buffer = buffer;
+            this.ttl = ttl;
+        }
     }
 }

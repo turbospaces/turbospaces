@@ -1,5 +1,7 @@
 package com.turbospaces.serialization;
 
+import java.nio.ByteBuffer;
+
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -10,11 +12,13 @@ import javax.annotation.concurrent.Immutable;
 @SuppressWarnings("javadoc")
 @Immutable
 public class SerializationEntry {
+    private final ByteBuffer src;
     private final Object object;
     private final Object[] propertyValues;
 
-    public SerializationEntry(final Object object, final Object[] propertyValues) {
+    public SerializationEntry(final ByteBuffer src, final Object object, final Object[] propertyValues) {
         super();
+        this.src = src;
         this.object = object;
         this.propertyValues = propertyValues;
     }
@@ -25,5 +29,9 @@ public class SerializationEntry {
 
     public Object[] getPropertyValues() {
         return propertyValues;
+    }
+
+    public ByteBuffer getSrc() {
+        return src;
     }
 }

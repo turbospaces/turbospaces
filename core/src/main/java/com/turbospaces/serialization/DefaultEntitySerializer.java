@@ -62,12 +62,11 @@ public class DefaultEntitySerializer implements EntitySerializer {
     }
 
     @Override
-    public Object matchByTemplate(final ByteBuffer source,
-                                  final CacheStoreEntryWrapper cacheEntryTemplate,
-                                  final boolean matchById)
-                                                          throws SerializationException {
+    public boolean matchByTemplate(final ByteBuffer source,
+                                   final CacheStoreEntryWrapper cacheEntryTemplate)
+                                                                                   throws SerializationException {
         source.clear();
         Serializer serializer = configuration.getKryo().getSerializer( cacheEntryTemplate.getPersistentEntity().getType() );
-        return ( (PropertiesSerializer) serializer ).match( source, cacheEntryTemplate, matchById );
+        return ( (PropertiesSerializer) serializer ).match( source, cacheEntryTemplate );
     }
 }

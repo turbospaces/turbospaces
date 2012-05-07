@@ -17,11 +17,13 @@ package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.List;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.turbospaces.offmemory.ByteArrayPointer;
+import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
 /**
  * off-heap map abstraction(if fact dramatic simplification - even classical {@link Collection#size()} method is not
@@ -61,7 +63,7 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
     /**
      * get the byte array pointer associated with the given key.</p>
      * 
-     * <b>NOTE:</b>concrete implementation <b>must</b> remove expired entities automatically in case of lease timeout
+     * <b>NOTE:</b>concrete implementation <b>must</b> remove expired entities automatically in case of lease expiration
      * 
      * @param key
      *            primary key
@@ -78,6 +80,14 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
      * @return byte array
      */
     ByteBuffer getAsSerializedData(Object key);
+
+    /**
+     * match set entries by the given template
+     * 
+     * @param template
+     * @return array/list of matched objects in de-serialized form
+     */
+    List<ByteBuffer> match(CacheStoreEntryWrapper template);
 
     /**
      * put(and probably replace previous pointer associated with the key(and do memory utilization in case of such

@@ -725,6 +725,12 @@ public abstract class SpaceUtility {
             }
 
             @Override
+            public List<ByteBuffer> match(final CacheStoreEntryWrapper template) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
             public int remove(final Object key) {
                 return segmentFor( key ).remove( key );
             }

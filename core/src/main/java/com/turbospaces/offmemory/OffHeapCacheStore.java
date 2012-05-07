@@ -249,9 +249,9 @@ public class OffHeapCacheStore implements SpaceStore {
         boolean isExclusiveRead = SpaceModifiers.isExclusiveRead( modifiers );
         boolean isEvictOnly = SpaceModifiers.isEvictOnly( modifiers );
 
-        Object match = configuration.getEntitySerializer().matchByTemplate( data, template, false );
+        boolean matches = configuration.getEntitySerializer().matchByTemplate( data, template );
 
-        if ( match != null )
+        if ( matches )
             if ( isTakeOnly || isEvictOnly ) {
                 EntryKeyLockQuard writeLockQuard = acquireKeyLock( uniqueIdentifier, modificationContext, timeout );
                 ByteArrayPointer p = modificationContext.getPointer( writeLockQuard, indexManager );

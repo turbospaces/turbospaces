@@ -126,7 +126,7 @@ public final class PropertiesSerializer extends SimpleSerializer {
             values[i] = readPropertyValue( cachedProperties[i], buffer );
 
         Object object = entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values, configuration.getConversionService() );
-        return new SerializationEntry( object, values );
+        return new SerializationEntry( buffer, object, values );
     }
 
     /**
@@ -140,14 +140,10 @@ public final class PropertiesSerializer extends SimpleSerializer {
      * 
      * @param cacheEntryTemplate
      * @param buffer
-     * @param matchById
-     *            match only by id?
-     * 
-     * @return matched object if any (or <code>null</code>)
+     * @return matched or not
      */
-    public Object match(final ByteBuffer buffer,
-                        final CacheStoreEntryWrapper cacheEntryTemplate,
-                        final boolean matchById) {
+    public boolean match(final ByteBuffer buffer,
+                         final CacheStoreEntryWrapper cacheEntryTemplate) {
         final Object[] values = new Object[cachedProperties.length];
         final Object[] templateValues = cacheEntryTemplate.asPropertyValuesArray();
 
@@ -155,8 +151,8 @@ public final class PropertiesSerializer extends SimpleSerializer {
         for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
             final CachedSerializationProperty cachedProperty = cachedProperties[i];
             final Object templateValue = templateValues[i];
+            final Object value = readPropertyValue( cachedProperty, buffer );
 
-            Object value = readPropertyValue( cachedProperty, buffer );
             values[i] = value;
 
             if ( templateValue != null && !ObjectUtils.nullSafeEquals( templateValue, value ) ) {
@@ -165,12 +161,7 @@ public final class PropertiesSerializer extends SimpleSerializer {
             }
         }
 
-        if ( matches ) {
-            Object instance = entityMetadata.newInstance();
-            return entityMetadata.setBulkPropertyValues( instance, values, configuration.getConversionService() );
-        }
-
-        return null;
+        return matches;
     }
 
     @SuppressWarnings("unchecked")

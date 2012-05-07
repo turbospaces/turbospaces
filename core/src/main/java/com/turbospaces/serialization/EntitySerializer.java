@@ -70,15 +70,12 @@ public interface EntitySerializer {
      *            byte array representation (byte buffer array)
      * @param cacheEntryTemplate
      *            find-by-example template
-     * @param matchById
-     *            match only by id
      * 
-     * @return de-serialized state of the entity if matched by template
+     * @return true if de-serialized state of the entity matched by template
      * @throws SerializationException
      *             if for some reason source's state can't be matched with template
      */
-    Object matchByTemplate(ByteBuffer source,
-                           CacheStoreEntryWrapper cacheEntryTemplate,
-                           boolean matchById)
-                                             throws SerializationException;
+    boolean matchByTemplate(ByteBuffer source,
+                            CacheStoreEntryWrapper cacheEntryTemplate)
+                                                                      throws SerializationException;
 }
