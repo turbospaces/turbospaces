@@ -25,8 +25,8 @@ import org.jgroups.Address;
 import org.jgroups.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.remoting.RemoteAccessException;
 import org.springframework.remoting.RemoteConnectFailureException;
-import org.springframework.remoting.RemoteInvocationFailureException;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
@@ -43,7 +43,7 @@ import com.turbospaces.core.SimpleRequestResponseCorrelator;
  */
 @ThreadSafe
 public final class NetworkCommunicationDispatcher extends ServerCommunicationDispatcher implements SpaceErrors {
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
+    private static final Logger LOGGER = LoggerFactory.getLogger( NetworkCommunicationDispatcher.class );
     private final AtomicLong correlationIds = new AtomicLong();
     private Kryo kryo;
     private final SimpleRequestResponseCorrelator<Long, MethodCall> requestResponseCorrelator = new SimpleRequestResponseCorrelator<Long, MethodCall>();
@@ -97,8 +97,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
                 ids[i] = correlationId;
                 messages[i] = message;
                 configuration.getJChannel().send( message );
-                if ( logger.isDebugEnabled() )
-                    logger.debug( "sent Jgroups message with correlation_id={} and destinations = {}", correlationId, destinations );
+                LOGGER.debug( "sent jgroups message with correlation_id={} and destinations = {}", correlationId, destinations );
             }
             catch ( Exception t ) {
                 requestResponseCorrelator.clear( correlationId );
@@ -147,33 +146,35 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
      * @return result itself
      */
     @VisibleForTesting
-    MethodCall[] verifyNoExceptions(final MethodCall[] result,
-                                    final Message[] messages,
-                                    final MethodCall methodCall) {
+    static MethodCall[] verifyNoExceptions(final MethodCall[] result,
+                                           final Message[] messages,
+                                           final MethodCall methodCall) {
         int size = result.length;
-        List<RemoteInvocationFailureException> remoteExceptions = null;
+        List<String> remoteExceptions = null;
         for ( int i = 0; i < size; i++ ) {
             Message message = messages[i];
             Address destination = message.getDest();
             if ( result[i] != null ) {
                 String exceptionAsString = result[i].exceptionAsString;
                 if ( exceptionAsString != null ) {
-                    RemoteInvocationFailureException ex = new RemoteInvocationFailureException( String.format(
-                            "failed to execute %s on %s",
-                            methodCall,
-                            destination ), null );
-                    ex.fillInStackTrace();
-                    logger.error( ex.getMessage(), ex );
-
                     if ( remoteExceptions == null )
-                        remoteExceptions = new ArrayList<RemoteInvocationFailureException>();
-                    remoteExceptions.add( ex );
+                        remoteExceptions = new ArrayList<String>();
+                    remoteExceptions.add( String.format( "failed to execute %s on %s due to: \n %s", methodCall, destination, exceptionAsString ) );
                 }
             }
         }
 
         if ( remoteExceptions != null ) {
-            // TODO: throw
+            StringBuilder builder = new StringBuilder();
+            builder.append( "unable to call remote method(s) due to single(multiple) failures: " ).append( "\n" );
+            for ( String e : remoteExceptions ) {
+                builder.append( "\t" );
+                builder.append( e );
+                builder.append( "\n" );
+            }
+            String failure = builder.toString();
+            LOGGER.error( failure );
+            throw new RemoteAccessException( failure );
         }
         return result;
     }
