@@ -160,6 +160,12 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>cobertura-maven-plugin</artifactId>
                 <version>${maven.plugin.cobertura.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/turbospaces/logging/**/*.class</exclude>
+                        <exclude>com/turbospaces/core/PerformanceMonitor.class</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
         <pluginManagement>
@@ -216,10 +222,6 @@
                             <includes>
                                 <include>**/*PerformanceTest.java</include>
                             </includes>
-                           <excludes>
-                                <exclude>com/turbospaces/logging/**/*.class</exclude>
-                                <exclude>com/turbospaces/core/PerformanceMonitor.class</exclude>
-                           </excludes>
                         </configuration>
                     </plugin>
                 </plugins>

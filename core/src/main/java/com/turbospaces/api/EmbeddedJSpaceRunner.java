@@ -25,6 +25,7 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
+import com.google.common.base.Throwables;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.logging.JGroupsCustomLoggerFactory;
 
@@ -35,6 +36,7 @@ import com.turbospaces.logging.JGroupsCustomLoggerFactory;
  */
 public class EmbeddedJSpaceRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger( EmbeddedJSpaceRunner.class );
+    private static final Object JOINED_NETWORK_CONDITION_MONITOR = new Object();
 
     /**
      * launcher method
@@ -59,15 +61,34 @@ public class EmbeddedJSpaceRunner {
         Collection<SpaceConfiguration> configurations = c.getBeansOfType( SpaceConfiguration.class ).values();
         for ( SpaceConfiguration spaceConfiguration : configurations )
             spaceConfiguration.joinNetwork();
+        LOGGER.info( "all jspaces joined network, notifying waiting threads..." );
+        synchronized ( JOINED_NETWORK_CONDITION_MONITOR ) {
+            JOINED_NETWORK_CONDITION_MONITOR.notifyAll();
+        }
 
         while ( !Thread.currentThread().isInterrupted() )
             synchronized ( c ) {
                 try {
-                    c.wait( TimeUnit.SECONDS.toMicros( 1 ) );
+                    c.wait( TimeUnit.SECONDS.toMillis( 1 ) );
                 }
                 catch ( InterruptedException e ) {
+                    LOGGER.info( "got interruption signal, terminating jspaces... stack_trace = {}", Throwables.getStackTraceAsString( e ) );
                     Thread.currentThread().interrupt();
                 }
             }
+
+        c.destroy();
+    }
+
+    /**
+     * await for network join event, useful for junit testing
+     * 
+     * @throws InterruptedException
+     */
+    public static void awaitNetworkJoin()
+                                         throws InterruptedException {
+        synchronized ( JOINED_NETWORK_CONDITION_MONITOR ) {
+            JOINED_NETWORK_CONDITION_MONITOR.wait();
+        }
     }
 }

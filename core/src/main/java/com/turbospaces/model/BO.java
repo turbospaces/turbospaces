@@ -202,6 +202,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
      * 
      * @param borrowObject
      */
+    @SuppressWarnings("unchecked")
     public void fillIdVersionRouting(final CacheStoreEntryWrapper borrowObject) {
         if ( idVersionRoutingBulkBean != null ) {
             Object[] propertyValues = idVersionRoutingBulkBean.getPropertyValues( borrowObject.getBean() );
@@ -212,13 +213,14 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
             return;
         }
 
-        borrowObject.setId( SpaceUtility.getPropertyValue( borrowObject.getBeanWrapper(), getIdProperty() ) );
+        borrowObject.setId( borrowObject.getBeanWrapper().getProperty( getIdProperty(), getIdProperty().getType(), false ) );
         if ( getOptimisticLockVersionProperty() != null )
-            borrowObject.setOptimisticLockVersion( (Integer) SpaceUtility.getPropertyValue(
-                    borrowObject.getBeanWrapper(),
-                    getOptimisticLockVersionProperty() ) );
+            borrowObject.setOptimisticLockVersion( (Integer) borrowObject.getBeanWrapper().getProperty(
+                    getOptimisticLockVersionProperty(),
+                    getOptimisticLockVersionProperty().getType(),
+                    false ) );
         if ( getRoutingProperty() != null )
-            borrowObject.setRouting( SpaceUtility.getPropertyValue( borrowObject.getBeanWrapper(), getRoutingProperty() ) );
+            borrowObject.setRouting( borrowObject.getBeanWrapper().getProperty( getRoutingProperty(), getRoutingProperty().getType(), false ) );
     }
 
     /**
@@ -233,14 +235,14 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
      *            type conversion service
      * @return target itself
      */
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public Object setBulkPropertyValues(final Object target,
                                         final Object[] values,
                                         final ConversionService conversionService) {
         if ( bulkBean == null ) {
             BeanWrapper beanWrapper = BeanWrapper.create( target, conversionService );
             for ( int i = 0, n = orderedProperties.length; i < n; i++ )
-                SpaceUtility.setPropertyValue( beanWrapper, orderedProperties[i], values[i] );
+                beanWrapper.setProperty( orderedProperties[i], values[i], false );
         }
         else
             bulkBean.setPropertyValues( target, values );
@@ -256,7 +258,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
      * @param conversionService
      * @return property values array
      */
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public Object[] getBulkPropertyValues(final CacheStoreEntryWrapper cacheEntry,
                                           final ConversionService conversionService) {
 
@@ -271,7 +273,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
             BeanWrapper beanWrapper = cacheEntry.getBeanWrapper();
             Object[] propertyValues = new Object[orderedProperties.length];
             for ( int i = 0; i < orderedProperties.length; i++ )
-                propertyValues[i] = SpaceUtility.getPropertyValue( beanWrapper, orderedProperties[i] );
+                propertyValues[i] = beanWrapper.getProperty( orderedProperties[i], orderedProperties[i].getType(), false );
             return propertyValues;
         }
 

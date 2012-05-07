@@ -57,7 +57,6 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
-import org.springframework.data.mapping.model.BeanWrapper;
 import org.springframework.data.mapping.model.MutablePersistentEntity;
 import org.springframework.util.ObjectUtils;
 
@@ -188,45 +187,6 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * get the property's value, handle checked exception and convert to unchecked.
-     * 
-     * @param wrapper
-     * @param p
-     * @return property's value
-     */
-    @SuppressWarnings("rawtypes")
-    public static Object getPropertyValue(final BeanWrapper wrapper,
-                                          final PersistentProperty p) {
-        try {
-            return wrapper.getProperty( p );
-        }
-        catch ( Exception e ) {
-            LOGGER.error( e.getMessage(), e );
-            throw new SpaceException( String.format( "unable to read property[%s] value due to %s", p.getName(), e.getClass().getSimpleName() ), e );
-        }
-    }
-
-    /**
-     * set the property's value, handle checked exception and convert to unchecked.
-     * 
-     * @param wrapper
-     * @param p
-     * @param value
-     */
-    @SuppressWarnings("rawtypes")
-    public static void setPropertyValue(final BeanWrapper wrapper,
-                                        final PersistentProperty p,
-                                        final Object value) {
-        try {
-            wrapper.setProperty( p, value );
-        }
-        catch ( Exception e ) {
-            LOGGER.error( e.getMessage(), e );
-            throw new SpaceException( String.format( "unable to write property[%s] value due to %s", p.getName(), e.getClass().getSimpleName() ), e );
-        }
-    }
-
-    /**
      * check whether template object(in form of property values) matches with actual bean's property value. This method
      * is efficiently used for {@link JSpace#notify(Object, com.turbospaces.api.SpaceNotificationListener, int)}
      * operation
@@ -242,8 +202,8 @@ public abstract class SpaceUtility {
         assert templatePropertyValues.length == entryPropertyValues.length;
 
         for ( int i = 0; i < templatePropertyValues.length; i++ ) {
-            Object templatePropertyValue = templatePropertyValues[i];
-            Object entryPropertyValue = entryPropertyValues[i];
+            final Object templatePropertyValue = templatePropertyValues[i];
+            final Object entryPropertyValue = entryPropertyValues[i];
 
             if ( templatePropertyValue != null && !ObjectUtils.nullSafeEquals( templatePropertyValue, entryPropertyValue ) )
                 return false;
@@ -265,9 +225,6 @@ public abstract class SpaceUtility {
         final Map<Class<?>, Serializer> serializers = new LinkedHashMap<Class<?>, Serializer>();
         final Kryo kryo = givenKryo == null ? new Kryo() {
             private final Logger logger = LoggerFactory.getLogger( getClass() );
-            {
-                setRegistrationOptional( true );
-            }
 
             @Override
             public String toString() {
@@ -286,10 +243,7 @@ public abstract class SpaceUtility {
             protected void handleUnregisteredClass(final Class type) {
                 super.handleUnregisteredClass( type );
                 Serializer serializer = getSerializer( type );
-                if ( Throwable.class.isAssignableFrom( type ) )
-                    logger.info( "automatically registered exception serializer {} for class {}", serializer, type );
-                else
-                    logger.warn( "automatically registered serializer {} for unregistered class {}", serializer, type );
+                logger.warn( "automatically registered serializer {} for unregistered class {}", serializer, type );
             }
         } : givenKryo;
 

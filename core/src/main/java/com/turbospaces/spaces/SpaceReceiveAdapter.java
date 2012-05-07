@@ -84,7 +84,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                     }
                 }
             }
-        }, 0, 50, TimeUnit.MILLISECONDS );
+        }, 0, AbstractSpaceConfiguration.defaultCacheCleanupPeriod(), TimeUnit.MILLISECONDS );
     }
 
     @Override

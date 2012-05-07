@@ -29,6 +29,7 @@ import org.mockito.stubbing.Answer;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.cache.CacheBuilder;
+import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceTopology;
@@ -223,7 +224,7 @@ public class SpaceReceiveAdapterTest {
         Long txID = objectBuffer.readObjectData( response.getResponseBody(), long.class );
 
         assertThat( receiveAdapter.modificationContextFor( address ).getIfPresent( txID ), is( notNullValue() ) );
-        Thread.sleep( 160 );
+        Thread.sleep( Math.max( 160, AbstractSpaceConfiguration.defaultCacheCleanupPeriod() ) );
         assertThat( receiveAdapter.modificationContextFor( address ).getIfPresent( txID ), is( nullValue() ) );
     }
 

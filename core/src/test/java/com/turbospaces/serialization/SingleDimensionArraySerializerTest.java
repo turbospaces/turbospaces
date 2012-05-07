@@ -16,7 +16,6 @@ import org.junit.runners.Parameterized.Parameters;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.turbospaces.api.SpaceOperation;
-import com.turbospaces.serialization.SingleDimensionArraySerializer;
 
 @SuppressWarnings("javadoc")
 @RunWith(Parameterized.class)
@@ -37,8 +36,8 @@ public class SingleDimensionArraySerializerTest {
     @Parameters
     public static List<Object[]> data() {
         return Arrays.asList( new Object[][] { { new int[] { 1, 2, 3 } }, { new long[] { 1, 2, 3 } }, { new float[] { 1, 2, 3 } },
-                { new double[] { 1, 2, 3 } }, { new boolean[] { true, false, true } }, { new char[] { 'a', 'b', 'c' } }, { new byte[] { 1, 2, 3 } },
-                { SpaceOperation.values() } } );
+                { new short[] { 1, 3, 2 } }, { new double[] { 1, 2, 3 } }, { new boolean[] { true, false, true } }, { new char[] { 'a', 'b', 'c' } },
+                { new byte[] { 1, 2, 3 } }, { SpaceOperation.values() } } );
     }
 
     @Before

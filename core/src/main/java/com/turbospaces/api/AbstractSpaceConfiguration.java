@@ -37,6 +37,7 @@ import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.mapping.context.AbstractMappingContext;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.google.common.base.Preconditions;
@@ -45,6 +46,7 @@ import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
 import com.turbospaces.serialization.DefaultEntitySerializer;
 import com.turbospaces.serialization.EntitySerializer;
+import com.turbospaces.spaces.tx.SpaceTransactionManager;
 
 /**
  * abstract jspace configuration suitable for both client/server node configuration.
@@ -55,7 +57,9 @@ import com.turbospaces.serialization.EntitySerializer;
  */
 @SuppressWarnings("rawtypes")
 public abstract class AbstractSpaceConfiguration implements ApplicationContextAware, DisposableBean, InitializingBean, SpaceErrors {
-    private static int DEFAULT_TRANSACTION_TIMEOUT_SECONDS = 10;
+    private static int DEFAULT_TRANSACTION_TIMEOUT = (int) TimeUnit.SECONDS.toSeconds( 10 );
+    private static long DEFAULT_COMMUNICATION_TIMEOUT = TimeUnit.SECONDS.toMillis( 5 );
+    private static long DEFAULT_CACHE_CLEANUP_PERIOD = TimeUnit.SECONDS.toMillis( 1 );
 
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     /**
@@ -407,10 +411,18 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     }
 
     /**
-     * @return default network lookup/communication timeout
+     * @return default network lookup/communication timeout in milliseconds
+     * @see #setDefaultCommunicationTimeoutInMillis(long)
      */
     public static long defaultCommunicationTimeout() {
-        return TimeUnit.MINUTES.toMillis( 1 );
+        return DEFAULT_COMMUNICATION_TIMEOUT;
+    }
+
+    /**
+     * @return default period for scheduled automatic cache cleanup activities in milliseconds
+     */
+    public static long defaultCacheCleanupPeriod() {
+        return DEFAULT_CACHE_CLEANUP_PERIOD;
     }
 
     /**
@@ -418,8 +430,10 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * if there is no timeout specified at the transaction level, in seconds.
      * 
      * @return value in seconds
+     * @see DefaultTransactionDefinition#setTimeout(int)
+     * @see SpaceTransactionManager#setDefaultTimeout(int)
      */
     public static int defaultTransactionTimeout() {
-        return DEFAULT_TRANSACTION_TIMEOUT_SECONDS;
+        return DEFAULT_TRANSACTION_TIMEOUT;
     }
 }

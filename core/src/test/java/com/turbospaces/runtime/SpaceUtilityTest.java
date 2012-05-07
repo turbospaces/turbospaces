@@ -6,7 +6,10 @@ import static org.hamcrest.Matchers.is;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import junit.framework.Assert;
+
 import org.junit.Test;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
 import com.google.common.base.Function;
 import com.turbospaces.api.SpaceException;
@@ -69,5 +72,41 @@ public class SpaceUtilityTest {
                 return new Object();
             }
         } );
+    }
+
+    @Test
+    public void matchesByTemplateProperly() {
+        Object[] arr = new Object[] { "1", 2 };
+        Assert.assertTrue( SpaceUtility.macthesByPropertyValues( new Object[] { null, 2 }, arr ) );
+        Assert.assertTrue( SpaceUtility.macthesByPropertyValues( new Object[] { "1", null }, arr ) );
+        Assert.assertFalse( SpaceUtility.macthesByPropertyValues( new Object[] { "2", 2 }, arr ) );
+        Assert.assertFalse( SpaceUtility.macthesByPropertyValues( new Object[] { "1", 3 }, arr ) );
+    }
+
+    @Test
+    public void canGetPublicInformation() {
+        System.out.println( SpaceUtility.projecBuildTimestamp() );
+        System.out.println( SpaceUtility.projectVersion() );
+    }
+
+    @Test
+    public void canGetSingeResult() {
+        Assert.assertTrue( SpaceUtility.singleResult( new Object[] { "1" } ).isPresent() );
+    }
+
+    @Test(expected = IncorrectResultSizeDataAccessException.class)
+    public void canGetExceptionForNonSingeResult() {
+        SpaceUtility.singleResult( new Object[] { "1", "2" } );
+    }
+
+    @Test(expected = SpaceException.class)
+    public void handlesUnexceptedException() {
+        SpaceUtility.exceptionShouldNotHappen( new Function<Integer, String>() {
+
+            @Override
+            public String apply(final Integer input) {
+                throw new IllegalArgumentException( input.toString() );
+            }
+        }, 1 );
     }
 }

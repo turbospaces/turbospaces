@@ -8,7 +8,10 @@ import com.turbospaces.api.SpaceException;
 
 /**
  * simple request-response matcher. this is generic class, so client is responsible for passing the same key(in term of
- * reference) in order to notify on object's monitor.
+ * reference) in order to notify on proper object's monitor.</p>
+ * 
+ * internal mechanism is very simple: you write original request object and associate it with some id and return monitor
+ * object to the client, then when response received -> update waiting client and cleanup resources.</p>
  * 
  * @param <K>
  *            key type
