@@ -57,6 +57,10 @@ import com.turbospaces.spaces.tx.SpaceTransactionManager;
  */
 @SuppressWarnings("rawtypes")
 public abstract class AbstractSpaceConfiguration implements ApplicationContextAware, DisposableBean, InitializingBean, SpaceErrors {
+    /**
+     * the maximum possible number of nodes in cluster.
+     */
+    public static final int MAX_CLUSTER_NODE = 1 << 10;
     private static int DEFAULT_TRANSACTION_TIMEOUT = (int) TimeUnit.SECONDS.toSeconds( 10 );
     private static long DEFAULT_COMMUNICATION_TIMEOUT = TimeUnit.SECONDS.toMillis( 5 );
     private static long DEFAULT_CACHE_CLEANUP_PERIOD = TimeUnit.SECONDS.toMillis( 1 );
