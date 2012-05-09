@@ -50,10 +50,11 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
             @Override
             public List<ByteArrayPointer> apply(final OffHeapLinearProbingSegment input) {
                 List<ByteArrayPointer> match = input.match( template );
-                if ( match != null )
+                if ( match != null ) {
                     if ( retval.get() == null )
                         retval.set( new LinkedList<ByteArrayPointer>() );
-                retval.get().addAll( match );
+                    retval.get().addAll( match );
+                }
                 return match;
             }
         } );
