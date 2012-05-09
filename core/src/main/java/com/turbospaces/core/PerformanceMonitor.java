@@ -21,11 +21,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import junit.framework.Assert;
-
 import org.jgroups.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.Assert;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -195,7 +194,7 @@ public class PerformanceMonitor implements Runnable {
             } );
             logger.info( " inishing pefrormance test run: total_entities = {}, mb = {}, space dump = {}", new Object[] { space.size(),
                     space.mbUsed(), space.toString() } );
-            Assert.assertTrue( "Errors = " + exceptions, exceptions.isEmpty() );
+            Assert.isTrue( exceptions.isEmpty(), "Errors = " + exceptions );
         }
         catch ( Exception e ) {
             logger.error( e.getMessage(), e );
