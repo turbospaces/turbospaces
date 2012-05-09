@@ -45,7 +45,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -547,7 +546,7 @@ public abstract class SpaceUtility {
      */
     public static Exception runAndGetExecutionException(final Runnable runnable)
                                                                                 throws InterruptedException {
-        final AtomicReference<Exception> ex = new AtomicReference<Exception>();
+        final MutableObject<Exception> ex = new MutableObject<Exception>();
         Thread thread = new Thread() {
             @Override
             public void run() {
@@ -710,7 +709,7 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( hash( key.hashCode() ) & Integer.MAX_VALUE ) % segmentsCount];
+                return segments[( key.hashCode() & Integer.MAX_VALUE ) % segmentsCount];
             }
         };
         return locker;
@@ -742,7 +741,7 @@ public abstract class SpaceUtility {
      *            key hash
      * @return hash
      */
-    public static int hash(final int hash) {
+    public static int rehash(final int hash) {
         int k = hash;
         k ^= k >>> 16;
         k *= 0x85ebca6b;
@@ -750,23 +749,6 @@ public abstract class SpaceUtility {
         k *= 0xc2b2ae35;
         k ^= k >>> 16;
         return k;
-    }
-
-    /**
-     * jdk hash code
-     * 
-     * @param hash
-     *            object hash code
-     * @return hash
-     */
-    public static int jdkHash(final int hash) {
-        int h = hash;
-        h += h << 15 ^ 0xffffcd7d;
-        h ^= h >>> 10;
-        h += h << 3;
-        h ^= h >>> 6;
-        h += ( h << 2 ) + ( h << 14 );
-        return h ^ h >>> 16;
     }
 
     /**

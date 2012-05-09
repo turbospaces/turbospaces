@@ -1,13 +1,16 @@
 package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.springframework.data.mapping.model.MutablePersistentEntity;
 
-import com.google.common.collect.Lists;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.ConsistentHasher;
+import com.turbospaces.core.MutableObject;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
@@ -17,108 +20,112 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  * 
  * @since 0.1
  * @see OffHeapLinearProbingSegment
+ * @see ConsistentHasher
  */
 public final class OffHeapLinearProbingSet implements OffHeapHashSet {
-    private static final int DEFAULT_CONCURRENCY_LEVEL = 128;
-    private final OffHeapLinearProbingSegment[] segments;
-
-    private final int concurrency;
-    private final int segmentShift;
-    private final int segmentMask;
+    static final int MAX_SEGMENTS_COUNT = ( 1 << 8 ) * ( 1 << 10 );
+    private final ConsistentHasher<OffHeapLinearProbingSegment> consistentHasher;
 
     @SuppressWarnings("javadoc")
     public OffHeapLinearProbingSet(final SpaceConfiguration configuration, final MutablePersistentEntity<?, ?> mutablePersistentEntity) {
-        super();
-        int sshift = 0;
-        int ssize = 1;
-        while ( ssize < DEFAULT_CONCURRENCY_LEVEL ) {
-            ++sshift;
-            ssize <<= 1;
-        }
-        concurrency = ssize;
-        segmentShift = 32 - sshift;
-        segmentMask = ssize - 1;
-        segments = new OffHeapLinearProbingSegment[concurrency];
+        int initialSegments = Math.abs( Byte.MIN_VALUE );
+        int maxSegments = initialSegments;
 
-        int c = DEFAULT_INITIAL_CAPACITY / ssize;
-        if ( c * ssize < DEFAULT_INITIAL_CAPACITY )
-            ++c;
-        int cap = 1;
-        while ( cap < c )
-            cap <<= 1;
+        consistentHasher = new ConsistentHasher<OffHeapLinearProbingSegment>(
+                initialSegments,
+                maxSegments,
+                new Supplier<OffHeapLinearProbingSegment>() {
 
-        for ( int i = 0; i < concurrency; i++ )
-            segments[i] = new OffHeapLinearProbingSegment( Math.min( 1 << 4, cap ), configuration, mutablePersistentEntity );
+                    @Override
+                    public OffHeapLinearProbingSegment get() {
+                        return new OffHeapLinearProbingSegment( DEFAULT_INITIAL_CAPACITY, configuration, mutablePersistentEntity );
+                    }
+                } );
     }
 
     @Override
     public List<ByteArrayPointer> match(final CacheStoreEntryWrapper template) {
-        List<ByteArrayPointer> result = null;
-        for ( OffHeapLinearProbingSegment segment : segments )
-            if ( segment != null ) {
-                List<ByteArrayPointer> segmentMatch = segment.match( template );
-                if ( segmentMatch != null ) {
-                    if ( result == null )
-                        result = Lists.newLinkedList();
-                    result.addAll( segmentMatch );
-                }
+        final MutableObject<List<ByteArrayPointer>> retval = new MutableObject<List<ByteArrayPointer>>();
+        consistentHasher.forEachSegment( new Function<OffHeapLinearProbingSegment, List<ByteArrayPointer>>() {
+            @Override
+            public List<ByteArrayPointer> apply(final OffHeapLinearProbingSegment input) {
+                List<ByteArrayPointer> match = input.match( template );
+                if ( match != null )
+                    if ( retval.get() == null )
+                        retval.set( new LinkedList<ByteArrayPointer>() );
+                retval.get().addAll( match );
+                return match;
             }
-        return result;
+        } );
+        return retval.get();
     }
 
     @Override
     public int remove(final Object key) {
-        return segmentFor( key ).remove( key );
+        return consistentHasher.segmentFor( key ).remove( key );
     }
 
     @Override
     public int put(final Object key,
                    final ByteArrayPointer value) {
-        return segmentFor( key ).put( key, value );
+        return consistentHasher.segmentFor( key ).put( key, value );
     }
 
     @Override
     public boolean contains(final Object key) {
-        return segmentFor( key ).contains( key );
+        return consistentHasher.segmentFor( key ).contains( key );
     }
 
     @Override
     public ByteArrayPointer getAsPointer(final Object key) {
-        return segmentFor( key ).getAsPointer( key );
+        return consistentHasher.segmentFor( key ).getAsPointer( key );
     }
 
     @Override
     public ByteBuffer getAsSerializedData(final Object key) {
-        return segmentFor( key ).getAsSerializedData( key );
+        return consistentHasher.segmentFor( key ).getAsSerializedData( key );
     }
 
     @Override
     public void afterPropertiesSet() {
-        for ( int i = 0; i < concurrency; i++ )
-            segments[i].afterPropertiesSet();
+        consistentHasher.forEachSegment( new Function<OffHeapLinearProbingSegment, Void>() {
+            @Override
+            public Void apply(final OffHeapLinearProbingSegment input) {
+                input.afterPropertiesSet();
+                return null;
+            }
+        } );
     }
 
     @Override
     public void destroy() {
-        for ( int i = 0; i < concurrency; i++ )
-            segments[i].destroy();
+        consistentHasher.forEachSegment( new Function<OffHeapLinearProbingSegment, Void>() {
+            @Override
+            public Void apply(final OffHeapLinearProbingSegment input) {
+                input.destroy();
+                return null;
+            }
+        } );
     }
 
     @Override
     public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append( "OffHeap LinerMap: segments" ).append( "\n" );
-        for ( int i = 0; i < concurrency; i++ ) {
-            builder.append( "\t" );
-            builder.append( i ).append( "->" ).append( segments[i] );
-            builder.append( "\n" );
-        }
+        final StringBuilder builder = new StringBuilder();
+        builder.append( "OffHeap LinearMap: segments" ).append( "\n" );
+
+        consistentHasher.forEachSegment( new Function<OffHeapLinearProbingSegment, Void>() {
+            int i = 0;
+
+            @Override
+            public Void apply(final OffHeapLinearProbingSegment input) {
+                builder.append( "\t" );
+                builder.append( i++ ).append( "->" ).append( input );
+                builder.append( "\n" );
+
+                return null;
+            }
+        } );
 
         return builder.toString();
-    }
-
-    private OffHeapLinearProbingSegment segmentFor(final Object key) {
-        final int hash = SpaceUtility.jdkHash( key.hashCode() );
-        return segments[hash >>> segmentShift & segmentMask];
     }
 }

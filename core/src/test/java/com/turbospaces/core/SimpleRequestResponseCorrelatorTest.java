@@ -3,15 +3,11 @@ package com.turbospaces.core;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-
-import java.util.concurrent.atomic.AtomicReference;
-
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import com.turbospaces.api.SpaceException;
-import com.turbospaces.core.SimpleRequestResponseCorrelator;
 
 @SuppressWarnings("javadoc")
 public class SimpleRequestResponseCorrelatorTest {
@@ -61,7 +57,7 @@ public class SimpleRequestResponseCorrelatorTest {
     public void canGetSpaceExceptionForThreadInterruption()
                                                            throws Exception {
         correlator.put( new Long( 4 ), null );
-        final AtomicReference<Exception> ex = new AtomicReference<Exception>();
+        final MutableObject<Exception> ex = new MutableObject<Exception>();
         Thread t = new Thread( new Runnable() {
             @Override
             public void run() {

@@ -1,9 +1,9 @@
 package com.turbospaces.core;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -13,7 +13,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Maps;
 
 /**
  * This is consistent hasher utility class. Designed for both dynamic nodes add and removal. Good thing about this class
@@ -28,9 +30,9 @@ import com.google.common.base.Supplier;
 public class ConsistentHasher<S> {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
 
-    private final SortedMap<Short, S> segments = new TreeMap<Short, S>();
-    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
-    private final short maxSegmentsCount;
+    private final SortedMap<Integer, S> segments = Maps.newTreeMap();
+    private final ReadWriteLock rwLock;
+    private final int maxSegmentsCount;
     private final Supplier<S> segmentInstantiationFunction;
 
     /**
@@ -41,9 +43,10 @@ public class ConsistentHasher<S> {
      * @param initialSegmentsCount
      * @param segmentInstantiationFunction
      */
-    public ConsistentHasher(final short maxSegmentsCount, final short initialSegmentsCount, final Supplier<S> segmentInstantiationFunction) {
+    public ConsistentHasher(final int initialSegmentsCount, final int maxSegmentsCount, final Supplier<S> segmentInstantiationFunction) {
         this.maxSegmentsCount = maxSegmentsCount;
         this.segmentInstantiationFunction = segmentInstantiationFunction;
+        this.rwLock = new ReentrantReadWriteLock();
 
         List<S> newSegments = new ArrayList<S>( initialSegmentsCount );
         for ( int i = 0; i < initialSegmentsCount; i++ ) {
@@ -51,7 +54,7 @@ public class ConsistentHasher<S> {
             newSegments.add( s );
         }
         addSegments( newSegments );
-        logger.trace( "segments = {}", segments );
+        logger.debug( "maxSegments={}, initialSegments={}, segments={}", new Object[] { maxSegmentsCount, initialSegmentsCount, segments } );
     }
 
     /**
@@ -65,11 +68,11 @@ public class ConsistentHasher<S> {
         writeLock.lock();
         try {
             for ( S segment : newSegments ) {
-                int hash = ( SpaceUtility.hash( System.identityHashCode( segment ) ) & Integer.MAX_VALUE ) % maxSegmentsCount;
+                int hash = ( System.identityHashCode( segment ) & Integer.MAX_VALUE ) % maxSegmentsCount;
                 for ( int i = hash; i < hash + maxSegmentsCount; i++ ) {
-                    short new_index = (short) ( i % maxSegmentsCount );
-                    if ( !segments.containsKey( new_index ) ) {
-                        segments.put( new_index, segment );
+                    int idx = ( i % maxSegmentsCount );
+                    if ( !segments.containsKey( idx ) ) {
+                        segments.put( Integer.valueOf( idx ), segment );
                         break;
                     }
                 }
@@ -81,13 +84,13 @@ public class ConsistentHasher<S> {
     }
 
     /**
-     * consistently calculate the proper segment for key using consistent hash algoritm.
+     * consistently calculate the proper segment for key using consistent hash algorithm.
      * 
      * @param key
      * @return proper segment(slot) for hash
      */
     public S segmentFor(final Object key) {
-        final int hash = SpaceUtility.hash( key.hashCode() ) & Integer.MAX_VALUE;
+        final int hash = key.hashCode() & Integer.MAX_VALUE;
         final Lock readLock = rwLock.readLock();
 
         readLock.lock();
@@ -100,12 +103,34 @@ public class ConsistentHasher<S> {
         }
     }
 
+    /**
+     * apply user function to the each segment.
+     * 
+     * @param f
+     *            user function
+     */
+    public <V> void forEachSegment(final Function<S, V> f) {
+        final Lock readLock = rwLock.readLock();
+        Collection<S> values = null;
+
+        readLock.lock();
+        try {
+            values = segments.values();
+        }
+        finally {
+            readLock.unlock();
+        }
+
+        for ( S s : values )
+            f.apply( s );
+    }
+
     private S findFirst(final int index) {
         for ( ;; ) {
             S retval;
             for ( int i = index; i < index + maxSegmentsCount; i++ ) {
-                short new_index = (short) ( i % maxSegmentsCount );
-                retval = segments.get( new_index );
+                int idx = ( i % maxSegmentsCount );
+                retval = segments.get( Integer.valueOf( idx ) );
                 if ( retval != null )
                     return retval;
             }

@@ -15,10 +15,13 @@
  */
 package com.turbospaces.core;
 
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import junit.framework.Assert;
 
 import org.jgroups.util.Util;
 import org.slf4j.Logger;
@@ -156,7 +159,7 @@ public class PerformanceMonitor implements Runnable {
         } );
 
         try {
-            SpaceUtility.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
+            LinkedList<Throwable> exceptions = SpaceUtility.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
                 SimpleObjectPool<Object> pool = new SimpleObjectPool<Object>( objectFactory );
                 Object obj = objectFactory.newInstance();
                 Class<?> clazz = obj.getClass();
@@ -192,6 +195,7 @@ public class PerformanceMonitor implements Runnable {
             } );
             logger.info( " inishing pefrormance test run: total_entities = {}, mb = {}, space dump = {}", new Object[] { space.size(),
                     space.mbUsed(), space.toString() } );
+            Assert.assertTrue( "Errors = " + exceptions, exceptions.isEmpty() );
         }
         catch ( Exception e ) {
             logger.error( e.getMessage(), e );

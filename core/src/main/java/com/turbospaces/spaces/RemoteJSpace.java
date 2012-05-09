@@ -328,8 +328,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
 
     private static Address determineDestination(final Address[] addresses,
                                                 final Object key) {
-        int goodHash = SpaceUtility.hash( key.hashCode() );
-        int index = ( goodHash & Integer.MAX_VALUE ) % addresses.length;
+        int index = ( key.hashCode() & Integer.MAX_VALUE ) % addresses.length;
         return addresses[index];
     }
 

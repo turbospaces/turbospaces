@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.notNullValue;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import junit.framework.Assert;
 
@@ -15,8 +14,8 @@ import org.springframework.remoting.RemoteLookupFailureException;
 
 import com.turbospaces.api.ClientSpaceConfiguration;
 import com.turbospaces.api.SpaceException;
+import com.turbospaces.core.MutableObject;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.network.NetworkCommunicationDispatcher;
 
 @SuppressWarnings("javadoc")
 public class NegativeCommunicationTest {
@@ -43,7 +42,7 @@ public class NegativeCommunicationTest {
     @Test(expected = SpaceException.class)
     public void canHandleInteppurptionException()
                                                  throws Throwable {
-        final AtomicReference<Throwable> er = new AtomicReference<Throwable>();
+        final MutableObject<Throwable> er = new MutableObject<Throwable>();
         final ClientSpaceConfiguration clientConfigurationFor = TestEntity1.clientConfigurationFor();
         clientConfigurationFor.setDefaultCommunicationTimeoutInMillis( TimeUnit.SECONDS.toMillis( 10 ) );
         clientConfigurationFor.joinNetwork();
