@@ -15,7 +15,6 @@
  */
 package com.turbospaces.network;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,6 +30,7 @@ import org.springframework.remoting.RemoteConnectFailureException;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.core.SimpleRequestResponseCorrelator;
@@ -158,7 +158,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
                 String exceptionAsString = result[i].exceptionAsString;
                 if ( exceptionAsString != null ) {
                     if ( remoteExceptions == null )
-                        remoteExceptions = new ArrayList<String>();
+                        remoteExceptions = Lists.newArrayList();
                     remoteExceptions.add( String.format( "failed to execute %s on %s due to: \n %s", methodCall, destination, exceptionAsString ) );
                 }
             }

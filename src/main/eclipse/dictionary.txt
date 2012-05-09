@@ -84,3 +84,4 @@ lifecycle
 persistency
 ultraminimalistic
 minimalistic
+jdk

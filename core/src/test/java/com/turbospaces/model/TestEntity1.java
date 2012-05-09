@@ -35,6 +35,7 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 
+import com.google.common.collect.Lists;
 import com.turbospaces.api.ClientSpaceConfiguration;
 import com.turbospaces.api.EmbeddedJSpaceRunner;
 import com.turbospaces.api.SpaceConfiguration;
@@ -109,7 +110,7 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         autowire = Autowire.BY_TYPE;
         routing = "hash" + random.nextLong();
         spaceOperations = SpaceOperation.values();
-        longs = new ArrayList<Long>();
+        longs = Lists.newArrayList();
         longs.add( Long.valueOf( 1L ) );
         longs.add( Long.valueOf( 2L ) );
         longs.add( Long.valueOf( 3L ) );

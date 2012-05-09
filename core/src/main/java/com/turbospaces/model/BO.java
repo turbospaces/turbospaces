@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -49,6 +48,7 @@ import org.springframework.data.mapping.model.MappingException;
 import org.springframework.data.util.TypeInformation;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.core.SpaceUtility;
@@ -106,8 +106,8 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
 
         // find optimistic lock version field
         {
-            final Collection<P> versionCandidates = new LinkedList<P>();
-            final Collection<P> routingCandidates = new LinkedList<P>();
+            final Collection<P> versionCandidates = Lists.newLinkedList();
+            final Collection<P> routingCandidates = Lists.newLinkedList();
             doWithProperties( new PropertyHandler<P>() {
 
                 @Override
@@ -136,9 +136,9 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
             // Java Beans convention marker
             AtomicBoolean propertyAccess = new AtomicBoolean( true );
 
-            List<String> setters = new LinkedList<String>();
-            List<String> getters = new LinkedList<String>();
-            List<Class<?>> types = new LinkedList<Class<?>>();
+            List<String> setters = Lists.newLinkedList();
+            List<String> getters = Lists.newLinkedList();
+            List<Class<?>> types = Lists.newLinkedList();
 
             for ( PersistentProperty<?> persistentProperty : getOrderedProperties() ) {
                 PropertyDescriptor propertyDescriptor = persistentProperty.getPropertyDescriptor();
@@ -300,7 +300,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
      * @return the brokenProperties list or empty list
      */
     public List<String> getBrokenProperties() {
-        List<String> l = new LinkedList<String>();
+        List<String> l = Lists.newLinkedList();
         for ( PersistentProperty<?> p : brokenProperties )
             l.add( p.getName() );
         return l;
@@ -405,7 +405,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
     @SuppressWarnings("unchecked")
     public PersistentProperty<P>[] getOrderedProperties() {
         if ( orderedProperties == null ) {
-            final List<PersistentProperty<P>> nonOrderedProperties = new LinkedList<PersistentProperty<P>>();
+            final List<PersistentProperty<P>> nonOrderedProperties = Lists.newLinkedList();
 
             // Potentially non-ordered properties, add to temporary set and then sort
             doWithProperties( new PropertyHandler<P>() {
@@ -427,7 +427,7 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
             } );
 
             // construct ordered properties lists where idProperty is first and version is second
-            List<PersistentProperty<P>> ordered = new LinkedList<PersistentProperty<P>>();
+            List<PersistentProperty<P>> ordered = Lists.newLinkedList();
             if ( getOptimisticLockVersionProperty() != null )
                 ordered.add( getOptimisticLockVersionProperty() );
             if ( getRoutingProperty() != null )

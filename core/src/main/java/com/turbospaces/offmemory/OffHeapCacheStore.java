@@ -18,7 +18,6 @@ package com.turbospaces.offmemory;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -27,6 +26,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.core.CacheStatistics;
@@ -79,7 +79,7 @@ public class OffHeapCacheStore implements SpaceStore {
         this.capacityRestriction = capacityRestriction;
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );
         this.statsCounter = new CacheStatistics();
-        this.lockManager = SpaceUtility.parallelizedKeyLocker( SpaceStore.DEFAULT_CONCURRENCY_LEVEL );
+        this.lockManager = SpaceUtility.parallelizedKeyLocker();
         this.objectBufferPool = SpaceUtility.newObjectBufferPool();
         this.bo = configuration.boFor( entityClass );
     }
@@ -220,7 +220,7 @@ public class OffHeapCacheStore implements SpaceStore {
                 return new ByteBuffer[] { entryState };
         }
         else {
-            final List<ByteBuffer> l = new LinkedList<ByteBuffer>();
+            final List<ByteBuffer> l = Lists.newLinkedList();
 
             for ( Entry<EntryKeyLockQuard, WriteTakeEntry> entry : modificationContext.getWrites().entrySet() ) {
                 EntryKeyLockQuard uniqueIdentifier = entry.getKey();
@@ -316,6 +316,11 @@ public class OffHeapCacheStore implements SpaceStore {
     public synchronized void destroy()
                                       throws Exception {
         indexManager.destroy();
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        indexManager.afterPropertiesSet();
     }
 
     @Override

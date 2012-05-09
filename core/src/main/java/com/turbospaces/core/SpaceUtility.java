@@ -40,6 +40,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -57,7 +59,6 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
-import org.springframework.data.mapping.model.MutablePersistentEntity;
 import org.springframework.util.ObjectUtils;
 
 import sun.misc.Unsafe;
@@ -75,18 +76,17 @@ import com.esotericsoftware.kryo.serialize.MapSerializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.ForwardingConcurrentMap;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceCapacityOverflowException;
-import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.collections.OffHeapHashSet;
-import com.turbospaces.collections.OffHeapLinearProbingSet;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
@@ -586,7 +586,7 @@ public abstract class SpaceUtility {
                                                                                                     throws InterruptedException {
         final AtomicInteger atomicLong = new AtomicInteger( totalIterationsCount );
         final CountDownLatch countDownLatch = new CountDownLatch( threads );
-        final LinkedList<Throwable> errors = new LinkedList<Throwable>();
+        final LinkedList<Throwable> errors = Lists.newLinkedList();
         for ( int j = 0; j < threads; j++ ) {
             Thread thread = new Thread( new Runnable() {
 
@@ -681,141 +681,17 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * wrap original off-heap linear set by applying load distribution hash function and make it more
-     * concurrent(parallel)
-     * 
-     * @param configuration
-     * @param mutablePersistentEntity
-     * @param initialCapacity
-     * @param concurrencyLevel
-     * @return more concurrent set
-     */
-    public static OffHeapHashSet parallelizedOffLinearHashSet(final SpaceConfiguration configuration,
-                                                              final MutablePersistentEntity<?, ?> mutablePersistentEntity,
-                                                              final int initialCapacity,
-                                                              final int concurrencyLevel) {
-        OffHeapHashSet parallelSet = new OffHeapHashSet() {
-            private final OffHeapLinearProbingSet[] segments;
-
-            private final int concurrency;
-            private final int segmentShift;
-            private final int segmentMask;
-
-            {
-                int sshift = 0;
-                int ssize = 1;
-                while ( ssize < concurrencyLevel ) {
-                    ++sshift;
-                    ssize <<= 1;
-                }
-                concurrency = ssize;
-                segmentShift = 32 - sshift;
-                segmentMask = ssize - 1;
-                segments = new OffHeapLinearProbingSet[concurrency];
-
-                int c = initialCapacity / ssize;
-                if ( c * ssize < initialCapacity )
-                    ++c;
-                int cap = 1;
-                while ( cap < c )
-                    cap <<= 1;
-
-                for ( int i = 0; i < concurrency; i++ )
-                    segments[i] = new OffHeapLinearProbingSet( Math.min( 1 << 4, cap ), configuration, mutablePersistentEntity );
-            }
-
-            @Override
-            public List<ByteBuffer> match(final CacheStoreEntryWrapper template) {
-                // TODO Auto-generated method stub
-                return null;
-            }
-
-            @Override
-            public int remove(final Object key) {
-                return segmentFor( key ).remove( key );
-            }
-
-            @Override
-            public int put(final Object key,
-                           final ByteArrayPointer value) {
-                return segmentFor( key ).put( key, value );
-            }
-
-            @Override
-            public boolean contains(final Object key) {
-                return segmentFor( key ).contains( key );
-            }
-
-            @Override
-            public ByteArrayPointer getAsPointer(final Object key) {
-                return segmentFor( key ).getAsPointer( key );
-            }
-
-            @Override
-            public ByteBuffer getAsSerializedData(final Object key) {
-                return segmentFor( key ).getAsSerializedData( key );
-            }
-
-            @Override
-            public void afterPropertiesSet() {
-                for ( int i = 0; i < concurrency; i++ )
-                    segments[i].afterPropertiesSet();
-            }
-
-            @Override
-            public void destroy() {
-                for ( int i = 0; i < concurrency; i++ )
-                    segments[i].destroy();
-            }
-
-            @Override
-            public String toString() {
-                StringBuilder builder = new StringBuilder();
-                builder.append( "OffHeap LinerMap: segments" ).append( "\n" );
-                for ( int i = 0; i < concurrency; i++ ) {
-                    builder.append( "\t" );
-                    builder.append( i ).append( "->" ).append( segments[i] );
-                    builder.append( "\n" );
-                }
-
-                return builder.toString();
-            }
-
-            private OffHeapLinearProbingSet segmentFor(final Object key) {
-                final int hash = jdkHash( key.hashCode() );
-                return segments[hash >>> segmentShift & segmentMask];
-            }
-        };
-        return parallelSet;
-    }
-
-    /**
      * wrap original key locker by applying load distribution hash function and make it more concurrent(parallel)
      * 
-     * @param concurrencyLevel
      * @return parallel key locker
      */
-    public static KeyLocker parallelizedKeyLocker(final int concurrencyLevel) {
+    public static KeyLocker parallelizedKeyLocker() {
         KeyLocker locker = new KeyLocker() {
-            private final TransactionScopeKeyLocker[] segments;
-
-            private final int concurrency;
-            private final int segmentShift;
-            private final int segmentMask;
+            private final int segmentsCount = 128;
+            private final KeyLocker[] segments = new KeyLocker[segmentsCount];
 
             {
-                int sshift = 0;
-                int ssize = 1;
-                while ( ssize < concurrencyLevel ) {
-                    ++sshift;
-                    ssize <<= 1;
-                }
-                concurrency = ssize;
-                segmentShift = 32 - sshift;
-                segmentMask = ssize - 1;
-                segments = new TransactionScopeKeyLocker[concurrency];
-
-                for ( int i = 0; i < concurrency; i++ )
+                for ( int i = 0; i < segmentsCount; i++ )
                     segments[i] = new TransactionScopeKeyLocker();
             }
 
@@ -833,12 +709,10 @@ public abstract class SpaceUtility {
                 return segmentFor( key ).writeLock( key, transactionID, timeout, strict );
             }
 
-            private TransactionScopeKeyLocker segmentFor(final Object key) {
-                final int hash = jdkHash( key.hashCode() );
-                return segments[hash >>> segmentShift & segmentMask];
+            private KeyLocker segmentFor(final Object key) {
+                return segments[( hash( key.hashCode() ) & Integer.MAX_VALUE ) % segmentsCount];
             }
         };
-
         return locker;
     }
 
@@ -878,7 +752,14 @@ public abstract class SpaceUtility {
         return k;
     }
 
-    private static int jdkHash(final int hash) {
+    /**
+     * jdk hash code
+     * 
+     * @param hash
+     *            object hash code
+     * @return hash
+     */
+    public static int jdkHash(final int hash) {
         int h = hash;
         h += h << 15 ^ 0xffffcd7d;
         h ^= h >>> 10;
@@ -915,6 +796,39 @@ public abstract class SpaceUtility {
             return Optional.of( (T) objects[0] );
         }
         return Optional.absent();
+    }
+
+    /**
+     * make new concurrent computation hash map
+     * 
+     * @param compFunction
+     * @return map
+     */
+    public static <K, V> ConcurrentMap<K, V> newCompMap(final Function<K, V> compFunction) {
+        return new ForwardingConcurrentMap<K, V>() {
+            private final ConcurrentMap<K, V> delegate = new ConcurrentHashMap<K, V>();
+
+            @Override
+            protected ConcurrentMap<K, V> delegate() {
+                return delegate;
+            }
+
+            @Override
+            public V get(final Object key) {
+                V v = super.get( key );
+                if ( v == null )
+                    synchronized ( delegate ) {
+                        v = super.get( key );
+                        if ( v == null ) {
+                            v = compFunction.apply( (K) key );
+                            V prev = putIfAbsent( (K) key, v );
+                            if ( prev != null )
+                                v = prev;
+                        }
+                    }
+                return v;
+            }
+        };
     }
 
     private SpaceUtility() {}

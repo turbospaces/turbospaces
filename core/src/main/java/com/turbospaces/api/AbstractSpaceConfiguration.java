@@ -17,7 +17,6 @@ package com.turbospaces.api;
 
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +39,7 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
@@ -116,8 +116,13 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      */
     private long defaultCommunicationTimeout = defaultCommunicationTimeout();
 
-    //
-    private final ConcurrentMap<Class<?>, BO> bos = new ConcurrentHashMap<Class<?>, BO>();
+    private final ConcurrentMap<Class<?>, BO> bos = SpaceUtility.newCompMap( new Function<Class<?>, BO>() {
+        @SuppressWarnings("unchecked")
+        @Override
+        public BO apply(final Class<?> input) {
+            return new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( input ) );
+        }
+    } );
 
     @Override
     public void setApplicationContext(final ApplicationContext applicationContext) {
@@ -357,14 +362,8 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * @param clazz
      * @return cached BO class wrapper
      */
-    @SuppressWarnings("unchecked")
     public BO boFor(final Class<?> clazz) {
-        BO b = bos.get( clazz );
-        if ( b == null ) {
-            bos.putIfAbsent( clazz, new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( clazz ) ) );
-            b = bos.get( clazz );
-        }
-        return b;
+        return bos.get( clazz );
     }
 
     /**

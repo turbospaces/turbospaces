@@ -23,9 +23,6 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceExpirationListener;
-import com.turbospaces.collections.OffHeapHashSet;
-import com.turbospaces.collections.OffHeapLinearProbingSet;
-import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -46,6 +43,7 @@ public class OffHeapHashMapTest {
     ByteArrayPointer p1, p2, p3;
     byte[] bytes1, bytes2, bytes3;
     TestEntity1 entity1, entity2, entity3, entity4;
+    CacheStoreEntryWrapper cacheStoreEntryWrapper1, cacheStoreEntryWrapper2, cacheStoreEntryWrapper3;
     OffHeapHashSet heapHashMap;
 
     @SuppressWarnings("unchecked")
@@ -57,13 +55,8 @@ public class OffHeapHashMapTest {
         objectBuffer = new ObjectBuffer( configuration.getKryo() );
         bo = new BO( (BasicPersistentEntity) configuration.getMappingContext().getPersistentEntity( TestEntity1.class ) );
 
-        return Arrays.asList( new Object[][] {
-                { new OffHeapLinearProbingSet( 2, configuration, bo ) },
-                { SpaceUtility.parallelizedOffLinearHashSet(
-                        configuration,
-                        configuration.getMappingContext().getPersistentEntity( TestEntity1.class ),
-                        129,
-                        16 ) } } );
+        return Arrays.asList( new Object[][] { { new OffHeapLinearProbingSegment( 2, configuration, bo ) },
+                { new OffHeapLinearProbingSet( configuration, bo ) } } );
     }
 
     @AfterClass
@@ -77,7 +70,7 @@ public class OffHeapHashMapTest {
         heapHashMap = set;
         heapHashMap.afterPropertiesSet();
 
-        if ( !( set instanceof OffHeapLinearProbingSet ) )
+        if ( !( set instanceof OffHeapLinearProbingSegment ) )
             configuration.setExpirationListener( new SpaceExpirationListener() {
 
                 @Override
@@ -122,11 +115,16 @@ public class OffHeapHashMapTest {
         p1 = new ByteArrayPointer( bytes1, entity1, Long.MAX_VALUE );
         p2 = new ByteArrayPointer( bytes2, entity2, Long.MAX_VALUE );
         p3 = new ByteArrayPointer( bytes3, entity3, Long.MAX_VALUE );
+
+        cacheStoreEntryWrapper1 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 );
+        cacheStoreEntryWrapper2 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 );
+        cacheStoreEntryWrapper3 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 );
     }
 
     @After
     public void after()
                        throws Exception {
+        System.out.println( heapHashMap );
         heapHashMap.destroy();
     }
 
@@ -143,6 +141,14 @@ public class OffHeapHashMapTest {
         assertThat( ByteArrayPointer.getEntityState( object1.dump() ), is( bytes1 ) );
         assertThat( ByteArrayPointer.getEntityState( object2.dump() ), is( bytes2 ) );
         assertThat( ByteArrayPointer.getEntityState( object3.dump() ), is( bytes3 ) );
+
+        List<ByteArrayPointer> templateMatch1 = heapHashMap.match( cacheStoreEntryWrapper1 );
+        List<ByteArrayPointer> templateMatch2 = heapHashMap.match( cacheStoreEntryWrapper2 );
+        List<ByteArrayPointer> templateMatch3 = heapHashMap.match( cacheStoreEntryWrapper3 );
+
+        assertThat( ByteArrayPointer.getEntityState( templateMatch1.iterator().next().dump() ), is( bytes1 ) );
+        assertThat( ByteArrayPointer.getEntityState( templateMatch2.iterator().next().dump() ), is( bytes2 ) );
+        assertThat( ByteArrayPointer.getEntityState( templateMatch3.iterator().next().dump() ), is( bytes3 ) );
 
         Assert.assertTrue( heapHashMap.contains( key1 ) );
         Assert.assertTrue( heapHashMap.contains( key2 ) );
@@ -216,7 +222,7 @@ public class OffHeapHashMapTest {
     @Test
     public void canRemoveExpiredEntitiesAutomatically()
                                                        throws InterruptedException {
-        TestEntity1[] arr = new TestEntity1[2000];
+        TestEntity1[] arr = new TestEntity1[3000];
         for ( int i = 0; i < arr.length; i++ ) {
             arr[i] = new TestEntity1();
             arr[i].afterPropertiesSet();
@@ -228,12 +234,15 @@ public class OffHeapHashMapTest {
 
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
         }
-        Thread.sleep( 1 );
+        Thread.sleep( 2 );
 
-        for ( int i = 0; i < arr.length / 2; i++ )
+        for ( int i = 0; i < arr.length / 3; i++ )
             Assert.assertTrue( heapHashMap.getAsPointer( arr[i].getUniqueIdentifier() ) == null );
 
-        for ( int i = arr.length / 2; i < arr.length; i++ )
+        for ( int i = arr.length / 3; i < ( ( 2 * arr.length ) / 3 ); i++ )
             Assert.assertFalse( heapHashMap.contains( arr[i].getUniqueIdentifier() ) );
+
+        for ( int i = ( ( 2 * arr.length ) / 3 ); i < arr.length; i++ )
+            Assert.assertTrue( heapHashMap.match( CacheStoreEntryWrapper.valueOf( bo, configuration, arr[i] ) ) == null );
     }
 }

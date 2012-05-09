@@ -16,7 +16,6 @@
 package com.turbospaces.spaces;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,6 +30,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.ClientSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceErrors;
@@ -39,13 +39,13 @@ import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.MethodCall;
-import com.turbospaces.network.NetworkCommunicationDispatcher;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
 import com.turbospaces.network.MethodCall.GetMbUsedMethodCall;
 import com.turbospaces.network.MethodCall.GetSizeMethodCall;
 import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
 import com.turbospaces.network.MethodCall.ModifyMethodCall;
+import com.turbospaces.network.NetworkCommunicationDispatcher;
 import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.spaces.tx.SpaceTransactionHolder;
 import com.turbospaces.spaces.tx.TransactionModificationContextProxy;
@@ -129,7 +129,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
 
             associateTransaction( addresses, objectBuffer, transactionHolder, methodCall );
 
-            List response = new LinkedList();
+            List response = Lists.newLinkedList();
             for ( MethodCall next : clientReceiever.sendAndReceive( methodCall, objectBuffer, addresses ) )
                 if ( next.getResponseBody() != null ) {
                     byte[][] readObjectData = objectBuffer.readObjectData( next.getResponseBody(), byte[][].class );

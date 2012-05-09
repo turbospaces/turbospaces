@@ -34,7 +34,6 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.offmemory.OffHeapCacheStore;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.CountingSpaceNotificationListener;
 import com.turbospaces.spaces.NotificationContext;
@@ -65,6 +64,7 @@ public class DirectOffHeapByteBufferTest {
         configuration = TestEntity1.configurationFor();
         buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
         bo = new BO( (BasicPersistentEntity) configuration.getMappingContext().getPersistentEntity( TestEntity1.class ) );
+        buffer.afterPropertiesSet();
     }
 
     @After
@@ -92,6 +92,7 @@ public class DirectOffHeapByteBufferTest {
         configuration.restrictCapacity( TestEntity1.class, capacityRestriction );
         configuration.afterPropertiesSet();
         buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
+        buffer.afterPropertiesSet();
 
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();

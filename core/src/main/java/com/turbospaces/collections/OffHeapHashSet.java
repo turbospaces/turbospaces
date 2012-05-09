@@ -40,14 +40,9 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  */
 public interface OffHeapHashSet extends DisposableBean, InitializingBean {
     /**
-     * max set capacity currently supported by off-heap hash set implementations
-     */
-    int MAXIMUM_CAPACITY = 1 << 30;
-
-    /**
      * default initial capacity of the set of <code>1024</code>.
      */
-    int DEFAULT_INITIAL_CAPACITY = 1 << 12;
+    int DEFAULT_INITIAL_CAPACITY = 1 << 10;
 
     /**
      * check whether particular key is present in map and is so, return the off-heap pointer address.</p>
@@ -87,7 +82,7 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
      * @param template
      * @return array/list of matched objects in de-serialized form
      */
-    List<ByteBuffer> match(CacheStoreEntryWrapper template);
+    List<ByteArrayPointer> match(CacheStoreEntryWrapper template);
 
     /**
      * put(and probably replace previous pointer associated with the key(and do memory utilization in case of such
@@ -110,4 +105,7 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
      * @return how many bytes where occupied by byte array pointer
      */
     int remove(Object key);
+
+    @Override
+    void afterPropertiesSet();
 }

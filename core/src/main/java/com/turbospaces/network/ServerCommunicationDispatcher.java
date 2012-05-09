@@ -1,6 +1,5 @@
 package com.turbospaces.network;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -19,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.remoting.RemoteLookupFailureException;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.google.common.collect.Lists;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceErrors;
@@ -77,8 +77,8 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
     public final void viewAccepted(final View view) {
         List<Address> members = view.getMembers();
         Address ownAddress = configuration.getJChannel().getAddress();
-        List<Address> newServersMembers = new ArrayList<Address>();
-        List<Address> newClientMembers = new ArrayList<Address>();
+        List<Address> newServersMembers = Lists.newArrayList();
+        List<Address> newClientMembers = Lists.newArrayList();
 
         for ( Address address : members )
             if ( !ownAddress.equals( address ) ) {

@@ -66,6 +66,7 @@ public class IndexManagerTest {
 
         serializer = new DefaultEntitySerializer( configuration );
         indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( TestEntity1.class ), configuration );
+        indexManager.afterPropertiesSet();
 
         ByteArrayPointer pointer = null;
         try {

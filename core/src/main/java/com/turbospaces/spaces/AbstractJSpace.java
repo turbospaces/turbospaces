@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -33,6 +32,7 @@ import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ObjectUtils;
 
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.turbospaces.api.JSpace;
@@ -41,6 +41,7 @@ import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.core.Memory;
+import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.offmemory.OffHeapCacheStore;
 import com.turbospaces.serialization.SerializationEntry;
@@ -72,7 +73,14 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         super();
 
         this.configuration = configuration;
-        offHeapBuffers = new ConcurrentHashMap<Class<?>, OffHeapCacheStore>();
+        offHeapBuffers = SpaceUtility.newCompMap( new Function<Class<?>, OffHeapCacheStore>() {
+            @Override
+            public OffHeapCacheStore apply(final Class<?> input) {
+                OffHeapCacheStore cacheStore = new OffHeapCacheStore( configuration, input, capacityRestriction );
+                cacheStore.afterPropertiesSet();
+                return cacheStore;
+            }
+        } );
         capacityRestriction = new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() );
         notificationContext = new HashSet<NotificationContext>();
         messageListener = new SpaceReceiveAdapter( this );
@@ -145,7 +153,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                    final long timeout,
                    final int maxResults,
                    final int modifiers) {
-        final SpaceStore buffer = offHeapBufferFor( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
+        final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
                 .getPersistentEntity()
                 .getType() : entry.getClass() );
         long txTimeout = timeout;
@@ -177,7 +185,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                final long timeToLive,
                final long timeout,
                final int modifier) {
-        final SpaceStore buffer = offHeapBufferFor( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
+        final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
                 .getPersistentEntity()
                 .getType() : entry.getClass() );
         long txTimeout = timeout;
@@ -215,7 +223,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         Preconditions.checkArgument( timeout >= 0, NEGATIVE_TIMEOUT );
 
         Class<?> persistentClass = entry.getClass();
-        SpaceStore heapBuffer = offHeapBufferFor( persistentClass );
+        SpaceStore heapBuffer = offHeapBuffers.get( persistentClass );
         BO bo = configuration.boFor( entry.getClass() );
 
         boolean isWriteOnly = SpaceModifiers.isWriteOnly( modifier );
@@ -268,11 +276,11 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
         if ( entry instanceof CacheStoreEntryWrapper ) {
             cacheStoreEntryWrapper = (CacheStoreEntryWrapper) entry;
-            heapBuffer = offHeapBufferFor( cacheStoreEntryWrapper.getPersistentEntity().getType() );
+            heapBuffer = offHeapBuffers.get( cacheStoreEntryWrapper.getPersistentEntity().getType() );
             template = cacheStoreEntryWrapper.getBean();
         }
         else {
-            heapBuffer = offHeapBufferFor( entry.getClass() );
+            heapBuffer = offHeapBuffers.get( entry.getClass() );
             cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( configuration.boFor( entry.getClass() ), configuration, entry );
             template = entry;
         }
@@ -392,17 +400,6 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                                     throws Exception {
         getSpaceConfiguration().getMessageDispatcher().addMessageReceiver( messageListener );
         messageListener.afterPropertiesSet();
-    }
-
-    protected SpaceStore offHeapBufferFor(final Class<?> clazz) {
-        OffHeapCacheStore b = offHeapBuffers.get( clazz );
-        if ( b == null )
-            synchronized ( this ) {
-                b = new OffHeapCacheStore( configuration, clazz, capacityRestriction );
-                offHeapBuffers.putIfAbsent( clazz, b );
-                b = offHeapBuffers.get( clazz );
-            }
-        return b;
     }
 
     @Override

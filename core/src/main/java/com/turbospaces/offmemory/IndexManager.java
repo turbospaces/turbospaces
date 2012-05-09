@@ -18,16 +18,16 @@ package com.turbospaces.offmemory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.mapping.model.MutablePersistentEntity;
 
 import com.google.common.base.Objects;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.collections.OffHeapHashSet;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.collections.OffHeapLinearProbingSet;
 import com.turbospaces.model.BO;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
-import com.turbospaces.spaces.SpaceStore;
 
 /**
  * index manager is responsible for managing indexes over space index fields for much faster data retrieve.
@@ -36,7 +36,7 @@ import com.turbospaces.spaces.SpaceStore;
  */
 @ThreadSafe
 @SuppressWarnings("rawtypes")
-public class IndexManager implements DisposableBean {
+public class IndexManager implements DisposableBean, InitializingBean {
     private final SpaceCapacityRestrictionHolder capacityRestriction;
     private final OffHeapHashSet idCache;
     private final BO bo;
@@ -45,11 +45,7 @@ public class IndexManager implements DisposableBean {
     public IndexManager(final MutablePersistentEntity mutablePersistentEntity, final SpaceConfiguration configuration) {
         bo = configuration.boFor( mutablePersistentEntity.getType() );
         capacityRestriction = new SpaceCapacityRestrictionHolder( bo.getCapacityRestriction() );
-        idCache = SpaceUtility.parallelizedOffLinearHashSet(
-                configuration,
-                mutablePersistentEntity,
-                OffHeapHashSet.DEFAULT_INITIAL_CAPACITY,
-                SpaceStore.DEFAULT_CONCURRENCY_LEVEL );
+        idCache = new OffHeapLinearProbingSet( configuration, mutablePersistentEntity );
     }
 
     /**
@@ -122,6 +118,11 @@ public class IndexManager implements DisposableBean {
     public void destroy()
                          throws Exception {
         idCache.destroy();
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        idCache.afterPropertiesSet();
     }
 
     @Override

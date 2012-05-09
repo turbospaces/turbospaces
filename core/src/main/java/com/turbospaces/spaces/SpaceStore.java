@@ -18,6 +18,7 @@ package com.turbospaces.spaces;
 import java.nio.ByteBuffer;
 
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
@@ -33,12 +34,7 @@ import com.turbospaces.spaces.tx.TransactionModificationContext;
  * 
  * @since 0.1
  */
-public interface SpaceStore extends DisposableBean {
-
-    /**
-     * default concurrency level of <code>256</code>.
-     */
-    int DEFAULT_CONCURRENCY_LEVEL = 1 << 8;
+public interface SpaceStore extends DisposableBean, InitializingBean {
 
     /**
      * synchronize(apply all or discard) transaction modification changes and release write/read locks
