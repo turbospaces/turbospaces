@@ -373,8 +373,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     }
 
     @Override
-    public void destroy()
-                         throws Exception {
+    public void destroy() {
         try {
             Collection<OffHeapCacheStore> values = offHeapBuffers.values();
             for ( OffHeapCacheStore b : values )
@@ -388,8 +387,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     }
 
     @Override
-    public void afterPropertiesSet()
-                                    throws Exception {
+    public void afterPropertiesSet() {
         getSpaceConfiguration().getMessageDispatcher().addMessageReceiver( messageListener );
         messageListener.afterPropertiesSet();
     }

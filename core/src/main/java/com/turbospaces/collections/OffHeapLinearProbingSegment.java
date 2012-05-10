@@ -51,7 +51,7 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  * @see OffHeapLinearProbingSet
  */
 @ThreadSafe
-public class OffHeapLinearProbingSegment implements OffHeapHashSet {
+class OffHeapLinearProbingSegment implements OffHeapHashSet {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final SpaceConfiguration configuration;
     private final MutablePersistentEntity<?, ?> mutablePersistentEntity;
@@ -346,10 +346,10 @@ public class OffHeapLinearProbingSegment implements OffHeapHashSet {
         }
     }
 
-    private static class ExpiredEntry {
-        ByteBuffer buffer;
-        long ttl;
-        Object id;
+    private static final class ExpiredEntry {
+        private final ByteBuffer buffer;
+        private final long ttl;
+        private Object id;
 
         private ExpiredEntry(final ByteBuffer buffer, final long ttl) {
             super();

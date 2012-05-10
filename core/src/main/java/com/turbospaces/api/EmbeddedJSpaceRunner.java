@@ -91,4 +91,6 @@ public class EmbeddedJSpaceRunner {
             JOINED_NETWORK_CONDITION_MONITOR.wait();
         }
     }
+
+    private EmbeddedJSpaceRunner() {}
 }

@@ -79,7 +79,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
                        final SpaceNotificationListener listener,
                        final int modifiers) {
         final ObjectBuffer objectBuffer = borrowObjectBuffer();
-        final Address[] serverNodes = clientReceiever.getServerNodes( topology );
+        final Address[] serverNodes = clientReceiever.getServerNodes( getSpaceTopology() );
         try {
             byte[] serializedData = objectBuffer.writeClassAndObject( template );
 
@@ -182,7 +182,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
     public long size() {
         long size = 0;
 
-        Address[] addresses = clientReceiever.getServerNodes( topology );
+        Address[] addresses = clientReceiever.getServerNodes( getSpaceTopology() );
         ObjectBuffer objectBuffer = borrowObjectBuffer();
         GetSizeMethodCall methodCall = new GetSizeMethodCall();
 

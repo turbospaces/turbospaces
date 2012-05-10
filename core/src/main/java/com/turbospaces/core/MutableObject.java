@@ -11,7 +11,7 @@ package com.turbospaces.core;
  * @since 0.1
  */
 public class MutableObject<V> {
-    V value;
+    private V value;
 
     @SuppressWarnings("javadoc")
     public void set(final V newval) {

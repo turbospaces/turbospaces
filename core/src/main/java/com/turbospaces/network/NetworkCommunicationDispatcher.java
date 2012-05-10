@@ -155,7 +155,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
             Message message = messages[i];
             Address destination = message.getDest();
             if ( result[i] != null ) {
-                String exceptionAsString = result[i].exceptionAsString;
+                String exceptionAsString = result[i].getExceptionAsString();
                 if ( exceptionAsString != null ) {
                     if ( remoteExceptions == null )
                         remoteExceptions = Lists.newArrayList();

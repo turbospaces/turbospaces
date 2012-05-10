@@ -3,7 +3,7 @@ package com.turbospaces.network;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-import java.util.LinkedList;
+import java.util.List;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -72,7 +72,7 @@ public class PartitionedBasicCommunicationTest {
     @Test
     public void canWriteFetchNonTransactionally()
                                                  throws InterruptedException {
-        LinkedList<Throwable> errors = SpaceUtility.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000, new Runnable() {
+        List<Throwable> errors = SpaceUtility.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000, new Runnable() {
 
             @Override
             public void run() {

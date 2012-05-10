@@ -30,6 +30,7 @@ import com.esotericsoftware.kryo.Kryo.RegisteredClass;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
@@ -56,7 +57,7 @@ import com.turbospaces.spaces.tx.TransactionModificationContext;
  */
 @ThreadSafe
 class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, DisposableBean {
-    private final Logger LOGGER = LoggerFactory.getLogger( getClass() );
+    private final Logger logger = LoggerFactory.getLogger( getClass() );
 
     private final ObjectPool<ObjectBuffer> objectBufferPool;
     private final ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>> durableTransactions;
@@ -79,7 +80,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                 if ( !durableTransactions.isEmpty() ) {
                     Collection<Cache<Long, SpaceTransactionHolder>> values = durableTransactions.values();
                     for ( Cache<Long, SpaceTransactionHolder> cache : values ) {
-                        LOGGER.debug( "running automatic cleanup of dead transaction for {}", cache );
+                        logger.debug( "running automatic cleanup of dead transaction for {}", cache );
                         cache.cleanUp();
                     }
                 }
@@ -105,7 +106,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
             final short id = methodCall.getMethodId();
 
             SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[methodCall.getMethodId()];
-            LOGGER.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
+            logger.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
 
             if ( id == SpaceMethodsMapping.BEGIN_TRANSACTION.ordinal() )
                 sendResponseBackAfterExecution( methodCall, new Runnable() {
@@ -299,9 +300,10 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
         try {
             task.run();
         }
-        catch ( Throwable ex ) {
+        catch ( RuntimeException ex ) {
             methodCall.setException( ex );
-            LOGGER.error( ex.getMessage(), ex );
+            logger.error( ex.getMessage(), ex );
+            Throwables.propagate( ex );
         }
         finally {
             JChannel jChannel = jSpace.getSpaceConfiguration().getJChannel();
@@ -314,7 +316,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                 jChannel.send( messageBack );
             }
             catch ( Exception e ) {
-                LOGGER.error( e.getMessage(), e );
+                logger.error( e.getMessage(), e );
                 throw new RemoteConnectFailureException( "unable to send response back to " + address, e );
             }
         }
@@ -325,7 +327,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
         Cache<Long, SpaceTransactionHolder> modificationContexts = modificationContextFor( mbr );
         Set<Long> keys = modificationContexts.asMap().keySet();
         if ( keys.size() > 0 )
-            LOGGER.warn( "Address {} has been suspected, this may cause automatic rollback for active transactions soon, ids = {}", mbr, keys );
+            logger.warn( "Address {} has been suspected, this may cause automatic rollback for active transactions soon, ids = {}", mbr, keys );
     }
 
     @Override
@@ -345,7 +347,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                 for ( Entry<Long, SpaceTransactionHolder> entry : entrySet ) {
                     Long transactionId = entry.getKey();
                     SpaceTransactionHolder transactionHolder = entry.getValue();
-                    LOGGER.warn( "automatically rolling back transaction id={} due to client's connection disconnect", transactionId );
+                    logger.warn( "automatically rolling back transaction id={} due to client's connection disconnect", transactionId );
                     jSpace.syncTx( transactionHolder.getModificationContext(), false );
                     modificationContextFor.invalidate( transactionId );
                 }
@@ -370,7 +372,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                         SpaceTransactionHolder txHolder = notification.getValue();
 
                         if ( notification.wasEvicted() ) {
-                            LOGGER.warn( "cleaning up(rolling back) expired transaction id={}", transactionId );
+                            logger.warn( "cleaning up(rolling back) expired transaction id={}", transactionId );
                             jSpace.syncTx( txHolder.getModificationContext(), false );
                         }
                     }

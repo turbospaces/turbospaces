@@ -1,6 +1,6 @@
 package com.turbospaces.offmemory;
 
-import java.util.LinkedList;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
@@ -43,7 +43,7 @@ public class ConcurrencyModificationPerformanceTest {
         final TestEntity1 e1 = new TestEntity1();
         e1.afterPropertiesSet();
 
-        LinkedList<Throwable> errors = SpaceUtility.repeatConcurrently(
+        List<Throwable> errors = SpaceUtility.repeatConcurrently(
                 Runtime.getRuntime().availableProcessors(),
                 1000000,
                 new Function<Integer, Object>() {

@@ -61,64 +61,64 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * the maximum possible number of nodes in cluster.
      */
     public static final int MAX_CLUSTER_NODE = 1 << 10;
-    private static int DEFAULT_TRANSACTION_TIMEOUT = (int) TimeUnit.SECONDS.toSeconds( 10 );
-    private static long DEFAULT_COMMUNICATION_TIMEOUT = TimeUnit.SECONDS.toMillis( 5 );
-    private static long DEFAULT_CACHE_CLEANUP_PERIOD = TimeUnit.SECONDS.toMillis( 1 );
+    private static final int DEFAULT_TRANSACTION_TIMEOUT = (int) TimeUnit.SECONDS.toSeconds( 10 );
+    private static final long DEFAULT_COMMUNICATION_TIMEOUT = TimeUnit.SECONDS.toMillis( 5 );
+    private static final long DEFAULT_CACHE_CLEANUP_PERIOD = TimeUnit.SECONDS.toMillis( 1 );
 
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     /**
      * spring application context reference (if inside IOC container, not standalone)
      */
-    protected ApplicationContext applicationContext;
+    private ApplicationContext applicationContext;
     /**
      * space logical name
      * 
      * @see #setGroup(String)
      */
-    protected String group = defaultGroupName();
+    private String group = defaultGroupName();
     /**
      * POJO mapping context(mongoDB, JPA, JDBC, etc)
      * 
      * @see #setMappingContext(AbstractMappingContext)
      */
-    protected AbstractMappingContext mappingContext;
+    private AbstractMappingContext mappingContext;
     /**
      * optional conversion service
      * 
      * @see #setConversionService(ConversionService)
      */
-    protected ConversionService conversionService;
+    private ConversionService conversionService;
     /**
      * jgroups communication channel
      * 
      * @see #setjChannel(JChannel)
      */
-    protected JChannel jChannel;
+    private JChannel jChannel;
     /**
      * kryo serialization configuration
      */
-    protected Kryo kryo;
+    private Kryo kryo;
     /**
      * jspace executor service
      */
-    protected ExecutorService executorService;
+    private ExecutorService executorService;
     /**
      * jspace scheduler executor service
      */
-    protected ScheduledExecutorService scheduledExecutorService;
-    /**
-     * space deployment topology
-     */
-    protected SpaceTopology topology = SpaceTopology.SYNC_REPLICATED;
+    private ScheduledExecutorService scheduledExecutorService;
     /**
      * space entities serializer
      */
-    protected EntitySerializer entitySerializer;
-
+    private EntitySerializer entitySerializer;
     /**
      * default network communication timeout.
      */
     private long defaultCommunicationTimeout = defaultCommunicationTimeout();
+
+    /**
+     * space deployment topology
+     */
+    SpaceTopology topology = SpaceTopology.SYNC_REPLICATED;
 
     private final ConcurrentMap<Class<?>, BO> bos = SpaceUtility.newCompMap( new Function<Class<?>, BO>() {
         @SuppressWarnings("unchecked")
@@ -305,8 +305,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     }
 
     @Override
-    public void destroy()
-                         throws Exception {
+    public void destroy() {
         if ( jChannel != null ) {
             jChannel.disconnect();
             jChannel.close();

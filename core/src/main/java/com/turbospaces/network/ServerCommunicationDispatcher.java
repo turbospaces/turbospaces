@@ -39,11 +39,11 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
     private final Random random = new Random();
     private final Object monitor = new Object();
 
-    protected final AbstractSpaceConfiguration configuration;
-    protected final ObjectPool<ObjectBuffer> objectBufferPool = SpaceUtility.newObjectBufferPool();
-    protected volatile Address[] serverNodes = new Address[0];
-    protected volatile Address[] clientNodes = new Address[0];
-    protected Collection<Receiver> delegates = new LinkedHashSet<Receiver>();
+    final AbstractSpaceConfiguration configuration;
+    final ObjectPool<ObjectBuffer> objectBufferPool = SpaceUtility.newObjectBufferPool();
+    private volatile Address[] serverNodes = new Address[0];
+    private volatile Address[] clientNodes = new Address[0];
+    private final Collection<Receiver> delegates = new LinkedHashSet<Receiver>();
 
     /**
      * create receiver over jchannel with given default network communication timeout.

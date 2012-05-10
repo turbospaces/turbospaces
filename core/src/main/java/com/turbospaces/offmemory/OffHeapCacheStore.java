@@ -313,8 +313,7 @@ public class OffHeapCacheStore implements SpaceStore {
     }
 
     @Override
-    public synchronized void destroy()
-                                      throws Exception {
+    public void destroy() {
         indexManager.destroy();
     }
 

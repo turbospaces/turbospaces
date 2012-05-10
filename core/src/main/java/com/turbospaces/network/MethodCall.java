@@ -27,10 +27,10 @@ import com.turbospaces.spaces.SpaceMethodsMapping;
  * @since 0.1
  */
 public class MethodCall {
-    short methodId;
-    byte[] responseBody;
-    long correlationId;
-    String exceptionAsString;
+    protected short methodId;
+    private byte[] responseBody;
+    private long correlationId;
+    private String exceptionAsString;
 
     /**
      * @return the unique method id which can be used both by client and server to identify method
@@ -93,8 +93,7 @@ public class MethodCall {
     }
 
     @SuppressWarnings("javadoc")
-    public static class GetSizeMethodCall extends MethodCall {
-
+    public static final class GetSizeMethodCall extends MethodCall {
         public GetSizeMethodCall() {
             super();
             methodId = (short) SpaceMethodsMapping.SIZE.ordinal();
@@ -102,8 +101,7 @@ public class MethodCall {
     }
 
     @SuppressWarnings("javadoc")
-    public static class GetMbUsedMethodCall extends MethodCall {
-
+    public static final class GetMbUsedMethodCall extends MethodCall {
         public GetMbUsedMethodCall() {
             super();
             methodId = (short) SpaceMethodsMapping.MB_USED.ordinal();
@@ -111,8 +109,7 @@ public class MethodCall {
     }
 
     @SuppressWarnings("javadoc")
-    public static class GetSpaceTopologyMethodCall extends MethodCall {
-
+    public static final class GetSpaceTopologyMethodCall extends MethodCall {
         public GetSpaceTopologyMethodCall() {
             super();
             methodId = (short) SpaceMethodsMapping.SPACE_TOPOLOGY.ordinal();
@@ -120,7 +117,7 @@ public class MethodCall {
     }
 
     @SuppressWarnings("javadoc")
-    public static class BeginTransactionMethodCall extends MethodCall {
+    public static final class BeginTransactionMethodCall extends MethodCall {
         private long transactionTimeout;
 
         public BeginTransactionMethodCall() {

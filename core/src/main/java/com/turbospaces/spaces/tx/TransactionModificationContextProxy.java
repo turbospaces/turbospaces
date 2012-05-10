@@ -30,7 +30,7 @@ import com.turbospaces.pool.SimpleObjectPool;
  * 
  * @since 0.1
  */
-public class TransactionModificationContextProxy {
+public final class TransactionModificationContextProxy {
     private static final ObjectPool<TransactionModificationContextProxy> OBJECT_POOL;
 
     static {

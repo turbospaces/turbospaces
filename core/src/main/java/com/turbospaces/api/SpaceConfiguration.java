@@ -135,10 +135,10 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     public void afterPropertiesSet()
                                     throws Exception {
         super.afterPropertiesSet();
-        jChannel.setName( JSpace.SSC + "-" + UUID.randomUUID().toString() );
+        getJChannel().setName( JSpace.SSC + "-" + UUID.randomUUID().toString() );
         dispatcher = new ServerCommunicationDispatcher( this );
-        jChannel.setReceiver( dispatcher );
-        networkServiceProvider = new SpaceNetworkServiceProvider( jChannel, true );
+        getJChannel().setReceiver( dispatcher );
+        networkServiceProvider = new SpaceNetworkServiceProvider( getJChannel(), true );
         dumpConfiguration();
     }
 

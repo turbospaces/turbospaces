@@ -15,7 +15,7 @@
  */
 package com.turbospaces.core;
 
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -158,7 +158,7 @@ public class PerformanceMonitor implements Runnable {
         } );
 
         try {
-            LinkedList<Throwable> exceptions = SpaceUtility.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
+            List<Throwable> exceptions = SpaceUtility.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
                 SimpleObjectPool<Object> pool = new SimpleObjectPool<Object>( objectFactory );
                 Object obj = objectFactory.newInstance();
                 Class<?> clazz = obj.getClass();

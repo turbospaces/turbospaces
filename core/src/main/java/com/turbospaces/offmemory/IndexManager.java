@@ -115,8 +115,7 @@ public class IndexManager implements DisposableBean, InitializingBean {
     }
 
     @Override
-    public void destroy()
-                         throws Exception {
+    public void destroy() {
         idCache.destroy();
     }
 

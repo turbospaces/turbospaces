@@ -40,7 +40,7 @@ class TransactionModificationLock {
      * synchronization control for the transaction modification lock.
      */
     @SuppressWarnings("serial")
-    private static class Sync extends AbstractQueuedLongSynchronizer {
+    private static final class Sync extends AbstractQueuedLongSynchronizer {
         private final boolean exclusiveMode;
 
         private Sync(final boolean exclusiveMode) {

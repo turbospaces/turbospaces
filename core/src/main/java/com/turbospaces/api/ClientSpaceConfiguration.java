@@ -33,10 +33,10 @@ public class ClientSpaceConfiguration extends AbstractSpaceConfiguration {
                                     throws Exception {
         super.afterPropertiesSet();
 
-        jChannel.setName( JSpace.SC + "-" + UUID.randomUUID().toString() );
+        getJChannel().setName( JSpace.SC + "-" + UUID.randomUUID().toString() );
         dispatcher = new NetworkCommunicationDispatcher( this );
         dispatcher.setKryo( getKryo() );
-        jChannel.setReceiver( dispatcher );
+        getJChannel().setReceiver( dispatcher );
         dumpConfiguration();
     }
 

@@ -17,6 +17,7 @@ package com.turbospaces.model;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -91,15 +92,17 @@ public final class BO<T, P extends PersistentProperty<P>> implements IBOPersiste
         fastConstructor = SpaceUtility.exceptionShouldNotHappen( new Callable<FastConstructor>() {
             @Override
             public FastConstructor call()
-                                         throws Exception {
+                                         throws SecurityException,
+                                         NoSuchMethodException {
                 return FastClass.create( delegate.getType() ).getConstructor( delegate.getType().getConstructor() );
+
             }
         } );
 
         objectInstanciationCallback = new Callable<Object>() {
             @Override
             public Object call()
-                                throws Exception {
+                                throws InvocationTargetException {
                 return fastConstructor.newInstance();
             }
         };

@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 import junit.framework.Assert;
@@ -308,7 +308,7 @@ public class PropertiesSerializerTest {
         template.data1 = entity1.data1;
 
         long millis = System.currentTimeMillis();
-        LinkedList<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
+        List<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
 
             @Override
             public void run() {
@@ -334,7 +334,7 @@ public class PropertiesSerializerTest {
         template.fi2 = entity1.fi2;
 
         long millis = System.currentTimeMillis();
-        LinkedList<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
+        List<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
 
             @Override
             public void run() {

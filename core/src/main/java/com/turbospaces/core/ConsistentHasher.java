@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
  * @see org.jgroups.blocks.PartitionedHashMap.ConsistentHashFunction
  */
 @ThreadSafe
-public class ConsistentHasher<S> {
+public final class ConsistentHasher<S> {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
 
     private final SortedMap<Integer, S> segments = Maps.newTreeMap();

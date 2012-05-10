@@ -115,7 +115,7 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
         builder.append( "OffHeap LinearMap: segments" ).append( "\n" );
 
         consistentHasher.forEachSegment( new Function<OffHeapLinearProbingSegment, Void>() {
-            int i = 0;
+            private int i = 0;
 
             @Override
             public Void apply(final OffHeapLinearProbingSegment input) {

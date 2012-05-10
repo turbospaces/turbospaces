@@ -86,7 +86,7 @@ public final class TransactionScopeKeyLocker implements KeyLocker {
         }
     }
 
-    private static class LockMonitor implements EntryKeyLockQuard {
+    private static final class LockMonitor implements EntryKeyLockQuard {
         private int acquires;
         private final TransactionModificationLock lock;
         private final Object key;

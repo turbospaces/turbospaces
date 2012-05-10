@@ -15,6 +15,7 @@
  */
 package com.turbospaces.core;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -129,7 +130,9 @@ public abstract class SpaceUtility {
                 return SpaceUtility.exceptionShouldNotHappen( new Callable<Unsafe>() {
                     @Override
                     public Unsafe call()
-                                        throws Exception {
+                                        throws NoSuchFieldException,
+                                        SecurityException,
+                                        IllegalAccessException {
                         Field theUnsafeInstance;
 
                         theUnsafeInstance = Unsafe.class.getDeclaredField( "theUnsafe" );
@@ -144,7 +147,7 @@ public abstract class SpaceUtility {
         cloudProperties = SpaceUtility.exceptionShouldNotHappen( new Callable<Properties>() {
             @Override
             public Properties call()
-                                    throws Exception {
+                                    throws IOException {
                 ClassPathResource resource = new ClassPathResource( "turbospaces.properties" );
                 Properties properties = new Properties();
                 InputStream inputStream = null;
@@ -579,10 +582,10 @@ public abstract class SpaceUtility {
      * @throws InterruptedException
      *             if thread(threads) was/were interrupted
      */
-    public static <T> LinkedList<Throwable> repeatConcurrently(final int threads,
-                                                               final int totalIterationsCount,
-                                                               final Function<Integer, Object> task)
-                                                                                                    throws InterruptedException {
+    public static <T> List<Throwable> repeatConcurrently(final int threads,
+                                                         final int totalIterationsCount,
+                                                         final Function<Integer, Object> task)
+                                                                                              throws InterruptedException {
         final AtomicInteger atomicLong = new AtomicInteger( totalIterationsCount );
         final CountDownLatch countDownLatch = new CountDownLatch( threads );
         final LinkedList<Throwable> errors = Lists.newLinkedList();
@@ -616,10 +619,10 @@ public abstract class SpaceUtility {
     }
 
     @SuppressWarnings("javadoc")
-    public static <T> LinkedList<Throwable> repeatConcurrently(final int threads,
-                                                               final int totalIterationsCount,
-                                                               final Runnable task)
-                                                                                   throws InterruptedException {
+    public static <T> List<Throwable> repeatConcurrently(final int threads,
+                                                         final int totalIterationsCount,
+                                                         final Runnable task)
+                                                                             throws InterruptedException {
         return repeatConcurrently( threads, totalIterationsCount, new Function<Integer, Object>() {
 
             @Override

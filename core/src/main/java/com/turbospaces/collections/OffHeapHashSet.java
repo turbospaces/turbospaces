@@ -108,4 +108,7 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
 
     @Override
     void afterPropertiesSet();
+
+    @Override
+    void destroy();
 }
