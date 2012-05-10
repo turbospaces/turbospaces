@@ -101,7 +101,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
         final BO bo = getSpaceConfiguration().boFor( template.getClass() );
         final ObjectBuffer objectBuffer = borrowObjectBuffer();
         final SpaceTransactionHolder transactionHolder = getTransactionHolder();
-        final CacheStoreEntryWrapper entryWrapper = CacheStoreEntryWrapper.valueOf( bo, getSpaceConfiguration(), template );
+        final CacheStoreEntryWrapper entryWrapper = new CacheStoreEntryWrapper( bo, getSpaceConfiguration(), template );
         final Address[] serverNodes = clientReceiever.getServerNodes();
         final boolean returnAsBytes = SpaceModifiers.isReturnAsBytes( modifiers );
         final boolean matchById = SpaceModifiers.isMatchById( modifiers );
@@ -142,7 +142,6 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
         }
         finally {
             objectBufferPool.returnObject( objectBuffer );
-            CacheStoreEntryWrapper.recycle( entryWrapper );
         }
     }
 
@@ -156,7 +155,7 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
         final BO bo = getSpaceConfiguration().boFor( entry.getClass() );
         final ObjectBuffer objectBuffer = borrowObjectBuffer();
         final SpaceTransactionHolder transactionHolder = getTransactionHolder();
-        final CacheStoreEntryWrapper entryWrapper = CacheStoreEntryWrapper.valueOf( bo, getSpaceConfiguration(), entry );
+        final CacheStoreEntryWrapper entryWrapper = new CacheStoreEntryWrapper( bo, getSpaceConfiguration(), entry );
         final Address[] serverNodes = clientReceiever.getServerNodes();
 
         try {
@@ -176,7 +175,6 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
         }
         finally {
             objectBufferPool.returnObject( objectBuffer );
-            CacheStoreEntryWrapper.recycle( entryWrapper );
         }
     }
 

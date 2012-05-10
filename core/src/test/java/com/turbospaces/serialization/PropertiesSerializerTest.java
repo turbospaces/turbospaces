@@ -74,7 +74,7 @@ public class PropertiesSerializerTest {
     @Test
     public void canSerializeEntity() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         logger.info( "wrote {}.({} bytes) to {}", new Object[] { entity1, data.length, Arrays.toString( data ) } );
     }
@@ -92,7 +92,7 @@ public class PropertiesSerializerTest {
     @Test
     public void canReadIdProperty() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         assertThat( serializer.readID( ByteBuffer.wrap( data ) ), is( notNullValue() ) );
     }
@@ -100,7 +100,7 @@ public class PropertiesSerializerTest {
     @Test
     public void canDeSerializeEntity() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 data2 = objectBuffer.readObjectData( data, TestEntity1.class );
         entity1.assertMatch( data2 );
@@ -109,7 +109,7 @@ public class PropertiesSerializerTest {
     @Test
     public void canMatchByTempateIfNoFieldProvidedExceptPrimitives() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -117,26 +117,26 @@ public class PropertiesSerializerTest {
         template.fi1 = entity1.fi1;
         template.fi2 = entity1.fi2;
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
         Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
     public void cantMatchByTemplateIfPrimitivesDidntMatch() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
         Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
     public void canMatchByTempateIfPrimaryKeyProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -145,7 +145,7 @@ public class PropertiesSerializerTest {
         template.fi2 = entity1.fi2;
         template.uniqueIdentifier = entity1.getUniqueIdentifier();
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
         Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
@@ -153,7 +153,7 @@ public class PropertiesSerializerTest {
     public void canMatchByTempateIfPrimaryKeyAndVersionProvided() {
         entity1.optimisticLockVersion = 123;
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -163,14 +163,14 @@ public class PropertiesSerializerTest {
         template.uniqueIdentifier = entity1.getUniqueIdentifier();
         template.optimisticLockVersion = entity1.getOptimisticLockVersion();
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
         Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
     public void canMatchByTempateIfStringProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -180,15 +180,15 @@ public class PropertiesSerializerTest {
         template.s1 = entity1.s1;
         template.s4 = entity1.s4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
         template.s2 = UUID.randomUUID().toString();
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
     }
 
     @Test
     public void canMatchByTempateIfLongsProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -200,16 +200,16 @@ public class PropertiesSerializerTest {
         template.l1 = entity1.l1;
         template.l4 = entity1.l4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
 
         template.l2 = System.currentTimeMillis();
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
     }
 
     @Test
     public void canMatchByTempateIfDatesProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -223,16 +223,16 @@ public class PropertiesSerializerTest {
         template.dt1 = entity1.dt1;
         template.dt4 = entity1.dt4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
 
         template.dt2 = new Date( System.currentTimeMillis() );
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
     }
 
     @Test
     public void canMatchByTempateIfDoublesAndFloatsProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -250,16 +250,16 @@ public class PropertiesSerializerTest {
         template.d1 = entity1.d1;
         template.d4 = entity1.d4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
 
         template.d1 = -123.234234;
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
     }
 
     @Test
     public void canMatchByTempateIfDataProvided() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -278,17 +278,17 @@ public class PropertiesSerializerTest {
         template.d4 = entity1.d4;
         template.data1 = entity1.data1;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
 
         template.data1 = Integer.valueOf( (int) System.currentTimeMillis() );
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
     }
 
     @Test
     public void tpsOverByteArray()
                                   throws InterruptedException {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        final byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        final byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         final TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -312,7 +312,7 @@ public class PropertiesSerializerTest {
 
             @Override
             public void run() {
-                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
             }
         } );
         Assert.assertTrue( errors.isEmpty() );
@@ -325,7 +325,7 @@ public class PropertiesSerializerTest {
                                                     throws InterruptedException {
 
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
-        final byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ) );
+        final byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
         final TestEntity1 template = new TestEntity1();
         template.cleanBeanProperties();
@@ -338,7 +338,7 @@ public class PropertiesSerializerTest {
 
             @Override
             public void run() {
-                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.valueOf( bo, configuration, template ) ) );
+                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), new CacheStoreEntryWrapper( bo, configuration, template ) ) );
             }
         } );
         Assert.assertTrue( errors.isEmpty() );

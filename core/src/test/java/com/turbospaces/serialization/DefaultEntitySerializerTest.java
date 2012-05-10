@@ -31,8 +31,6 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.serialization.DefaultEntitySerializer;
-import com.turbospaces.serialization.SerializationEntry;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
 @SuppressWarnings("javadoc")
@@ -62,13 +60,12 @@ public class DefaultEntitySerializerTest {
 
     @Test
     public void canPersist() {
-        serializer.serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
+        serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
     }
 
     @Test
     public void canDeserialize() {
-        byte[] data = serializer
-                .serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
+        byte[] data = serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
         SerializationEntry entry = serializer.deserialize( ByteBuffer.wrap( data ), TestEntity1.class );
         entity1.assertMatch( (TestEntity1) entry.getObject() );
         assertThat( entry.getPropertyValues().length, greaterThan( 0 ) );
@@ -84,7 +81,7 @@ public class DefaultEntitySerializerTest {
                 TestEntity1 entity1 = new TestEntity1();
                 entity1.afterPropertiesSet();
                 byte[] data = serializer.serialize(
-                        CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                        new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                         new ObjectBuffer( configuration.getKryo() ) );
                 TestEntity1 entity2 = (TestEntity1) serializer.deserialize( ByteBuffer.wrap( data ), TestEntity1.class ).getObject();
                 entity1.assertMatch( entity2 );

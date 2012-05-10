@@ -23,9 +23,6 @@ import com.esotericsoftware.kryo.ObjectBuffer;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.model.BO;
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.SimpleObjectPool;
 
 /**
  * this is low-level cache store entity designed to be used with {@link SpaceStore} interface directly.
@@ -34,32 +31,7 @@ import com.turbospaces.pool.SimpleObjectPool;
  */
 @SuppressWarnings("rawtypes")
 public final class CacheStoreEntryWrapper implements SpaceErrors {
-    private static final ObjectPool<CacheStoreEntryWrapper> OBJECT_POOL;
-
-    static {
-        OBJECT_POOL = new SimpleObjectPool<CacheStoreEntryWrapper>( new ObjectFactory<CacheStoreEntryWrapper>() {
-
-            @Override
-            public CacheStoreEntryWrapper newInstance() {
-                return new CacheStoreEntryWrapper();
-            }
-
-            @Override
-            public void invalidate(final CacheStoreEntryWrapper obj) {
-                obj.persistentEntity = null;
-                obj.id = null;
-                obj.version = null;
-                obj.routing = null;
-                obj.bean = null;
-                obj.propertyValues = null;
-                obj.beanAsBytes = null;
-                obj.beanWrapper = null;
-                obj.configuration = null;
-            }
-        } );
-    }
-
-    private BO persistentEntity;
+    private final BO persistentEntity;
     private Object id;
     private Integer version;
     private Object routing;
@@ -69,28 +41,19 @@ public final class CacheStoreEntryWrapper implements SpaceErrors {
     private BeanWrapper beanWrapper;
     private AbstractSpaceConfiguration configuration;
 
-    private CacheStoreEntryWrapper() {}
-
     /**
-     * get pooled cache store instance for the given persistent class over actual JSpace bean and associate space
+     * create new cache store instance for the given persistent class over actual JSpace bean and associate space
      * configuration with bean.
      * 
      * @param persistentEntity
      * @param bean
      * @param configuration
-     * @return pooled instance
      */
-    public static CacheStoreEntryWrapper valueOf(final BO persistentEntity,
-                                                 final AbstractSpaceConfiguration configuration,
-                                                 final Object bean) {
-        CacheStoreEntryWrapper borrowObject = OBJECT_POOL.borrowObject();
-
-        borrowObject.configuration = configuration;
-        borrowObject.bean = bean;
-        borrowObject.persistentEntity = persistentEntity;
-        borrowObject.persistentEntity.fillIdVersionRouting( borrowObject );
-
-        return borrowObject;
+    public CacheStoreEntryWrapper(final BO persistentEntity, final AbstractSpaceConfiguration configuration, final Object bean) {
+        this.configuration = configuration;
+        this.bean = bean;
+        this.persistentEntity = persistentEntity;
+        this.persistentEntity.fillIdVersionRouting( this );
     }
 
     /**
@@ -98,25 +61,10 @@ public final class CacheStoreEntryWrapper implements SpaceErrors {
      * 
      * @param persistentEntity
      * @param id
-     * @return pooled object
      */
-    public static CacheStoreEntryWrapper valueOf(final BO persistentEntity,
-                                                 final Object id) {
-        CacheStoreEntryWrapper borrowObject = OBJECT_POOL.borrowObject();
-
-        borrowObject.persistentEntity = persistentEntity;
-        borrowObject.setId( id );
-
-        return borrowObject;
-    }
-
-    /**
-     * return pool instance to the object's pool
-     * 
-     * @param cacheStoreEntryWrapper
-     */
-    public static void recycle(final CacheStoreEntryWrapper cacheStoreEntryWrapper) {
-        OBJECT_POOL.returnObject( cacheStoreEntryWrapper );
+    public CacheStoreEntryWrapper(final BO persistentEntity, final Object id) {
+        this.persistentEntity = persistentEntity;
+        this.setId( id );
     }
 
     /**

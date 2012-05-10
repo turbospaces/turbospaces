@@ -108,17 +108,17 @@ public class OffHeapHashMapTest {
         key2 = entity2.getUniqueIdentifier();
         key3 = entity3.getUniqueIdentifier();
 
-        bytes1 = serializer.serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
-        bytes2 = serializer.serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), new ObjectBuffer( configuration.getKryo() ) );
-        bytes3 = serializer.serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ), new ObjectBuffer( configuration.getKryo() ) );
+        bytes1 = serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity1 ), new ObjectBuffer( configuration.getKryo() ) );
+        bytes2 = serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity2 ), new ObjectBuffer( configuration.getKryo() ) );
+        bytes3 = serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity3 ), new ObjectBuffer( configuration.getKryo() ) );
 
         p1 = new ByteArrayPointer( bytes1, entity1, Long.MAX_VALUE );
         p2 = new ByteArrayPointer( bytes2, entity2, Long.MAX_VALUE );
         p3 = new ByteArrayPointer( bytes3, entity3, Long.MAX_VALUE );
 
-        cacheStoreEntryWrapper1 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 );
-        cacheStoreEntryWrapper2 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 );
-        cacheStoreEntryWrapper3 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 );
+        cacheStoreEntryWrapper1 = new CacheStoreEntryWrapper( bo, configuration, entity1 );
+        cacheStoreEntryWrapper2 = new CacheStoreEntryWrapper( bo, configuration, entity2 );
+        cacheStoreEntryWrapper3 = new CacheStoreEntryWrapper( bo, configuration, entity3 );
     }
 
     @After
@@ -174,9 +174,8 @@ public class OffHeapHashMapTest {
             arr[i] = new TestEntity1();
             arr[i].afterPropertiesSet();
 
-            byte[] bytes = serializer.serialize(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, arr[i] ),
-                    new ObjectBuffer( configuration.getKryo() ) );
+            byte[] bytes = serializer
+                    .serialize( new CacheStoreEntryWrapper( bo, configuration, arr[i] ), new ObjectBuffer( configuration.getKryo() ) );
             ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], Long.MAX_VALUE );
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
         }
@@ -190,9 +189,8 @@ public class OffHeapHashMapTest {
         heapHashMap.destroy();
 
         for ( TestEntity1 element : arr ) {
-            byte[] bytes = serializer.serialize(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, element ),
-                    new ObjectBuffer( configuration.getKryo() ) );
+            byte[] bytes = serializer
+                    .serialize( new CacheStoreEntryWrapper( bo, configuration, element ), new ObjectBuffer( configuration.getKryo() ) );
             ByteArrayPointer p = new ByteArrayPointer( bytes, element, Long.MAX_VALUE );
 
             heapHashMap.put( element.getUniqueIdentifier(), p );
@@ -207,9 +205,8 @@ public class OffHeapHashMapTest {
             arr[i] = new TestEntity1();
             arr[i].afterPropertiesSet();
 
-            byte[] bytes = serializer.serialize(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, arr[i] ),
-                    new ObjectBuffer( configuration.getKryo() ) );
+            byte[] bytes = serializer
+                    .serialize( new CacheStoreEntryWrapper( bo, configuration, arr[i] ), new ObjectBuffer( configuration.getKryo() ) );
             ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], Long.MAX_VALUE );
 
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
@@ -227,9 +224,8 @@ public class OffHeapHashMapTest {
             arr[i] = new TestEntity1();
             arr[i].afterPropertiesSet();
 
-            byte[] bytes = serializer.serialize(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, arr[i] ),
-                    new ObjectBuffer( configuration.getKryo() ) );
+            byte[] bytes = serializer
+                    .serialize( new CacheStoreEntryWrapper( bo, configuration, arr[i] ), new ObjectBuffer( configuration.getKryo() ) );
             ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], 1L );
 
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
@@ -243,6 +239,6 @@ public class OffHeapHashMapTest {
             Assert.assertFalse( heapHashMap.contains( arr[i].getUniqueIdentifier() ) );
 
         for ( int i = ( ( 2 * arr.length ) / 3 ); i < arr.length; i++ )
-            Assert.assertTrue( heapHashMap.match( CacheStoreEntryWrapper.valueOf( bo, configuration, arr[i] ) ) == null );
+            Assert.assertTrue( heapHashMap.match( new CacheStoreEntryWrapper( bo, configuration, arr[i] ) ) == null );
     }
 }

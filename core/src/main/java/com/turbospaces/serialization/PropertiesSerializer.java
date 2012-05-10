@@ -60,36 +60,30 @@ public final class PropertiesSerializer extends SimpleSerializer {
                       final Object object) {
         CacheStoreEntryWrapper cacheEntry = null;
         if ( !( object instanceof CacheStoreEntryWrapper ) )
-            cacheEntry = CacheStoreEntryWrapper.valueOf( entityMetadata, configuration, object );
+            cacheEntry = new CacheStoreEntryWrapper( entityMetadata, configuration, object );
 
-        try {
-            final Object[] bulkPropertyValues = ( cacheEntry == null ? (CacheStoreEntryWrapper) object : cacheEntry ).asPropertyValuesArray();
-            for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
-                CachedSerializationProperty cachedProperty = cachedProperties[i];
-                Object value = bulkPropertyValues[i];
-                Serializer serializer = cachedProperty.getSerializer();
+        final Object[] bulkPropertyValues = ( cacheEntry == null ? (CacheStoreEntryWrapper) object : cacheEntry ).asPropertyValuesArray();
+        for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
+            CachedSerializationProperty cachedProperty = cachedProperties[i];
+            Object value = bulkPropertyValues[i];
+            Serializer serializer = cachedProperty.getSerializer();
 
-                if ( cachedProperty.isFinal() ) {
-                    if ( serializer == null )
-                        cachedProperty.setSerializer( configuration.getKryo().getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
-                    cachedProperty.write( buffer, value );
-                }
-                else {
-                    if ( value == null ) {
-                        configuration.getKryo().writeClass( buffer, null );
-                        continue;
-                    }
-                    RegisteredClass registeredClass = configuration.getKryo().writeClass( buffer, value.getClass() );
-
-                    if ( serializer == null )
-                        serializer = registeredClass.getSerializer();
-                    serializer.writeObjectData( buffer, value );
-                }
+            if ( cachedProperty.isFinal() ) {
+                if ( serializer == null )
+                    cachedProperty.setSerializer( configuration.getKryo().getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
+                cachedProperty.write( buffer, value );
             }
-        }
-        finally {
-            if ( cacheEntry != null )
-                CacheStoreEntryWrapper.recycle( cacheEntry );
+            else {
+                if ( value == null ) {
+                    configuration.getKryo().writeClass( buffer, null );
+                    continue;
+                }
+                RegisteredClass registeredClass = configuration.getKryo().writeClass( buffer, value.getClass() );
+
+                if ( serializer == null )
+                    serializer = registeredClass.getSerializer();
+                serializer.writeObjectData( buffer, value );
+            }
         }
     }
 

@@ -25,7 +25,6 @@ import org.springframework.data.mongodb.core.mapping.MongoPersistentProperty;
 import org.springframework.data.util.TypeInformation;
 
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.model.BO;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
 @SuppressWarnings({ "javadoc", "rawtypes" })
@@ -106,7 +105,7 @@ public class ClassMetaDataInformationTest {
         entity1.setOptimisticLockVersion( Integer.valueOf( 2 ) );
         entity1.setUniqueIdentifier( "abc" );
         entity1.setRouting( "routing-123" );
-        CacheStoreEntryWrapper cacheEntry1 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 );
+        CacheStoreEntryWrapper cacheEntry1 = new CacheStoreEntryWrapper( bo, configuration, entity1 );
         Object[] bulkPropertyValues = bo.getBulkPropertyValues( cacheEntry1, configuration.getConversionService() );
 
         assertThat( cacheEntry1.getPersistentEntity(), is( notNullValue() ) );
@@ -122,7 +121,7 @@ public class ClassMetaDataInformationTest {
         entity1.assertMatch( entity2 );
         entity2.assertMatch( entity1 );
 
-        CacheStoreEntryWrapper cacheEntry2 = CacheStoreEntryWrapper.valueOf( bo, entity1.getUniqueIdentifier() );
+        CacheStoreEntryWrapper cacheEntry2 = new CacheStoreEntryWrapper( bo, entity1.getUniqueIdentifier() );
         bulkPropertyValues = bo.getBulkPropertyValues( cacheEntry2, configuration.getConversionService() );
         assertThat( (String) bulkPropertyValues[0], is( "abc" ) );
         assertThat( bulkPropertyValues[1], is( nullValue() ) );
@@ -143,7 +142,7 @@ public class ClassMetaDataInformationTest {
         TestEntity2 entity1 = new TestEntity2();
         entity1.id = 213L;
         entity1.str1 = "str213";
-        CacheStoreEntryWrapper cacheEntry1 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 );
+        CacheStoreEntryWrapper cacheEntry1 = new CacheStoreEntryWrapper( bo, configuration, entity1 );
         Object[] bulkPropertyValues = bo.getBulkPropertyValues( cacheEntry1, configuration.getConversionService() );
         assertThat( (Long) bulkPropertyValues[0], is( 213L ) );
         assertThat( (String) bulkPropertyValues[1], is( "str213" ) );
@@ -168,7 +167,7 @@ public class ClassMetaDataInformationTest {
         entity1.id = 213L;
         entity1.version = 1;
         entity1.routing = "routing-123";
-        CacheStoreEntryWrapper cacheEntry1 = CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 );
+        CacheStoreEntryWrapper cacheEntry1 = new CacheStoreEntryWrapper( bo, configuration, entity1 );
         Object[] bulkPropertyValues = bo.getBulkPropertyValues( cacheEntry1, configuration.getConversionService() );
         assertThat( (Long) bulkPropertyValues[0], is( 213L ) );
         assertThat( (Integer) bulkPropertyValues[1], is( 1 ) );

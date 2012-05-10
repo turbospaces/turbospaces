@@ -140,8 +140,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     public <T> Optional<T> readByID(final Object id,
                                     final Class<T> clazz,
                                     final long timeout) {
-        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
-        Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID );
+        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+        final Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
 
@@ -156,8 +156,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     public <T> Optional<T> readExclusivelyByID(final Object id,
                                                final Class<T> clazz,
                                                final long timeout) {
-        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
-        Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID | JSpace.EXCLUSIVE_READ_LOCK );
+        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+        final Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID | JSpace.EXCLUSIVE_READ_LOCK );
         return SpaceUtility.singleResult( objects );
     }
 
@@ -210,8 +210,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     public <T> Optional<T> takeByID(final Object id,
                                     final Class<T> clazz,
                                     final long timeout) {
-        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
-        Object[] objects = fetch( wrapper, timeout, 1, JSpace.TAKE_ONLY | JSpace.MATCH_BY_ID );
+        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+        final Object[] objects = fetch( wrapper, timeout, 1, JSpace.TAKE_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
 
@@ -262,8 +262,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     public <T> Optional<T> evictByID(final Object id,
                                      final Class<T> clazz,
                                      final long timeout) {
-        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
-        Object[] objects = fetch( wrapper, timeout, 1, JSpace.EVICT_ONLY | JSpace.MATCH_BY_ID );
+        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+        final Object[] objects = fetch( wrapper, timeout, 1, JSpace.EVICT_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
 

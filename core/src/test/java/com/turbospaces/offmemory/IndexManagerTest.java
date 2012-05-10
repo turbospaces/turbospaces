@@ -17,8 +17,6 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.offmemory.IndexManager;
 import com.turbospaces.serialization.DefaultEntitySerializer;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.EntryKeyLockQuard;
@@ -73,7 +71,7 @@ public class IndexManagerTest {
             while ( System.currentTimeMillis() > 0 ) {
                 TestEntity1 entity = new TestEntity1();
                 entity.afterPropertiesSet();
-                pointer = new ByteArrayPointer( serializer.serialize( CacheStoreEntryWrapper.valueOf( bo, configuration, entity ), new ObjectBuffer(
+                pointer = new ByteArrayPointer( serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity ), new ObjectBuffer(
                         configuration.getKryo() ) ), entity, Long.MAX_VALUE );
                 indexManager.add(
                         entity,
@@ -106,16 +104,16 @@ public class IndexManagerTest {
         entity4.setUniqueIdentifier( entity2.getUniqueIdentifier() );
 
         ByteArrayPointer pointer1 = new ByteArrayPointer( serializer.serialize(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 new ObjectBuffer( configuration.getKryo() ) ), entity1, Integer.MAX_VALUE );
         ByteArrayPointer pointer2 = new ByteArrayPointer( serializer.serialize(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                 new ObjectBuffer( configuration.getKryo() ) ), entity2, Integer.MAX_VALUE );
         ByteArrayPointer pointer3 = new ByteArrayPointer( serializer.serialize(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity3 ),
                 new ObjectBuffer( configuration.getKryo() ) ), entity3, Integer.MAX_VALUE );
         ByteArrayPointer pointer4 = new ByteArrayPointer( serializer.serialize(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity4 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity4 ),
                 new ObjectBuffer( configuration.getKryo() ) ), entity4, Integer.MAX_VALUE );
 
         indexManager.add( entity1, keyLocker.writeLock( entity1.getUniqueIdentifier(), 234, Integer.MAX_VALUE, true ), pointer1 );

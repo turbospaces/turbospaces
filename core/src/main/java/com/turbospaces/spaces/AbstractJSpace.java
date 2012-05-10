@@ -120,7 +120,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                        final int modifiers) {
         boolean isMatchById = SpaceModifiers.isMatchById( modifiers );
         BO bo = configuration.boFor( template.getClass() );
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
 
         if ( isMatchById && cacheStoreEntryWrapper.getId() == null )
             throw new InvalidDataAccessApiUsageException( String.format(
@@ -230,7 +230,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         boolean isWriteOrUpdate = SpaceModifiers.isWriteOrUpdate( modifier );
         boolean isUpdateOnly = SpaceModifiers.isUpdateOnly( modifier );
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, entry );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, entry );
         Preconditions.checkNotNull( cacheStoreEntryWrapper.getId(), "ID must be provided before writing to JSpace" );
         cacheStoreEntryWrapper.setBeanAsBytes( serializedEntry );
 
@@ -253,12 +253,8 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                     cacheStoreEntryWrapper.getId(), cacheStoreEntryWrapper.getOptimisticLockVersion(), cacheStoreEntryWrapper.getRouting(),
                     modificationContext.getTransactionId(), timeToLive } );
 
-        try {
-            heapBuffer.write( cacheStoreEntryWrapper, modificationContext, timeToLive, timeout, modifier );
-        }
-        finally {
-            CacheStoreEntryWrapper.recycle( cacheStoreEntryWrapper );
-        }
+        // write
+        heapBuffer.write( cacheStoreEntryWrapper, modificationContext, timeToLive, timeout, modifier );
     }
 
     private Object[] fetch0(final TransactionModificationContext modificationContext,
@@ -281,7 +277,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         }
         else {
             heapBuffer = offHeapBuffers.get( entry.getClass() );
-            cacheStoreEntryWrapper = CacheStoreEntryWrapper.valueOf( configuration.boFor( entry.getClass() ), configuration, entry );
+            cacheStoreEntryWrapper = new CacheStoreEntryWrapper( configuration.boFor( entry.getClass() ), configuration, entry );
             template = entry;
         }
 
@@ -328,36 +324,32 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                     new Object[] { cacheStoreEntryWrapper.getBean(), cacheStoreEntryWrapper.getId(),
                             cacheStoreEntryWrapper.getOptimisticLockVersion(), cacheStoreEntryWrapper.getRouting(), timeout, maxResults } );
 
-        try {
-            ByteBuffer[] c = heapBuffer.fetch( cacheStoreEntryWrapper, modificationContext, timeout, maxResults, modifiers );
-            if ( c != null )
-                if ( !isReturnAsBytes ) {
-                    int size = c.length;
-                    Class type = cacheStoreEntryWrapper.getPersistentEntity().getType();
+        // fetch
+        ByteBuffer[] c = heapBuffer.fetch( cacheStoreEntryWrapper, modificationContext, timeout, maxResults, modifiers );
+        if ( c != null )
+            if ( !isReturnAsBytes ) {
+                int size = c.length;
+                Class type = cacheStoreEntryWrapper.getPersistentEntity().getType();
 
-                    Object[] result = new Object[size];
-                    Map<EntryKeyLockQuard, WriteTakeEntry> takes = modificationContext.getTakes();
-                    for ( int i = 0; i < size; i++ ) {
-                        SerializationEntry sEntry = configuration.getEntitySerializer().deserialize( c[i], type );
-                        Object[] propertyValues = sEntry.getPropertyValues();
-                        Object id = propertyValues[BO.getIdIndex()];
+                Object[] result = new Object[size];
+                Map<EntryKeyLockQuard, WriteTakeEntry> takes = modificationContext.getTakes();
+                for ( int i = 0; i < size; i++ ) {
+                    SerializationEntry sEntry = configuration.getEntitySerializer().deserialize( c[i], type );
+                    Object[] propertyValues = sEntry.getPropertyValues();
+                    Object id = propertyValues[BO.getIdIndex()];
 
-                        if ( !takes.isEmpty() )
-                            for ( Entry<EntryKeyLockQuard, WriteTakeEntry> next : takes.entrySet() )
-                                if ( ObjectUtils.nullSafeEquals( next.getKey().getKey(), id ) ) {
-                                    next.getValue().setObj( sEntry.getObject() );
-                                    next.getValue().setPropertyValues( propertyValues );
-                                }
+                    if ( !takes.isEmpty() )
+                        for ( Entry<EntryKeyLockQuard, WriteTakeEntry> next : takes.entrySet() )
+                            if ( ObjectUtils.nullSafeEquals( next.getKey().getKey(), id ) ) {
+                                next.getValue().setObj( sEntry.getObject() );
+                                next.getValue().setPropertyValues( propertyValues );
+                            }
 
-                        result[i] = sEntry.getObject();
-                    }
-                    return result;
+                    result[i] = sEntry.getObject();
                 }
-            return c;
-        }
-        finally {
-            CacheStoreEntryWrapper.recycle( cacheStoreEntryWrapper );
-        }
+                return result;
+            }
+        return c;
     }
 
     /**

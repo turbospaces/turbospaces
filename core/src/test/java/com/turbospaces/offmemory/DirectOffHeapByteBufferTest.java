@@ -101,13 +101,13 @@ public class DirectOffHeapByteBufferTest {
         entity2.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -140,7 +140,7 @@ public class DirectOffHeapByteBufferTest {
             readModifier = readModifier | JSpace.MATCH_BY_ID;
         }
 
-        CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.valueOf( bo, configuration, entity );
+        CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( bo, configuration, entity );
         buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.WRITE_ONLY );
         buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
         buffer.fetch( wrapper, modificationContext, 0, 1, takeModifier );
@@ -154,19 +154,17 @@ public class DirectOffHeapByteBufferTest {
         entity.s1 = UUID.randomUUID().toString();
         buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.WRITE_ONLY );
         CountingSpaceNotificationListener listener = new CountingSpaceNotificationListener();
-        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
-                listener,
-                readModifier ) ) );
+        modificationContext.flush(
+                buffer,
+                Collections.singleton( new NotificationContext( new CacheStoreEntryWrapper( bo, configuration, entity ), listener, readModifier ) ) );
         Thread.sleep( 10 );
         assertThat( listener.getWrites().size(), is( 1 ) );
 
         buffer.write( wrapper, modificationContext, JSpace.LEASE_FOREVER, Integer.MAX_VALUE, JSpace.UPDATE_ONLY );
         listener = new CountingSpaceNotificationListener();
-        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
-                listener,
-                readModifier ) ) );
+        modificationContext.flush(
+                buffer,
+                Collections.singleton( new NotificationContext( new CacheStoreEntryWrapper( bo, configuration, entity ), listener, readModifier ) ) );
         Thread.sleep( 10 );
         assertThat( listener.getChanges().size(), is( 1 ) );
 
@@ -176,10 +174,9 @@ public class DirectOffHeapByteBufferTest {
         Assert.assertTrue( modificationContext.isDirty() );
 
         listener = new CountingSpaceNotificationListener();
-        modificationContext.flush( buffer, Collections.singleton( new NotificationContext(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
-                listener,
-                readModifier ) ) );
+        modificationContext.flush(
+                buffer,
+                Collections.singleton( new NotificationContext( new CacheStoreEntryWrapper( bo, configuration, entity ), listener, readModifier ) ) );
         Thread.sleep( 10 );
         assertThat( listener.getTakes().size(), is( 1 ) );
     }
@@ -198,19 +195,19 @@ public class DirectOffHeapByteBufferTest {
         entity3.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity3 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -224,9 +221,9 @@ public class DirectOffHeapByteBufferTest {
         if ( matchById )
             modifier = modifier | JSpace.MATCH_BY_ID;
 
-        ByteBuffer[] match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1Clone ), modificationContext, 0, 1, modifier );
-        ByteBuffer[] match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2Clone ), modificationContext, 0, 1, modifier );
-        ByteBuffer[] match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3Clone ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match1 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1Clone ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match2 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity2Clone ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match3 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity3Clone ), modificationContext, 0, 1, modifier );
 
         assertThat( match1.length, is( 1 ) );
         assertThat( match2.length, is( 1 ) );
@@ -240,7 +237,7 @@ public class DirectOffHeapByteBufferTest {
         CountingSpaceNotificationListener listener = new CountingSpaceNotificationListener();
         modificationContext.flush(
                 buffer,
-                Collections.singleton( new NotificationContext( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), listener, modifier ) ) );
+                Collections.singleton( new NotificationContext( new CacheStoreEntryWrapper( bo, configuration, entity1 ), listener, modifier ) ) );
         Thread.sleep( 10 );
         assertThat( listener.getWrites().size(), is( 1 ) );
     }
@@ -257,13 +254,13 @@ public class DirectOffHeapByteBufferTest {
         entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_ONLY );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -284,7 +281,7 @@ public class DirectOffHeapByteBufferTest {
         entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext1,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -295,7 +292,7 @@ public class DirectOffHeapByteBufferTest {
             public void run() {
                 try {
                     buffer.write(
-                            CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                            new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                             modificationContext2,
                             JSpace.LEASE_FOREVER,
                             1,
@@ -318,7 +315,7 @@ public class DirectOffHeapByteBufferTest {
         entity2.setUniqueIdentifier( entity1.getUniqueIdentifier() );
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -326,7 +323,7 @@ public class DirectOffHeapByteBufferTest {
         modificationContext.flush( buffer );
         try {
             buffer.write(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                    new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                     modificationContext,
                     JSpace.LEASE_FOREVER,
                     Integer.MAX_VALUE,
@@ -345,7 +342,7 @@ public class DirectOffHeapByteBufferTest {
 
         try {
             buffer.write(
-                    CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                    new CacheStoreEntryWrapper( bo, configuration, entity ),
                     modificationContext,
                     JSpace.LEASE_FOREVER,
                     Integer.MAX_VALUE,
@@ -364,13 +361,13 @@ public class DirectOffHeapByteBufferTest {
         entity.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity ),
+                new CacheStoreEntryWrapper( bo, configuration, entity ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_ONLY );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                new CacheStoreEntryWrapper( bo, configuration, entity.clone() ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -378,19 +375,19 @@ public class DirectOffHeapByteBufferTest {
         modificationContext.flush( buffer );
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                new CacheStoreEntryWrapper( bo, configuration, entity.clone() ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.UPDATE_ONLY );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                new CacheStoreEntryWrapper( bo, configuration, entity.clone() ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity.clone() ),
+                new CacheStoreEntryWrapper( bo, configuration, entity.clone() ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -410,19 +407,19 @@ public class DirectOffHeapByteBufferTest {
         entity3.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_OR_UPDATE );
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity3 ),
                 modificationContext,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -432,9 +429,9 @@ public class DirectOffHeapByteBufferTest {
         if ( matchById )
             modifier = modifier | JSpace.MATCH_BY_ID;
 
-        ByteBuffer[] match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
-        ByteBuffer[] match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
-        ByteBuffer[] match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match1 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match2 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
+        ByteBuffer[] match3 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
 
         ( (TestEntity1) configuration.getEntitySerializer().deserialize( match1[0], TestEntity1.class ).getObject() ).assertMatch( entity1 );
         ( (TestEntity1) configuration.getEntitySerializer().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
@@ -444,9 +441,9 @@ public class DirectOffHeapByteBufferTest {
         if ( matchById )
             modifier = modifier | JSpace.MATCH_BY_ID;
 
-        match1 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
-        match2 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
-        match3 = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
+        match1 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext, 0, 1, modifier );
+        match2 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity2 ), modificationContext, 0, 1, modifier );
+        match3 = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity3 ), modificationContext, 0, 1, modifier );
 
         ( (TestEntity1) configuration.getEntitySerializer().deserialize( match1[0], TestEntity1.class ).getObject() ).assertMatch( entity1 );
         ( (TestEntity1) configuration.getEntitySerializer().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
@@ -471,7 +468,7 @@ public class DirectOffHeapByteBufferTest {
         entity1.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext1,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -482,19 +479,14 @@ public class DirectOffHeapByteBufferTest {
         if ( matchById )
             modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
         // lock entity for delete, but do not flush transaction modification context immediately
-        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 0, modifier.intValue() );
+        buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 0, modifier.intValue() );
         throw SpaceUtility.runAndGetExecutionException( new Runnable() {
 
             @Override
             public void run() {
                 try {
                     long timeout = 1;
-                    buffer.fetch(
-                            CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
-                            modificationContext2,
-                            timeout,
-                            10,
-                            modifier.intValue() );
+                    buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext2, timeout, 10, modifier.intValue() );
                 }
                 finally {
                     modificationContext2.discard( buffer );
@@ -513,7 +505,7 @@ public class DirectOffHeapByteBufferTest {
         entity1.afterPropertiesSet();
 
         buffer.write(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext1,
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
@@ -523,7 +515,7 @@ public class DirectOffHeapByteBufferTest {
         final AtomicInteger modifier = new AtomicInteger( JSpace.EXCLUSIVE_READ_LOCK );
         if ( matchById )
             modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
-        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 1, modifier.intValue() );
+        buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 1, modifier.intValue() );
         try {
             throw SpaceUtility.runAndGetExecutionException( new Runnable() {
 
@@ -531,12 +523,7 @@ public class DirectOffHeapByteBufferTest {
                 public void run() {
                     try {
                         long timeout = 1;
-                        buffer.fetch(
-                                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
-                                modificationContext2,
-                                timeout,
-                                1,
-                                modifier.intValue() );
+                        buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext2, timeout, 1, modifier.intValue() );
                     }
                     finally {
                         modificationContext2.discard( buffer );
@@ -564,8 +551,8 @@ public class DirectOffHeapByteBufferTest {
             readModifier = readModifier | JSpace.MATCH_BY_ID;
         }
 
-        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, takeModifier );
-        buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, readModifier );
+        buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, takeModifier );
+        buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity ), modificationContext, Long.MAX_VALUE, 1, readModifier );
     }
 
     @Test
@@ -577,8 +564,8 @@ public class DirectOffHeapByteBufferTest {
         entity1.afterPropertiesSet();
         entity2.afterPropertiesSet();
 
-        buffer.write( CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
-        buffer.write( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
+        buffer.write( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
+        buffer.write( new CacheStoreEntryWrapper( bo, configuration, entity2 ), modificationContext, 1, 234234, JSpace.WRITE_OR_UPDATE );
         modificationContext.flush( buffer );
 
         Thread.sleep( 2 );
@@ -591,13 +578,13 @@ public class DirectOffHeapByteBufferTest {
         }
 
         ByteBuffer[] list = buffer.fetch(
-                CacheStoreEntryWrapper.valueOf( bo, configuration, entity1 ),
+                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
                 modificationContext,
                 Long.MAX_VALUE,
                 1,
                 takeModifier );
         assertThat( list, is( nullValue() ) );
-        list = buffer.fetch( CacheStoreEntryWrapper.valueOf( bo, configuration, entity2 ), modificationContext, Long.MAX_VALUE, 1, readModifier );
+        list = buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity2 ), modificationContext, Long.MAX_VALUE, 1, readModifier );
         assertThat( list, is( nullValue() ) );
     }
 }
