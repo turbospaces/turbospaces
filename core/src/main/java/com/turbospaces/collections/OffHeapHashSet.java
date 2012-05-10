@@ -45,6 +45,11 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
     int DEFAULT_INITIAL_CAPACITY = 1 << 10;
 
     /**
+     * default initial capacity of the set of <code>4096</code>.
+     */
+    int MAX_SEGMENT_CAPACITY = 1 << 12;
+
+    /**
      * check whether particular key is present in map and is so, return the off-heap pointer address.</p>
      * 
      * <b>NOTE:</b>concrete implementation <b>must</b> remove expired entities automatically in case of lease timeout
