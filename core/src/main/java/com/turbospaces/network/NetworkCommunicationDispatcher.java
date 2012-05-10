@@ -32,7 +32,6 @@ import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.AbstractSpaceConfiguration;
-import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.core.SimpleRequestResponseCorrelator;
 
 /**
@@ -42,7 +41,7 @@ import com.turbospaces.core.SimpleRequestResponseCorrelator;
  * @since 0.1
  */
 @ThreadSafe
-public final class NetworkCommunicationDispatcher extends ServerCommunicationDispatcher implements SpaceErrors {
+public final class NetworkCommunicationDispatcher extends ServerCommunicationDispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger( NetworkCommunicationDispatcher.class );
     private final AtomicLong correlationIds = new AtomicLong();
     private Kryo kryo;

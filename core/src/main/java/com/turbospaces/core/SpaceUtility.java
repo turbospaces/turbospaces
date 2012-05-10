@@ -689,11 +689,10 @@ public abstract class SpaceUtility {
      */
     public static KeyLocker parallelizedKeyLocker() {
         KeyLocker locker = new KeyLocker() {
-            private final int segmentsCount = 128;
-            private final KeyLocker[] segments = new KeyLocker[segmentsCount];
+            private final KeyLocker[] segments = new KeyLocker[1 << 8];
 
             {
-                for ( int i = 0; i < segmentsCount; i++ )
+                for ( int i = 0; i < segments.length; i++ )
                     segments[i] = new TransactionScopeKeyLocker();
             }
 
@@ -712,7 +711,7 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( key.hashCode() & Integer.MAX_VALUE ) % segmentsCount];
+                return segments[( key.hashCode() & Integer.MAX_VALUE ) % segments.length];
             }
         };
         return locker;

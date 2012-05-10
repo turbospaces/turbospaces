@@ -34,7 +34,7 @@ import com.turbospaces.logging.JGroupsCustomLoggerFactory;
  * 
  * @since 0.1
  */
-public class EmbeddedJSpaceRunner {
+public final class EmbeddedJSpaceRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger( EmbeddedJSpaceRunner.class );
     private static final Object JOINED_NETWORK_CONDITION_MONITOR = new Object();
 

@@ -38,12 +38,12 @@ import com.turbospaces.spaces.TransactionalJSpace;
  */
 @SuppressWarnings("serial")
 public class SpaceTransactionManager extends AbstractPlatformTransactionManager implements ResourceTransactionManager, InitializingBean {
-    private final Logger log = LoggerFactory.getLogger( getClass() );
+    private transient final Logger log = LoggerFactory.getLogger( getClass() );
 
     /**
      * jspace itself
      */
-    private TransactionalJSpace jSpace;
+    private transient TransactionalJSpace jSpace;
     /**
      * is this proxy transaction manager(remote transaction manager) - meaning that the actual transaction modifications
      * will be stored on the server machine, not client one.

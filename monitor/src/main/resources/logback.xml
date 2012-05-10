@@ -5,7 +5,7 @@
 		</encoder>
 	</appender>
 
-	<logger name="com.elsecloud" additivity="false">
+	<logger name="com.turbospaces" additivity="false">
 		<level value="INFO" />
 		<appender-ref ref="RootConsoleAppender" />
 	</logger>

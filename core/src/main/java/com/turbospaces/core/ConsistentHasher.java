@@ -68,7 +68,7 @@ public final class ConsistentHasher<S> {
         writeLock.lock();
         try {
             for ( S segment : newSegments ) {
-                int hash = ( System.identityHashCode( segment ) & Integer.MAX_VALUE ) % maxSegmentsCount;
+                int hash = ( SpaceUtility.rehash( System.identityHashCode( segment ) ) & Integer.MAX_VALUE ) % maxSegmentsCount;
                 for ( int i = hash; i < hash + maxSegmentsCount; i++ ) {
                     int idx = ( i % maxSegmentsCount );
                     if ( !segments.containsKey( idx ) ) {
@@ -90,7 +90,7 @@ public final class ConsistentHasher<S> {
      * @return proper segment(slot) for hash
      */
     public S segmentFor(final Object key) {
-        final int hash = key.hashCode() & Integer.MAX_VALUE;
+        final int hash = SpaceUtility.rehash( System.identityHashCode( key ) ) & Integer.MAX_VALUE;
         final Lock readLock = rwLock.readLock();
 
         readLock.lock();

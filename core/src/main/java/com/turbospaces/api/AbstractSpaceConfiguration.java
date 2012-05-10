@@ -409,7 +409,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      *         evaluation).
      */
     public static String defaultGroupName() {
-        return "jspace-v" + SpaceUtility.projectVersion();
+        return String.format( "jspace-%s-v-%s", System.getProperty( "user.name" ), SpaceUtility.projectVersion() );
     }
 
     /**
