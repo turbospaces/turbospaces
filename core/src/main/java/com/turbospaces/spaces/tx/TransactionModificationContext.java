@@ -293,7 +293,7 @@ public final class TransactionModificationContext implements Reusable {
 
                     if ( SpaceUtility.macthesByPropertyValues( templatePropertyValues, entryPropertyValues ) ) {
                         assert entry.getObj() != null;
-                        memoryManager.getSpaceConfiguration().getExecutorService().execute( new Runnable() {
+                        memoryManager.getSpaceConfiguration().getListeningExecutorService().execute( new Runnable() {
                             @Override
                             public void run() {
                                 listener.handleNotification(
@@ -319,7 +319,7 @@ public final class TransactionModificationContext implements Reusable {
                 if ( ObjectUtils.nullSafeEquals( keyCandidate, uniqueIdentifier )
                         && ObjectUtils.nullSafeEquals( entry.getPersistentEntity().getType(), template.getClass() ) ) {
                     assert entry.getObj() != null;
-                    memoryManager.getSpaceConfiguration().getExecutorService().execute( new Runnable() {
+                    memoryManager.getSpaceConfiguration().getListeningExecutorService().execute( new Runnable() {
                         @Override
                         public void run() {
                             listener.handleNotification(

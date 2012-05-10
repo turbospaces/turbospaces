@@ -41,6 +41,9 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 import com.esotericsoftware.kryo.Kryo;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
@@ -101,11 +104,11 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * jspace executor service
      */
-    private ExecutorService executorService;
+    private ListeningExecutorService executorService;
     /**
      * jspace scheduler executor service
      */
-    private ScheduledExecutorService scheduledExecutorService;
+    private ListeningScheduledExecutorService scheduledExecutorService;
     /**
      * space entities serializer
      */
@@ -219,7 +222,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * @param executorService
      */
     public void setExecutorService(final ExecutorService executorService) {
-        this.executorService = Preconditions.checkNotNull( executorService );
+        this.executorService = MoreExecutors.listeningDecorator( Preconditions.checkNotNull( executorService ) );
     }
 
     /**
@@ -228,7 +231,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * @param scheduledExecutorService
      */
     public void setScheduledExecutorService(final ScheduledExecutorService scheduledExecutorService) {
-        this.scheduledExecutorService = Preconditions.checkNotNull( scheduledExecutorService );
+        this.scheduledExecutorService = MoreExecutors.listeningDecorator( Preconditions.checkNotNull( scheduledExecutorService ) );
     }
 
     /**
@@ -293,7 +296,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * @return executor service associated with jspace
      */
-    public ExecutorService getExecutorService() {
+    public ExecutorService getListeningExecutorService() {
         return executorService;
     }
 
@@ -327,27 +330,27 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
                                     throws Exception {
         logger.info( "Initializing JSpace configuration: group = {}", getGroup() );
 
-        if ( jChannel == null ) {
+        if ( getJChannel() == null ) {
             ClassPathResource largeClusterCfg = new ClassPathResource( "turbospaces-jgroups-udp.xml" );
             InputStream inputStream = largeClusterCfg.getInputStream();
-            jChannel = new JChannel( inputStream );
+            setjChannel( new JChannel( inputStream ) );
             inputStream.close();
         }
-        jChannel.setDiscardOwnMessages( true );
+        getJChannel().setDiscardOwnMessages( true );
 
-        if ( conversionService == null && applicationContext != null )
-            conversionService = ( (AbstractBeanFactory) applicationContext.getAutowireCapableBeanFactory() ).getConversionService();
-        if ( conversionService == null )
-            conversionService = new DefaultConversionService();
+        if ( getConversionService() == null && applicationContext != null )
+            setConversionService( ( (AbstractBeanFactory) applicationContext.getAutowireCapableBeanFactory() ).getConversionService() );
+        if ( getConversionService() == null )
+            setConversionService( new DefaultConversionService() );
 
-        if ( mappingContext == null )
+        if ( getMappingContext() == null )
             if ( applicationContext != null )
-                mappingContext = applicationContext.getBean( AbstractMappingContext.class );
+                setMappingContext( applicationContext.getBean( AbstractMappingContext.class ) );
 
-        if ( executorService == null )
-            executorService = Executors.newCachedThreadPool();
-        if ( scheduledExecutorService == null )
-            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        if ( getListeningExecutorService() == null )
+            setExecutorService( Executors.newCachedThreadPool() );
+        if ( getScheduledExecutorService() == null )
+            setScheduledExecutorService( Executors.newSingleThreadScheduledExecutor() );
 
         Preconditions.checkState( mappingContext != null, MAPPING_CONTEXT_IS_NOT_REGISTERED );
 
@@ -355,7 +358,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         for ( BasicPersistentEntity e : persistentEntities )
             boFor( e.getType() );
 
-        kryo = SpaceUtility.spaceKryo( this, kryo );
+        setKryo( SpaceUtility.spaceKryo( this, kryo ) );
         entitySerializer = new DefaultEntitySerializer( this );
     }
 

@@ -259,12 +259,12 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
     }
 
     @SuppressWarnings("unchecked")
-    private void notifyExpired(final ExpiredEntry expiredEntry) {
+    void notifyExpired(final ExpiredEntry expiredEntry) {
         assert expiredEntry != null;
 
         expiredEntry.buffer.clear();
         // do in background
-        configuration.getExecutorService().submit( new Runnable() {
+        configuration.getListeningExecutorService().submit( new Runnable() {
             @Override
             public void run() {
                 try {
@@ -285,7 +285,10 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
                 }
             }
         } );
+    }
 
+    long[] getAddresses() {
+        return addresses;
     }
 
     private boolean keyEquals(final Object key,
@@ -346,12 +349,12 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
         }
     }
 
-    private static final class ExpiredEntry {
+    static final class ExpiredEntry {
         private final ByteBuffer buffer;
         private final long ttl;
         private Object id;
 
-        private ExpiredEntry(final ByteBuffer buffer, final long ttl) {
+        ExpiredEntry(final ByteBuffer buffer, final long ttl) {
             super();
             this.buffer = buffer;
             this.ttl = ttl;
