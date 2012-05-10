@@ -174,7 +174,11 @@ public class SpaceReceiveAdapterTest {
         Message message = new Message();
         message.setSrc( address );
         message.setBuffer( objectBuffer.writeClassAndObject( commitRollbackMethodCall ) );
-        receiveAdapter.receive( message );
+
+        try {
+            receiveAdapter.receive( message );
+        }
+        catch ( RuntimeException e ) {}
 
         String exceptionAsString = response.getExceptionAsString();
         assertThat( exceptionAsString, is( notNullValue() ) );
@@ -183,7 +187,10 @@ public class SpaceReceiveAdapterTest {
         commitRollbackMethodCall.setTransactionId( System.currentTimeMillis() );
 
         message.setBuffer( objectBuffer.writeClassAndObject( commitRollbackMethodCall ) );
-        receiveAdapter.receive( message );
+        try {
+            receiveAdapter.receive( message );
+        }
+        catch ( RuntimeException e ) {}
         exceptionAsString = response.getExceptionAsString();
         assertThat( exceptionAsString, is( notNullValue() ) );
     }
