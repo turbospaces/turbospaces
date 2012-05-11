@@ -711,7 +711,7 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( key.hashCode() & Integer.MAX_VALUE ) % segments.length];
+                return segments[( jdkHash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
             }
         };
         return locker;
@@ -751,6 +751,24 @@ public abstract class SpaceUtility {
         k *= 0xc2b2ae35;
         k ^= k >>> 16;
         return k;
+    }
+
+    /**
+     * Hashes a 4-byte sequence (Java int) using standard JDK 4-5 method.
+     * 
+     * @param hash
+     * @return hash
+     */
+    public static int jdkHash(final int hash) {
+        int h = hash;
+
+        h += ( h << 15 ) ^ 0xffffcd7d;
+        h ^= ( h >>> 10 );
+        h += ( h << 3 );
+        h ^= ( h >>> 6 );
+        h += ( h << 2 ) + ( h << 14 );
+
+        return h ^ ( h >>> 16 );
     }
 
     /**

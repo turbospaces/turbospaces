@@ -18,7 +18,6 @@ package com.turbospaces.collections;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -51,12 +50,13 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  * @see OffHeapLinearProbingSet
  */
 @ThreadSafe
-class OffHeapLinearProbingSegment implements OffHeapHashSet {
+class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
+    private static final long serialVersionUID = -9179258635918662649L;
+
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final SpaceConfiguration configuration;
     private final MutablePersistentEntity<?, ?> mutablePersistentEntity;
     private final PropertiesSerializer serializer;
-    private final ReadWriteLock rwlock;
 
     private int n;
     private int m;
@@ -74,7 +74,6 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
                                        final MutablePersistentEntity<?, ?> mutablePersistentEntity) {
         this.configuration = Preconditions.checkNotNull( configuration );
         this.mutablePersistentEntity = Preconditions.checkNotNull( mutablePersistentEntity );
-        this.rwlock = new ReentrantReadWriteLock();
 
         this.m = initialCapacity;
         this.addresses = new long[m];
@@ -99,7 +98,7 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
 
     @Override
     public List<ByteArrayPointer> match(final CacheStoreEntryWrapper template) {
-        final Lock lock = rwlock.readLock();
+        final Lock lock = readLock();
         List<ByteArrayPointer> matchedEntries = null;
         List<ExpiredEntry> expiredEntries = null;
 
@@ -141,7 +140,7 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
 
     private Object get(final Object key,
                        final boolean asPointer) {
-        final Lock lock = rwlock.readLock();
+        final Lock lock = readLock();
 
         boolean expired = false;
         ByteBuffer buffer = null;
@@ -183,7 +182,7 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
     private int put(final Object key,
                     final long address,
                     final ByteArrayPointer p) {
-        final Lock lock = rwlock.writeLock();
+        final Lock lock = writeLock();
 
         lock.lock();
         try {
@@ -219,7 +218,7 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
     @Override
     public int remove(final Object key) {
         int bytesOccupied = 0;
-        final Lock lock = rwlock.writeLock();
+        final Lock lock = writeLock();
 
         lock.lock();
         try {
@@ -313,11 +312,8 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
     }
 
     @Override
-    public void afterPropertiesSet() {}
-
-    @Override
     public void destroy() {
-        final Lock lock = rwlock.writeLock();
+        final Lock lock = writeLock();
 
         lock.lock();
         try {
@@ -334,7 +330,7 @@ class OffHeapLinearProbingSegment implements OffHeapHashSet {
 
     @Override
     public String toString() {
-        final Lock lock = rwlock.readLock();
+        final Lock lock = readLock();
 
         lock.lock();
         try {

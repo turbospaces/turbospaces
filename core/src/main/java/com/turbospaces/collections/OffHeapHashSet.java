@@ -20,7 +20,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
 
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
@@ -38,16 +37,16 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  * 
  * @since 0.1
  */
-public interface OffHeapHashSet extends DisposableBean, InitializingBean {
+public interface OffHeapHashSet extends DisposableBean {
     /**
      * default initial capacity of the set of <code>1024</code>.
      */
-    int DEFAULT_INITIAL_CAPACITY = 1 << 10;
+    int DEFAULT_INITIAL_CAPACITY = ( ( 5 * 7 + 31 ) * 7 + 17 ) * 3;
 
     /**
-     * default initial capacity of the set of <code>4096</code>.
+     * default maximum segment capacity <code>4096</code>.
      */
-    int MAX_SEGMENT_CAPACITY = 1 << 12;
+    int MAX_SEGMENT_CAPACITY = DEFAULT_INITIAL_CAPACITY * 3;
 
     /**
      * check whether particular key is present in map and is so, return the off-heap pointer address.</p>
@@ -110,9 +109,6 @@ public interface OffHeapHashSet extends DisposableBean, InitializingBean {
      * @return how many bytes where occupied by byte array pointer
      */
     int remove(Object key);
-
-    @Override
-    void afterPropertiesSet();
 
     @Override
     void destroy();

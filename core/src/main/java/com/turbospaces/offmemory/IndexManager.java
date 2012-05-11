@@ -23,7 +23,6 @@ import org.springframework.data.mapping.model.MutablePersistentEntity;
 
 import com.google.common.base.Objects;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.collections.OffHeapHashSet;
 import com.turbospaces.collections.OffHeapLinearProbingSet;
 import com.turbospaces.model.BO;
 import com.turbospaces.spaces.EntryKeyLockQuard;
@@ -38,7 +37,7 @@ import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
 @SuppressWarnings("rawtypes")
 public class IndexManager implements DisposableBean, InitializingBean {
     private final SpaceCapacityRestrictionHolder capacityRestriction;
-    private final OffHeapHashSet idCache;
+    private final OffHeapLinearProbingSet idCache;
     private final BO bo;
 
     @SuppressWarnings({ "javadoc" })

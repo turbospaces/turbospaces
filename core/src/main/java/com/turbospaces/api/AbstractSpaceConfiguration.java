@@ -296,7 +296,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * @return executor service associated with jspace
      */
-    public ExecutorService getListeningExecutorService() {
+    public ListeningExecutorService getListeningExecutorService() {
         return executorService;
     }
 
