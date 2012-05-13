@@ -285,8 +285,7 @@ public class PropertiesSerializerTest {
     }
 
     @Test
-    public void tpsOverByteArray()
-                                  throws InterruptedException {
+    public void tpsOverByteArray() {
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
         final byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );
 
@@ -321,8 +320,7 @@ public class PropertiesSerializerTest {
     }
 
     @Test
-    public void tpsOverByteArrayByUniqueIdentifier()
-                                                    throws InterruptedException {
+    public void tpsOverByteArrayByUniqueIdentifier() {
 
         ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
         final byte[] data = objectBuffer.writeObjectData( new CacheStoreEntryWrapper( bo, configuration, entity1 ) );

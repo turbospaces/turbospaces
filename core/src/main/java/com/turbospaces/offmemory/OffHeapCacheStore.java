@@ -194,7 +194,7 @@ public class OffHeapCacheStore implements SpaceStore {
                 EntryKeyLockQuard writeLockQuard = acquireKeyLock( uniqueIdentifier, modificationContext, timeout );
                 ByteArrayPointer p = modificationContext.getPointer( writeLockQuard, indexManager );
                 if ( p != null ) {
-                    entryState = p.getSerializedBuffer();
+                    entryState = p.getSerializedDataBuffer();
                     modificationContext.addTake( writeLockQuard, new WriteTakeEntry( writeLockQuard, p, bo, configuration ) );
                 }
                 else
@@ -204,7 +204,7 @@ public class OffHeapCacheStore implements SpaceStore {
                 EntryKeyLockQuard exclusiveReadLockGuard = acquireKeyLock( uniqueIdentifier, modificationContext, timeout );
                 ByteArrayPointer p = modificationContext.getPointer( exclusiveReadLockGuard, indexManager );
                 if ( p != null ) {
-                    entryState = p.getSerializedBuffer();
+                    entryState = p.getSerializedDataBuffer();
                     modificationContext.addExclusiveReadLock( exclusiveReadLockGuard );
                 }
                 else
@@ -225,7 +225,7 @@ public class OffHeapCacheStore implements SpaceStore {
             for ( Entry<EntryKeyLockQuard, WriteTakeEntry> entry : modificationContext.getWrites().entrySet() ) {
                 EntryKeyLockQuard uniqueIdentifier = entry.getKey();
                 ByteArrayPointer pointer = entry.getValue().getPointer();
-                ByteBuffer data = pointer.getSerializedBuffer();
+                ByteBuffer data = pointer.getSerializedDataBuffer();
                 matchByTemplate( modificationContext, data, uniqueIdentifier, template, l, modifiers, timeout );
                 if ( l.size() == maxResults )
                     return l.toArray( new ByteBuffer[l.size()] );

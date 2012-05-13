@@ -168,7 +168,7 @@ public final class ByteArrayPointer {
      * 
      * @return byte buffer
      */
-    public ByteBuffer getSerializedBuffer() {
+    public ByteBuffer getSerializedDataBuffer() {
         if ( serializedData != null )
             return serializedData;
         return ByteBuffer.wrap( serializedBytes );
@@ -227,7 +227,7 @@ public final class ByteArrayPointer {
      * @param offHeapAddress
      * @return new address after the memory reallocation
      */
-    public long dumpAt(final long offHeapAddress) {
+    public long rellocateAndDump(final long offHeapAddress) {
         int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
         this.address = SpaceUtility.reallocate( offHeapAddress, bytesNeeded );
         flush2offheap();
@@ -235,11 +235,11 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * allocate memory, dump content and associated technical information
+     * allocate memory, dump(flush) content and associated technical information
      * 
      * @return new address after memory allocation
      */
-    public long dump() {
+    public long dumpAndGetAddress() {
         if ( this.address == 0 ) {
             int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
             this.address = SpaceUtility.allocateMemory( bytesNeeded );

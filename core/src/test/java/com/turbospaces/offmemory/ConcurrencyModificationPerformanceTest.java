@@ -38,8 +38,7 @@ public class ConcurrencyModificationPerformanceTest {
     }
 
     @Test
-    public void noConcurrencyIssues()
-                                     throws InterruptedException {
+    public void noConcurrencyIssues() {
         final TestEntity1 e1 = new TestEntity1();
         e1.afterPropertiesSet();
 

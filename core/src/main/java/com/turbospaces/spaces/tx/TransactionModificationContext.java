@@ -215,7 +215,7 @@ public final class TransactionModificationContext implements Reusable {
         if ( !getWrites().isEmpty() )
             for ( Entry<EntryKeyLockQuard, WriteTakeEntry> next : getWrites().entrySet() )
                 if ( ObjectUtils.nullSafeEquals( next.getKey().getKey(), key ) )
-                    return next.getValue().getPointer().getSerializedBuffer();
+                    return next.getValue().getPointer().getSerializedDataBuffer();
 
         return (ByteBuffer) indexManager.getByUniqueIdentifier( key, false );
     }
@@ -297,7 +297,7 @@ public final class TransactionModificationContext implements Reusable {
                             @Override
                             public void run() {
                                 listener.handleNotification(
-                                        returnAsBytes ? entry.getPointer().getSerializedBuffer() : entry.getObj(),
+                                        returnAsBytes ? entry.getPointer().getSerializedDataBuffer() : entry.getObj(),
                                         entry.getSpaceOperation() );
                             }
                         } );
@@ -323,7 +323,7 @@ public final class TransactionModificationContext implements Reusable {
                         @Override
                         public void run() {
                             listener.handleNotification(
-                                    returnAsBytes ? entry.getPointer().getSerializedBuffer() : entry.getObj(),
+                                    returnAsBytes ? entry.getPointer().getSerializedDataBuffer() : entry.getObj(),
                                     entry.getSpaceOperation() );
                         }
                     } );

@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.mapping.model.MutablePersistentEntity;
 import org.springframework.util.ObjectUtils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -53,6 +54,9 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
 class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
     private static final long serialVersionUID = -9179258635918662649L;
 
+    static final int DEFAULT_SEGMENT_CAPACITY = 1 << 3;
+    static final int MAX_SEGMENT_CAPACITY = 1 << 14;
+
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final SpaceConfiguration configuration;
     private final MutablePersistentEntity<?, ?> mutablePersistentEntity;
@@ -63,15 +67,19 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private long addresses[];
 
     /**
-     * create new OffHeapHashMap for give initialCapacity.
+     * create new OffHeapHashMap with default initial capacity.
      * 
-     * @param initialCapacity
      * @param configuration
      * @param mutablePersistentEntity
      */
-    public OffHeapLinearProbingSegment(final int initialCapacity,
-                                       final SpaceConfiguration configuration,
-                                       final MutablePersistentEntity<?, ?> mutablePersistentEntity) {
+    public OffHeapLinearProbingSegment(final SpaceConfiguration configuration, final MutablePersistentEntity<?, ?> mutablePersistentEntity) {
+        this( DEFAULT_SEGMENT_CAPACITY, configuration, mutablePersistentEntity );
+    }
+
+    @VisibleForTesting
+    OffHeapLinearProbingSegment(final int initialCapacity,
+                                final SpaceConfiguration configuration,
+                                final MutablePersistentEntity<?, ?> mutablePersistentEntity) {
         this.configuration = Preconditions.checkNotNull( configuration );
         this.mutablePersistentEntity = Preconditions.checkNotNull( mutablePersistentEntity );
 
@@ -114,7 +122,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                         if ( expiredEntries == null )
                             expiredEntries = Lists.newLinkedList();
                         ExpiredEntry expiredEntry = new ExpiredEntry( buffer, ByteArrayPointer.getTimeToLive( address ) );
-                        expiredEntry.id = serializer.readID( buffer );
+                        expiredEntry.setId( serializer.readID( buffer ) );
                         expiredEntries.add( expiredEntry );
                         continue;
                     }
@@ -196,7 +204,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 if ( keyEquals( key, buffer ) ) {
                     int length = ByteArrayPointer.getBytesOccupied( addresses[i] );
                     if ( p != null )
-                        addresses[i] = p.dumpAt( addresses[i] );
+                        addresses[i] = p.rellocateAndDump( addresses[i] );
                     else {
                         SpaceUtility.releaseMemory( addresses[i] );
                         addresses[i] = address;
@@ -205,7 +213,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 }
             }
 
-            addresses[i] = p != null ? p.dump() : address;
+            addresses[i] = p != null ? p.dumpAndGetAddress() : address;
             n++;
 
             return 0;
@@ -222,6 +230,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
         lock.lock();
         try {
+            // try to find entry with the key
             int i = hash2index( key );
             for ( ; addresses[i] != 0; i = ( i + 1 ) % m ) {
                 final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
@@ -233,10 +242,15 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 }
             }
 
+            // in case we didn't find the address for key, abort just because nothing to do
             if ( bytesOccupied == 0 )
                 return bytesOccupied;
 
+            // immediately set the address to be zero
             addresses[i] = 0;
+
+            // for each key that was inserted later we need to re-insert it back just
+            // because that might prematurely terminate the search for a key that was inserted into the table later
             i = ( i + 1 ) % m;
             while ( addresses[i] != 0 ) {
                 long addressToRedo = addresses[i];
@@ -247,7 +261,9 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 put( id, addressToRedo, null );
                 i = ( i + 1 ) % m;
             }
+            // decrement size
             n--;
+            // probably re-size
             if ( n > 0 && n == m / 8 )
                 resize( m / 2 );
         }
@@ -297,18 +313,35 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     }
 
     private int hash2index(final Object key) {
-        return ( SpaceUtility.rehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
+        return ( SpaceUtility.murmurRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
     }
 
     private void resize(final int capacity) {
         OffHeapLinearProbingSegment temp = new OffHeapLinearProbingSegment( capacity, configuration, mutablePersistentEntity );
-        for ( int i = 0; i < m; i++ )
-            if ( addresses[i] != 0 ) {
-                Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addresses[i] ) ) );
-                temp.put( id, addresses[i], null );
+        for ( int i = 0; i < m; i++ ) {
+            final long address = addresses[i];
+            if ( address != 0 ) {
+                final ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address ) );
+                final Object id = serializer.readID( buffer );
+                if ( ByteArrayPointer.isExpired( address ) ) {
+                    notifyExpired( new ExpiredEntry( buffer, ByteArrayPointer.getTimeToLive( address ) ) );
+                    SpaceUtility.releaseMemory( address );
+                    addresses[i] = 0;
+                    continue;
+                }
+                temp.put( id, address, null );
             }
+        }
         addresses = temp.addresses;
         m = temp.m;
+    }
+
+    /**
+     * @return size of segment, this is suitable method for unit-testing only
+     */
+    @VisibleForTesting
+    int size() {
+        return n;
     }
 
     @Override
@@ -317,11 +350,17 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
         lock.lock();
         try {
-            for ( int i = 0; i < m; i++ )
-                if ( addresses[i] != 0 ) {
-                    SpaceUtility.releaseMemory( addresses[i] );
+            for ( int i = 0; i < m; i++ ) {
+                long address = addresses[i];
+                if ( address != 0 ) {
+                    if ( ByteArrayPointer.isExpired( address ) )
+                        notifyExpired( new ExpiredEntry(
+                                ByteBuffer.wrap( ByteArrayPointer.getEntityState( address ) ),
+                                ByteArrayPointer.getTimeToLive( address ) ) );
+                    SpaceUtility.releaseMemory( address );
                     addresses[i] = 0;
                 }
+            }
         }
         finally {
             lock.unlock();
@@ -334,11 +373,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
         lock.lock();
         try {
-            int size = 0;
-            for ( int i = 0; i < m; i++ )
-                if ( addresses[i] != 0 )
-                    size++;
-            return Objects.toStringHelper( this ).add( "size", size ).toString();
+            return Objects.toStringHelper( this ).add( "size", size() ).toString();
         }
         finally {
             lock.unlock();
@@ -354,6 +389,10 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             super();
             this.buffer = buffer;
             this.ttl = ttl;
+        }
+
+        void setId(final Object id) {
+            this.id = id;
         }
     }
 }

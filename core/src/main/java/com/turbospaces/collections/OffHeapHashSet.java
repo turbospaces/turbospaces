@@ -39,16 +39,6 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  */
 public interface OffHeapHashSet extends DisposableBean {
     /**
-     * default initial capacity of the set of <code>1024</code>.
-     */
-    int DEFAULT_INITIAL_CAPACITY = ( ( 5 * 7 + 31 ) * 7 + 17 ) * 3;
-
-    /**
-     * default maximum segment capacity <code>4096</code>.
-     */
-    int MAX_SEGMENT_CAPACITY = DEFAULT_INITIAL_CAPACITY * 3;
-
-    /**
      * check whether particular key is present in map and is so, return the off-heap pointer address.</p>
      * 
      * <b>NOTE:</b>concrete implementation <b>must</b> remove expired entities automatically in case of lease timeout

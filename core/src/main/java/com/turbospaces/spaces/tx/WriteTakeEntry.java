@@ -110,7 +110,7 @@ public final class WriteTakeEntry {
      */
     public Object getObj() {
         if ( obj == null )
-            return configuration.getEntitySerializer().deserialize( getPointer().getSerializedBuffer(), getPersistentEntity().getType() ).getObject();
+            return configuration.getEntitySerializer().deserialize( getPointer().getSerializedDataBuffer(), getPersistentEntity().getType() ).getObject();
         return obj;
     }
 

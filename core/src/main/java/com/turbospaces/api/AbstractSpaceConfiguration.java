@@ -44,6 +44,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
@@ -348,9 +349,13 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
                 setMappingContext( applicationContext.getBean( AbstractMappingContext.class ) );
 
         if ( getListeningExecutorService() == null )
-            setExecutorService( Executors.newCachedThreadPool() );
+            setExecutorService( Executors.newFixedThreadPool(
+                    1 << 6,
+                    new ThreadFactoryBuilder().setDaemon( false ).setNameFormat( "jspace-execpool-thread-%s" ).build() ) );
         if ( getScheduledExecutorService() == null )
-            setScheduledExecutorService( Executors.newSingleThreadScheduledExecutor() );
+            setScheduledExecutorService( Executors.newScheduledThreadPool(
+                    1 << 2,
+                    new ThreadFactoryBuilder().setDaemon( true ).setNameFormat( "jspace-scheduledpool-thread-%s" ).build() ) );
 
         Preconditions.checkState( mappingContext != null, MAPPING_CONTEXT_IS_NOT_REGISTERED );
 

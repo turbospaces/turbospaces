@@ -51,8 +51,7 @@ public class SpaceUtilityTest {
     }
 
     @Test
-    public void repeateConcurrentlyWorks()
-                                          throws InterruptedException {
+    public void repeateConcurrentlyWorks() {
         final AtomicInteger integer = new AtomicInteger();
         SpaceUtility.repeatConcurrently( 2, 5, new Function<Integer, Object>() {
 

@@ -72,8 +72,7 @@ public class DefaultEntitySerializerTest {
     }
 
     @Test
-    public void canSerializeDesializeUnderStress()
-                                                  throws InterruptedException {
+    public void canSerializeDesializeUnderStress() {
         SpaceUtility.repeatConcurrently( 10, 10000, new Function<Integer, Object>() {
 
             @Override

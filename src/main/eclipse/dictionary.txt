@@ -85,3 +85,4 @@ persistency
 ultraminimalistic
 minimalistic
 jdk
+guava

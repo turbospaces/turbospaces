@@ -47,7 +47,7 @@ public class ByteArrayStorageFormatTest {
     @Test
     public void storesCreationTimestampCorrectly() {
         ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Long.MAX_VALUE );
-        long address = p.dump();
+        long address = p.dumpAndGetAddress();
         long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
 
         logger.info( "created  : = {}", new Date( creationTimestamp ) );
@@ -59,7 +59,7 @@ public class ByteArrayStorageFormatTest {
     @Test
     public void storesTimeToLiveCorrectly() {
         ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, 634 );
-        long address = p.dump();
+        long address = p.dumpAndGetAddress();
         long ttl = ByteArrayPointer.getTimeToLive( address );
 
         logger.info( "ttl      : = {}", ttl );
@@ -70,7 +70,7 @@ public class ByteArrayStorageFormatTest {
     @Test
     public void storesInternalStateCorrectly() {
         ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Long.MAX_VALUE );
-        long address = p.dump();
+        long address = p.dumpAndGetAddress();
         byte[] b = p.getSerializedData();
         assertThat( b, is( new byte[] { 1, 2, 3 } ) );
 
@@ -90,7 +90,7 @@ public class ByteArrayStorageFormatTest {
         assertThat( (TestEntity1) p.getObject(), is( testEntity1 ) );
 
         ByteArrayPointer p2 = new ByteArrayPointer( new byte[] { 2, 3, 4 }, testEntity1, Long.MAX_VALUE );
-        p2.dump();
+        p2.dumpAndGetAddress();
         Assert.assertFalse( p2.equals( p1 ) );
 
         p.utilize();

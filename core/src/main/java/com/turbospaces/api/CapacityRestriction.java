@@ -27,7 +27,7 @@ import com.google.common.base.Preconditions;
  */
 public class CapacityRestriction {
     private volatile int maxMemorySizeInMb = Integer.MAX_VALUE;
-    private volatile long maxElements = Integer.MAX_VALUE;
+    private volatile long maxElements = Integer.MAX_VALUE / 16;
 
     /**
      * @return the maximum memory size in megabytes

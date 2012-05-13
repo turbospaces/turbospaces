@@ -78,6 +78,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.MapMaker;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
@@ -192,11 +194,12 @@ public abstract class SpaceUtility {
     /**
      * check whether template object(in form of property values) matches with actual bean's property value. This method
      * is efficiently used for {@link JSpace#notify(Object, com.turbospaces.api.SpaceNotificationListener, int)}
-     * operation
-     * implementation.
+     * operation implementation.</p>
      * 
      * @param templatePropertyValues
+     *            template object's properties
      * @param entryPropertyValues
+     *            actual entry's properties
      * 
      * @return template matches result
      */
@@ -215,11 +218,15 @@ public abstract class SpaceUtility {
     }
 
     /**
+     * wrap given kryo configuration with space defaults and register all user supplied classes(with some sugar).</p>
+     * 
      * @param configuration
+     *            space configuration
      * @param givenKryo
      *            user custom kryo serializer
      * @return kryo with pre-registered application types and some defaults.
      * @throws ClassNotFoundException
+     *             re-throw kryo exceptions
      */
     @SuppressWarnings("rawtypes")
     public static Kryo spaceKryo(final AbstractSpaceConfiguration configuration,
@@ -540,7 +547,7 @@ public abstract class SpaceUtility {
 
     /**
      * start new thread and execute client's runnable task. Wait for thread work completition. Catch execution exception
-     * and return if any.
+     * and return it.</p>
      * 
      * @param runnable
      *            client's task
@@ -570,7 +577,7 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * repeats the task action totalIterationsCount times concurrently.
+     * repeats the task action totalIterationsCount times concurrently.</p>
      * 
      * @param threads
      *            number of concurrent threads
@@ -579,13 +586,10 @@ public abstract class SpaceUtility {
      * @param task
      *            the action which needs to be performed
      * @return all errors from thread's execution
-     * @throws InterruptedException
-     *             if thread(threads) was/were interrupted
      */
     public static <T> List<Throwable> repeatConcurrently(final int threads,
                                                          final int totalIterationsCount,
-                                                         final Function<Integer, Object> task)
-                                                                                              throws InterruptedException {
+                                                         final Function<Integer, Object> task) {
         final AtomicInteger atomicLong = new AtomicInteger( totalIterationsCount );
         final CountDownLatch countDownLatch = new CountDownLatch( threads );
         final LinkedList<Throwable> errors = Lists.newLinkedList();
@@ -614,15 +618,26 @@ public abstract class SpaceUtility {
             thread.setName( String.format( "RepeateConcurrentlyThread-%s:{%s}", j, task.toString() ) );
             thread.start();
         }
-        countDownLatch.await();
+        Uninterruptibles.awaitUninterruptibly( countDownLatch );
         return errors;
     }
 
-    @SuppressWarnings("javadoc")
+    /**
+     * repeats the task action totalIterationsCount times concurrently - you should verify that there are no execution
+     * exceptions after running task.</p>
+     * 
+     * @param threads
+     *            number of concurrent threads
+     * @param totalIterationsCount
+     *            how many times to repeat task execution concurrently
+     * @param task
+     *            the action which needs to be performed (runnable task)
+     * @return all errors from thread's execution
+     * @see #repeatConcurrently(int, int, Function)
+     */
     public static <T> List<Throwable> repeatConcurrently(final int threads,
                                                          final int totalIterationsCount,
-                                                         final Runnable task)
-                                                                             throws InterruptedException {
+                                                         final Runnable task) {
         return repeatConcurrently( threads, totalIterationsCount, new Function<Integer, Object>() {
 
             @Override
@@ -638,6 +653,7 @@ public abstract class SpaceUtility {
      * {@link SpaceException}
      * 
      * @param callback
+     *            user function which should not cause execution failure
      * @return result of callback execution
      * @throws SpaceException
      *             if something went wrong
@@ -659,13 +675,15 @@ public abstract class SpaceUtility {
 
     /**
      * execute callback action assuming that exception should not occur and transform exceptions into
-     * {@link SpaceException}
+     * {@link SpaceException} in case of exception.</p>
      * 
      * @param callback
+     *            user function which should not cause execution failure
      * @param input
+     *            argument to pass to the callback function
      * @return result of callback execution
      * @throws SpaceException
-     *             if something went wrong
+     *             if something goes wrong
      */
     public static <I, R> R exceptionShouldNotHappen(final Function<I, R> callback,
                                                     final I input) {
@@ -685,7 +703,7 @@ public abstract class SpaceUtility {
     /**
      * wrap original key locker by applying load distribution hash function and make it more concurrent(parallel)
      * 
-     * @return parallel key locker
+     * @return more concurrent parallel key locker
      */
     public static KeyLocker parallelizedKeyLocker() {
         KeyLocker locker = new KeyLocker() {
@@ -711,7 +729,7 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( jdkHash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
+                return segments[( jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
             }
         };
         return locker;
@@ -737,13 +755,13 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * Hashes a 4-byte sequence (Java int).
+     * re-hashes a 4-byte sequence (Java int) using murmur3 hash algorithm.</p>
      * 
      * @param hash
-     *            key hash
-     * @return hash
+     *            bad quality hash
+     * @return good general purpose hash
      */
-    public static int rehash(final int hash) {
+    public static int murmurRehash(final int hash) {
         int k = hash;
         k ^= k >>> 16;
         k *= 0x85ebca6b;
@@ -754,12 +772,13 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * Hashes a 4-byte sequence (Java int) using standard JDK 4-5 method.
+     * re-hashes a 4-byte sequence (Java int) using standard JDK re-hash algorithm.</p>
      * 
      * @param hash
-     * @return hash
+     *            bad quality hash
+     * @return good hash
      */
-    public static int jdkHash(final int hash) {
+    public static int jdkRehash(final int hash) {
         int h = hash;
 
         h += ( h << 15 ) ^ 0xffffcd7d;
@@ -786,10 +805,13 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * extract first element of array(ensure there is only one element)
+     * extract first element of array(ensure there is only one element).</p>
      * 
      * @param objects
-     * @return single result
+     *            all objects
+     * @return single result (if the object's size equals 1)
+     * @throws IncorrectResultSizeDataAccessException
+     *             if object's size not equals 1
      */
     public static <T> Optional<T> singleResult(final Object[] objects) {
         if ( objects != null && objects.length > 0 ) {
@@ -801,10 +823,12 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * make new concurrent computation hash map
+     * make new concurrent computation hash map(actually without guava). probably later this is subject for migration to
+     * {@link MapMaker}.</p>
      * 
      * @param compFunction
-     * @return map
+     * @return concurrent map where get requests for missing keys will cause automatic creation of key-value for key
+     *         using user supplied <code>compFunction</code>
      */
     public static <K, V> ConcurrentMap<K, V> newCompMap(final Function<K, V> compFunction) {
         return new ForwardingConcurrentMap<K, V>() {
