@@ -1,13 +1,13 @@
 <para version="5.0" xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
     <para>turbospaces is another in-memory data grid (platform at some extent) written in java for applications where
         distributed, concurrent, low-latency, failover, high throughput and linear-scalability is a key. Being a new
-        brand technology, turbospaces is elegant implementation of Java Spaces like API(without relying on SUN's JavaSpace
-        technology and libraries), fully-transactional in-memory object-oriented database with elastic and flexible
-        external data storage bindings, extremely fast off-heap store(meaning that java heap is not occupied by the
-        application's data at all). Result of such off-heap memory orientation is that application does not spend time
-        on automatic garbage collections, but rather doing real job with millions transactions per second throughput and
-        minimal latency. You can get product for free just because it is open source project and distributed over Apache
-        2.0 user-friendly license.</para>
+        brand technology, turbospaces is elegant implementation of Java Spaces like API(without relying on SUN's
+        JavaSpace technology and libraries), fully-transactional in-memory object-oriented database with elastic and
+        flexible external data storage bindings, extremely fast off-heap store(meaning that java heap is not occupied by
+        the application's data at all). Result of such off-heap memory orientation is that application does not spend
+        time on automatic garbage collections, but rather doing real job with millions transactions per second
+        throughput and minimal latency. You can get product for free just because it is open source project and
+        distributed over Apache 2.0 user-friendly license.</para>
     <para>Certainly our cloud is not limited to java space technical stack, off-heap persistent storage. We consider it
         as direct replacement for typical Enterprise Java Applications with a standard stack of RDMBS, EJB, JTA, JMS,
         JPA. It is extremely easy to start using turbospaces just because it has minimal list of dependencies.</para>
@@ -125,6 +125,13 @@
                     <literal>Kryo</literal>
                     - we use this framework for serialization purposes(between remote client and server nodes or
                     optionally for storing entities in serialized form in off-heap memory buffers).
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    <literal>guava</literal>
+                    - we use this framework for general purpose code improvements(externally as well as internally) and
+                    cleaner API. Apache Commons to old for such things.
                 </para>
             </listitem>
         </itemizedlist>

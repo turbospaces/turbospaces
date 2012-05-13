@@ -70,7 +70,7 @@ public class DirectOffHeapByteBufferTest {
     @After
     public void after()
                        throws Exception {
-        System.out.println( buffer );
+        buffer.toString();
         assertThat( buffer.getIndexManager(), is( notNullValue() ) );
         buffer.destroy();
         configuration.destroy();

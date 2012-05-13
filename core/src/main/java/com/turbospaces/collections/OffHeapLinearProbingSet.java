@@ -48,7 +48,7 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet, Initializi
     @SuppressWarnings("rawtypes")
     public OffHeapLinearProbingSet(final SpaceConfiguration configuration, final BO bo) {
         this( IntMath.pow( 2, IntMath.log2(
-                (int) ( bo.getCapacityRestriction().getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ),
+                Math.max( (int) ( bo.getCapacityRestriction().getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ), 1 ),
                 RoundingMode.UP ) ), bo, configuration );
     }
 

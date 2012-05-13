@@ -25,6 +25,6 @@ public class OffHeapMemorySizeTest {
         UnsafeSizeOf sizeOf = new UnsafeSizeOf();
         OffHeapLinearProbingSet set = new OffHeapLinearProbingSet( configuration, bo );
         Size setSizeOf = sizeOf.deepSizeOf( Integer.MAX_VALUE, true, set );
-        assertThat( Memory.toMb( setSizeOf.getCalculated() ), isOneOf( 3, 4 ) );
+        assertThat( Memory.toMb( setSizeOf.getCalculated() ), isOneOf( 3, 4, 5 ) );
     }
 }
