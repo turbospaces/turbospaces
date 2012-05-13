@@ -1,7 +1,8 @@
 package com.turbospaces.collections;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.isOneOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import net.sf.ehcache.pool.Size;
 import net.sf.ehcache.pool.sizeof.UnsafeSizeOf;
 
@@ -25,6 +26,6 @@ public class OffHeapMemorySizeTest {
         UnsafeSizeOf sizeOf = new UnsafeSizeOf();
         OffHeapLinearProbingSet set = new OffHeapLinearProbingSet( configuration, bo );
         Size setSizeOf = sizeOf.deepSizeOf( Integer.MAX_VALUE, true, set );
-        assertThat( Memory.toMb( setSizeOf.getCalculated() ), isOneOf( 3, 4, 5 ) );
+        assertThat( Memory.toMb( setSizeOf.getCalculated() ), is( lessThan( 16 ) ) );
     }
 }
