@@ -17,13 +17,9 @@ package com.turbospaces.core;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -43,8 +39,6 @@ import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -61,8 +55,6 @@ import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.util.ObjectUtils;
 
-import sun.misc.Unsafe;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.kryo.Serializer;
@@ -77,9 +69,7 @@ import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
-import com.google.common.util.concurrent.Uninterruptibles;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
@@ -116,36 +106,13 @@ import com.turbospaces.spaces.tx.TransactionScopeKeyLocker;
  * @since 0.1
  */
 @ThreadSafe
-@SuppressWarnings({ "unchecked", "restriction" })
+@SuppressWarnings({ "unchecked" })
 public abstract class SpaceUtility {
     private static final Logger LOGGER = LoggerFactory.getLogger( SpaceUtility.class );
-
     private static final Properties cloudProperties;
-    private static final Unsafe unsafe;
 
     static {
-        LOGGER.trace( "initializing {}", ByteArrayPointer.class.toString() );
-
-        unsafe = AccessController.doPrivileged( new PrivilegedAction<Unsafe>() {
-            @Override
-            public Unsafe run() {
-                return SpaceUtility.exceptionShouldNotHappen( new Callable<Unsafe>() {
-                    @Override
-                    public Unsafe call()
-                                        throws NoSuchFieldException,
-                                        SecurityException,
-                                        IllegalAccessException {
-                        Field theUnsafeInstance;
-
-                        theUnsafeInstance = Unsafe.class.getDeclaredField( "theUnsafe" );
-                        theUnsafeInstance.setAccessible( true );
-                        Unsafe u = (Unsafe) theUnsafeInstance.get( Unsafe.class );
-
-                        return u;
-                    }
-                } );
-            }
-        } );
+        LOGGER.trace( "initializing {}", SpaceUtility.class.toString() );
         cloudProperties = SpaceUtility.exceptionShouldNotHappen( new Callable<Properties>() {
             @Override
             public Properties call()
@@ -162,31 +129,6 @@ public abstract class SpaceUtility {
                         inputStream.close();
                 }
                 return properties;
-            }
-        } );
-    }
-
-    /**
-     * This method guarantees that garbage collection is done unlike <code>{@link System#gc()}</code>.
-     * You should not worry that this method can cause some kind of infinite loop because there is pre-defined max
-     * iteration number.
-     */
-    public static void gc() {
-        Object obj = new Object();
-        WeakReference<Object> ref = new WeakReference<Object>( obj );
-        obj = null;
-        while ( ref.get() != null )
-            System.gc();
-    }
-
-    /**
-     * This method guarantees that garbage collection is done after JVM shutdown is initialized
-     */
-    public static void gcOnExit() {
-        Runtime.getRuntime().addShutdownHook( new Thread() {
-            @Override
-            public void run() {
-                gc();
             }
         } );
     }
@@ -354,115 +296,6 @@ public abstract class SpaceUtility {
     }
 
     /**
-     * allocate off-heap memory and returns the address of the memory.
-     * 
-     * @param size
-     *            how many off-heap bytes required
-     * @return address in VM memory
-     */
-    public static long allocateMemory(final int size) {
-        return unsafe.allocateMemory( size );
-    }
-
-    /**
-     * free off-heap memory (like C destructor)
-     * 
-     * @param address
-     *            off-heap address
-     */
-    public static void releaseMemory(final long address) {
-        unsafe.freeMemory( address );
-    }
-
-    /**
-     * re-allocate memory at the given address and extend to newSize
-     * 
-     * @param address
-     * @param newSize
-     * @return address itself
-     */
-    public static long reallocate(final long address,
-                                  final int newSize) {
-        return unsafe.reallocateMemory( address, newSize );
-    }
-
-    /**
-     * write byte array into off-heap memory using address pointer. This method is not optimized by performance, however
-     * is consistent and simple.
-     * 
-     * @param address
-     *            off-heap address
-     * @param arr
-     *            bytes to write
-     */
-    public static void writeBytesArray(final long address,
-                                       final byte[] arr) {
-        long i = address;
-        for ( byte b : arr )
-            unsafe.putByte( i++, b );
-    }
-
-    /**
-     * write int value at the given off-heap memory
-     * 
-     * @param address
-     * @param value
-     */
-    public static void putInt(final long address,
-                              final int value) {
-        unsafe.putInt( address, value );
-    }
-
-    /**
-     * write long value at the given off-heap memory
-     * 
-     * @param address
-     * @param value
-     */
-    public static void putLong(final long address,
-                               final long value) {
-        unsafe.putLong( address, value );
-    }
-
-    /**
-     * read int value from the off-heap memory at given address
-     * 
-     * @param address
-     * @return int value
-     */
-    public static int getInt(final long address) {
-        return unsafe.getInt( address );
-    }
-
-    /**
-     * read long value from the off-heap memory at given address
-     * 
-     * @param address
-     * @return long value
-     */
-    public static long getLong(final long address) {
-        return unsafe.getLong( address );
-    }
-
-    /**
-     * read byte array from the off-heap memory using address pointer. you must pass expected size of the byte's array.
-     * 
-     * @param address
-     *            off-heap memory address
-     * @param size
-     *            expected byte's array size
-     * @return byte array
-     */
-    public static byte[] readBytesArray(final long address,
-                                        final int size) {
-        long j = address;
-        byte[] arr = new byte[size];
-        for ( int i = 0; i < size; i++ )
-            arr[i] = unsafe.getByte( j++ );
-        return arr;
-    }
-
-    /**
      * raise new {@link SpaceCapacityOverflowException} exception with given maxCapacity restriction and for object
      * which caused space overflow.
      * 
@@ -543,109 +376,6 @@ public abstract class SpaceUtility {
                                             final AtomicLong itemsCount) {
         if ( itemsCount.get() >= capacityRestriction.getMaxElements() )
             throw new SpaceCapacityOverflowException( capacityRestriction.getMaxElements(), obj );
-    }
-
-    /**
-     * start new thread and execute client's runnable task. Wait for thread work completition. Catch execution exception
-     * and return it.</p>
-     * 
-     * @param runnable
-     *            client's task
-     * @return execution exception if any
-     * @throws InterruptedException
-     */
-    public static Exception runAndGetExecutionException(final Runnable runnable)
-                                                                                throws InterruptedException {
-        final MutableObject<Exception> ex = new MutableObject<Exception>();
-        Thread thread = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    runnable.run();
-                }
-                catch ( Exception e ) {
-                    LOGGER.error( e.getMessage(), e );
-                    ex.set( e );
-                }
-            }
-        };
-        thread.start();
-        thread.join();
-        if ( ex.get() == null )
-            throw new AssertionError( "there is no exception!" );
-        return ex.get();
-    }
-
-    /**
-     * repeats the task action totalIterationsCount times concurrently.</p>
-     * 
-     * @param threads
-     *            number of concurrent threads
-     * @param totalIterationsCount
-     *            how many times to repeat task execution concurrently
-     * @param task
-     *            the action which needs to be performed
-     * @return all errors from thread's execution
-     */
-    public static <T> List<Throwable> repeatConcurrently(final int threads,
-                                                         final int totalIterationsCount,
-                                                         final Function<Integer, Object> task) {
-        final AtomicInteger atomicLong = new AtomicInteger( totalIterationsCount );
-        final CountDownLatch countDownLatch = new CountDownLatch( threads );
-        final LinkedList<Throwable> errors = Lists.newLinkedList();
-        for ( int j = 0; j < threads; j++ ) {
-            Thread thread = new Thread( new Runnable() {
-
-                @Override
-                public void run() {
-                    try {
-                        int l;
-                        while ( ( l = atomicLong.decrementAndGet() ) >= 0 )
-                            try {
-                                task.apply( l );
-                            }
-                            catch ( Exception e ) {
-                                LOGGER.error( e.getMessage(), e );
-                                errors.add( e );
-                                throw new SpaceException( e.getMessage(), e );
-                            }
-                    }
-                    finally {
-                        countDownLatch.countDown();
-                    }
-                }
-            } );
-            thread.setName( String.format( "RepeateConcurrentlyThread-%s:{%s}", j, task.toString() ) );
-            thread.start();
-        }
-        Uninterruptibles.awaitUninterruptibly( countDownLatch );
-        return errors;
-    }
-
-    /**
-     * repeats the task action totalIterationsCount times concurrently - you should verify that there are no execution
-     * exceptions after running task.</p>
-     * 
-     * @param threads
-     *            number of concurrent threads
-     * @param totalIterationsCount
-     *            how many times to repeat task execution concurrently
-     * @param task
-     *            the action which needs to be performed (runnable task)
-     * @return all errors from thread's execution
-     * @see #repeatConcurrently(int, int, Function)
-     */
-    public static <T> List<Throwable> repeatConcurrently(final int threads,
-                                                         final int totalIterationsCount,
-                                                         final Runnable task) {
-        return repeatConcurrently( threads, totalIterationsCount, new Function<Integer, Object>() {
-
-            @Override
-            public Object apply(final Integer iteration) {
-                task.run();
-                return this;
-            }
-        } );
     }
 
     /**
@@ -781,13 +511,13 @@ public abstract class SpaceUtility {
     public static int jdkRehash(final int hash) {
         int h = hash;
 
-        h += ( h << 15 ) ^ 0xffffcd7d;
-        h ^= ( h >>> 10 );
-        h += ( h << 3 );
-        h ^= ( h >>> 6 );
+        h += h << 15 ^ 0xffffcd7d;
+        h ^= h >>> 10;
+        h += h << 3;
+        h ^= h >>> 6;
         h += ( h << 2 ) + ( h << 14 );
 
-        return h ^ ( h >>> 16 );
+        return h ^ h >>> 16;
     }
 
     /**

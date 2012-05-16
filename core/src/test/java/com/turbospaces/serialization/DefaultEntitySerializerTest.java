@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import java.nio.ByteBuffer;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
@@ -28,7 +29,7 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
@@ -73,8 +74,7 @@ public class DefaultEntitySerializerTest {
 
     @Test
     public void canSerializeDesializeUnderStress() {
-        SpaceUtility.repeatConcurrently( 10, 10000, new Function<Integer, Object>() {
-
+        Assert.assertEquals( JVMUtil.repeatConcurrently( 10, 10000, new Function<Integer, Object>() {
             @Override
             public Object apply(final Integer iteration) {
                 TestEntity1 entity1 = new TestEntity1();
@@ -86,6 +86,7 @@ public class DefaultEntitySerializerTest {
                 entity1.assertMatch( entity2 );
                 return this;
             }
-        } );
+        } ).isEmpty(),
+                true );
     }
 }

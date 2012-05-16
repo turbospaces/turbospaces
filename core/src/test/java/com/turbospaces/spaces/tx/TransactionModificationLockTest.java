@@ -8,9 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
-import com.turbospaces.core.SpaceUtility;
-import com.turbospaces.spaces.tx.TransactionModificationContext;
-import com.turbospaces.spaces.tx.TransactionModificationLock;
+import com.turbospaces.core.JVMUtil;
 
 @SuppressWarnings("javadoc")
 public class TransactionModificationLockTest {
@@ -75,7 +73,7 @@ public class TransactionModificationLockTest {
         final TransactionModificationContext c1 = TransactionModificationContext.borrowObject();
         final TransactionModificationLock lock = new TransactionModificationLock( true );
 
-        throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+        throw JVMUtil.runAndGetExecutionException( new Runnable() {
 
             @Override
             public void run() {

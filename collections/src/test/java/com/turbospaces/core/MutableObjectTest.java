@@ -11,7 +11,7 @@ import org.junit.Test;
 public class MutableObjectTest {
 
     @Test
-    public void test() {
+    public void coverage() {
         MutableObject<Integer> mutableObject = new MutableObject<Integer>();
         assertThat( mutableObject.get(), is( nullValue() ) );
         mutableObject.set( Integer.valueOf( 23 ) );
@@ -20,5 +20,6 @@ public class MutableObjectTest {
         assertThat( mutableObject.get().hashCode(), is( Integer.valueOf( 23 ).hashCode() ) );
         Assert.assertTrue( mutableObject.get().equals( Integer.valueOf( 23 ) ) );
         assertThat( mutableObject.get().toString(), is( Integer.valueOf( 23 ).toString() ) );
+        Assert.assertFalse( mutableObject.get().equals( Long.valueOf( 23 ) ) );
     }
 }

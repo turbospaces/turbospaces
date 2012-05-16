@@ -13,7 +13,7 @@ import com.turbospaces.api.ClientSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.OffHeapJSpace;
 import com.turbospaces.spaces.RemoteJSpace;
@@ -70,10 +70,8 @@ public class PartitionedBasicCommunicationTest {
     }
 
     @Test
-    public void canWriteFetchNonTransactionally()
-                                                 throws InterruptedException {
-        List<Throwable> errors = SpaceUtility.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000, new Runnable() {
-
+    public void canWriteFetchNonTransactionally() {
+        List<Throwable> errors = JVMUtil.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000, new Runnable() {
             @Override
             public void run() {
                 final TestEntity1 entity = new TestEntity1();

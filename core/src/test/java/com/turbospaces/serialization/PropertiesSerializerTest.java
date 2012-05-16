@@ -36,7 +36,7 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
@@ -62,7 +62,7 @@ public class PropertiesSerializerTest {
         entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
 
-        SpaceUtility.gc();
+        JVMUtil.gc();
     }
 
     @After
@@ -307,7 +307,7 @@ public class PropertiesSerializerTest {
         template.data1 = entity1.data1;
 
         long millis = System.currentTimeMillis();
-        List<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
+        List<Throwable> errors = JVMUtil.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
 
             @Override
             public void run() {
@@ -332,7 +332,7 @@ public class PropertiesSerializerTest {
         template.fi2 = entity1.fi2;
 
         long millis = System.currentTimeMillis();
-        List<Throwable> errors = SpaceUtility.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
+        List<Throwable> errors = JVMUtil.repeatConcurrently( THREADS_COUNT, ITERATIONS, new Runnable() {
 
             @Override
             public void run() {

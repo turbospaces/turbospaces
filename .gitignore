@@ -12,3 +12,7 @@
 /.project
 /monitor/target
 /documentation/target
+/collections/.settings
+/collections/.project
+/collections/.classpath
+/collections/target

@@ -1,9 +1,12 @@
 package com.turbospaces.core;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * The same as <a
  * href="http://commons.apache.org/lang/api-2.4/org/apache/commons/lang/mutable/MutableObject.html">Apache Commons
- * Mutable Object</a> and can be used with anonymous inner classes.
+ * Mutable Object</a> and can be used with anonymous inner classes instead of {@link AtomicReference} or one-element
+ * array.
  * 
  * @param <V>
  *            type of value
@@ -30,7 +33,9 @@ public class MutableObject<V> {
 
     @Override
     public boolean equals(final Object obj) {
-        return value.equals( obj );
+        if ( obj instanceof MutableObject )
+            return value.equals( obj );
+        return super.equals( obj );
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.math.IntMath;
+import com.turbospaces.OffHeapHashSet;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.SpaceUtility;
@@ -77,7 +78,7 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet, Initializi
         return segmentFor( key ).getAsSerializedData( key );
     }
 
-    @Override
+    // @Override
     public List<ByteArrayPointer> match(final CacheStoreEntryWrapper template) {
         List<ByteArrayPointer> retval = null;
         for ( OffHeapLinearProbingSegment entry : segments ) {

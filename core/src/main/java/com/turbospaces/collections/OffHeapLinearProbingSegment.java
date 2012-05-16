@@ -24,6 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.data.mapping.model.MutablePersistentEntity;
 import org.springframework.util.ObjectUtils;
 
@@ -32,8 +33,10 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.turbospaces.OffHeapHashSet;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.serialization.PropertiesSerializer;
@@ -51,7 +54,7 @@ import com.turbospaces.spaces.CacheStoreEntryWrapper;
  * @see OffHeapLinearProbingSet
  */
 @ThreadSafe
-class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
+class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet, DisposableBean {
     private static final long serialVersionUID = -9179258635918662649L;
 
     static final int DEFAULT_SEGMENT_CAPACITY = 1 << 3;
@@ -104,7 +107,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         return (ByteBuffer) get( key, false );
     }
 
-    @Override
+    // @Override
     public List<ByteArrayPointer> match(final CacheStoreEntryWrapper template) {
         final Lock lock = readLock();
         List<ByteArrayPointer> matchedEntries = null;
@@ -206,7 +209,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                     if ( p != null )
                         addresses[i] = p.rellocateAndDump( addresses[i] );
                     else {
-                        SpaceUtility.releaseMemory( addresses[i] );
+                        JVMUtil.releaseMemory( addresses[i] );
                         addresses[i] = address;
                     }
                     return length;
@@ -237,7 +240,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 if ( keyEquals( key, buffer ) ) {
                     bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i] );
-                    SpaceUtility.releaseMemory( addresses[i] );
+                    JVMUtil.releaseMemory( addresses[i] );
                     break;
                 }
             }
@@ -325,7 +328,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 final Object id = serializer.readID( buffer );
                 if ( ByteArrayPointer.isExpired( address ) ) {
                     notifyExpired( new ExpiredEntry( buffer, ByteArrayPointer.getTimeToLive( address ) ) );
-                    SpaceUtility.releaseMemory( address );
+                    JVMUtil.releaseMemory( address );
                     addresses[i] = 0;
                     continue;
                 }
@@ -357,7 +360,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                         notifyExpired( new ExpiredEntry(
                                 ByteBuffer.wrap( ByteArrayPointer.getEntityState( address ) ),
                                 ByteArrayPointer.getTimeToLive( address ) ) );
-                    SpaceUtility.releaseMemory( address );
+                    JVMUtil.releaseMemory( address );
                     addresses[i] = 0;
                 }
             }

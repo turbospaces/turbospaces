@@ -158,7 +158,7 @@ public class PerformanceMonitor implements Runnable {
         } );
 
         try {
-            List<Throwable> exceptions = SpaceUtility.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
+            List<Throwable> exceptions = JVMUtil.repeatConcurrently( threadsCount, numberOfIterations, new Function<Integer, Object>() {
                 SimpleObjectPool<Object> pool = new SimpleObjectPool<Object>( objectFactory );
                 Object obj = objectFactory.newInstance();
                 Class<?> clazz = obj.getClass();

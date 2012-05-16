@@ -21,41 +21,36 @@ import javax.annotation.concurrent.Immutable;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.turbospaces.api.JSpace;
-import com.turbospaces.core.SpaceUtility;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.turbospaces.core.JVMUtil;
 
 /**
- * off-heap memory pointer (basically OS memory address and bytes occupied).
+ * Off-heap memory pointer reference. This is low-level proxy over off-heap address.
  * 
  * @since 0.1
  */
 @Immutable
 public final class ByteArrayPointer {
-    private static final int INT_SIZE = Integer.SIZE / Byte.SIZE;
-    private static final int LONG_SIZE = Long.SIZE / Byte.SIZE;
 
     /**
-     * Entities are stored in special internal format (it is quite trivial). There is nothing special in this format and
-     * intention is to store the maximum meta-information co-located with actual entitie's data array rather than
-     * storing in
-     * memory.
-     * </p>
+     * Entities are stored in special internal format (in fact format is quite trivial).</p>
      * 
      * <h3>Format is:</h3>
      * <ul>
-     * <li>length - int</li>
-     * <li>creationTimestamp - long</li>
-     * <li>timeToLive - long</li>
-     * <li>hitsCount - long</li>
-     * <li>actual entitie's state - byte array of serializable entity</li>
+     * <li>length - int(how many bytes are being occupied)</li>
+     * <li>creationTimestamp - long(when the entry has been been added in milliseconds)</li>
+     * <li>timeToLive - long(how long to live after initial write)</li>
+     * <li>hitsCount - long(how many hits)</li>
+     * <li>data - actual entitie's state in de-serialized format</li>
      * </ul>
      * 
      * @since 0.1
      */
     private static enum FormatFields {
-        LENGTH(INT_SIZE),
-        CREATION_TIMESTAMP(LONG_SIZE),
-        TIME_TO_LIVE(LONG_SIZE),
+        LENGTH(Ints.BYTES),
+        CREATION_TIMESTAMP(Longs.BYTES),
+        TIME_TO_LIVE(Longs.BYTES),
         DATA(Integer.MAX_VALUE);
 
         private FormatFields(final int lenght) {
@@ -81,10 +76,13 @@ public final class ByteArrayPointer {
     private long ttl;
 
     /**
-     * create new byte array pointer from given address and byte array(buffer).
+     * create new byte array pointer at given address and byte array(buffer) - this is constructor is used for reading
+     * from off-heap memory.
      * 
      * @param address
+     *            off-heap memory address
      * @param serializedData
+     *            actual de-serialized state of the entity(entry)
      */
     public ByteArrayPointer(final long address, final ByteBuffer serializedData) {
         assert serializedData != null;
@@ -94,7 +92,8 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * create new Byte Array pointer for the given array and write byte array to the off-heap memory.
+     * create new byte array pointer for the given de-serialized entry and associate original entry(as reference) with
+     * this pointer. Also time-to-live must be provided.
      * 
      * @param serializedData
      *            serialized entiti'es state
@@ -112,44 +111,47 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * extract actual state of entity (without meta information)
+     * read actual state of entity (without meta information) at the given address
      * 
      * @param address
-     * 
+     *            off-heap memory address
      * @return buffer over internal state
      */
     public static byte[] getEntityState(final long address) {
-        return SpaceUtility.readBytesArray( address + FormatFields.DATA.offset, getBytesOccupied( address ) );
+        return JVMUtil.readBytesArray( address + FormatFields.DATA.offset, getBytesOccupied( address ) );
     }
 
     /**
-     * extract how many bytes are being occupied by underlying de-serialized entities data.
+     * read how many bytes are being occupied by underlying de-serialized entry's data.
      * 
      * @param address
+     *            off-heap memory address
      * @return how many bytes occupied by pointer
      */
     public static int getBytesOccupied(final long address) {
-        return SpaceUtility.getInt( address + FormatFields.LENGTH.offset );
+        return JVMUtil.getInt( address + FormatFields.LENGTH.offset );
     }
 
     /**
-     * get the creation timestamp for associated space store entity
+     * read the creation timestamp of the associated space store entry(when the entry has been added).
      * 
      * @param address
+     *            off-heap memory address
      * @return creation timestamp
      */
     public static long getCreationTimestamp(final long address) {
-        return SpaceUtility.getLong( address + FormatFields.CREATION_TIMESTAMP.offset );
+        return JVMUtil.getLong( address + FormatFields.CREATION_TIMESTAMP.offset );
     }
 
     /**
-     * get the time-to-live for associated space store entity
+     * get the time-to-live for associated space store entity(how long to keep entry living)
      * 
      * @param address
-     * @return ttl
+     *            off-heap memory address
+     * @return ttl time-to-live associate with entry
      */
     public static long getTimeToLive(final long address) {
-        return SpaceUtility.getLong( address + FormatFields.TIME_TO_LIVE.offset );
+        return JVMUtil.getLong( address + FormatFields.TIME_TO_LIVE.offset );
     }
 
     /**
@@ -175,11 +177,11 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * utilized used resources
+     * utilized(dispose) used resources.
      */
     public void utilize() {
         if ( address != 0 )
-            SpaceUtility.releaseMemory( address );
+            JVMUtil.releaseMemory( address );
     }
 
     /**
@@ -197,17 +199,19 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * @return object for which this {@link ByteArrayPointer} has been created
+     * @return object for which this {@link ByteArrayPointer} has been created(if it has been associated) - applicable
+     *         for write operations only
      */
     public Object getObject() {
         return object;
     }
 
     /**
-     * test whether entity associated with this pointer has been expired.
+     * check whether entry associated with this pointer has been expired.
      * 
      * @param address
-     * @return true if pointer's data is expired
+     *            off-heap memory address
+     * @return true if pointer's data is expired, otherwise false
      */
     public static boolean isExpired(final long address) {
         boolean expired = false;
@@ -222,14 +226,16 @@ public final class ByteArrayPointer {
     }
 
     /**
-     * reallocate memory, dump content and associated technical information at given address
+     * reallocate memory, dump content and associated meta information at the given address (this is for entry override
+     * cases)
      * 
      * @param offHeapAddress
+     *            off-heap memory address
      * @return new address after the memory reallocation
      */
     public long rellocateAndDump(final long offHeapAddress) {
         int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
-        this.address = SpaceUtility.reallocate( offHeapAddress, bytesNeeded );
+        this.address = JVMUtil.reallocate( offHeapAddress, bytesNeeded );
         flush2offheap();
         return this.address;
     }
@@ -242,17 +248,17 @@ public final class ByteArrayPointer {
     public long dumpAndGetAddress() {
         if ( this.address == 0 ) {
             int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
-            this.address = SpaceUtility.allocateMemory( bytesNeeded );
+            this.address = JVMUtil.allocateMemory( bytesNeeded );
             flush2offheap();
         }
         return this.address;
     }
 
     private void flush2offheap() {
-        SpaceUtility.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
-        SpaceUtility.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, System.currentTimeMillis() );
-        SpaceUtility.putLong( address + FormatFields.TIME_TO_LIVE.offset, ttl >= JSpace.LEASE_FOREVER ? JSpace.LEASE_FOREVER : ttl );
-        SpaceUtility.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
+        JVMUtil.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
+        JVMUtil.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, System.currentTimeMillis() );
+        JVMUtil.putLong( address + FormatFields.TIME_TO_LIVE.offset, ttl >= Integer.MAX_VALUE ? Integer.MAX_VALUE : ttl );
+        JVMUtil.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
     }
 
     private long getAddress() {

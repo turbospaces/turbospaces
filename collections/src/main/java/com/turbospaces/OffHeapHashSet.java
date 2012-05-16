@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.turbospaces.collections;
+package com.turbospaces;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.List;
 
-import org.springframework.beans.factory.DisposableBean;
-
+import com.google.common.cache.Cache;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
 
 /**
- * off-heap map abstraction(if fact dramatic simplification - even classical {@link Collection#size()} method is not
- * present here). Concrete implementations could use linear probing or linked lists for collision resolutions or any
- * other king of collision hashing algorithms. </p>
+ * The root interface in the <i>turbospaces collections</i> hierarchy. Actually this is more internal interface rather
+ * than external because it is really low-level and generally users will use implementation of {@link Cache} interface
+ * or JDK standard interfaces. The main purpose for definition interface as separate unit is abstraction that is
+ * suitable for both JDK collections and guava cache and more important turbospace's java spaces specific
+ * implementation.</p>
  * 
- * <b>NOTE:</b> Concrete implementation must be thread-safe generally (generally means that the thread-safety
- * restrictions is not strict because there is always high-level coordinator (which guarantees ACID behavior in case of
- * concurrent modifications by same primary key) so that it is not possible that different threads modifying this set
- * concurrently by the same key). remove/put operations can't happen in parallel for the same key, however just read in
- * never blocking operation.
+ * <b>NOTE :</b> particular implementation of this interface uses off-heap memory space(dramatically reduces the java
+ * heap space and GC factor). Currently the only one supported mechanism for such off-heap allocation is
+ * {@link sun.misc.Unsafe#allocateMemory(long)} and {@link sun.misc.Unsafe#reallocateMemory(long, long)} methods, but
+ * this is subject for modifications in future(off-heap store can be mapped buffer files over SSD disks for
+ * example).</p>
+ * 
+ * Most method as self-explained so there is no need for detailed documentation as such.
  * 
  * @since 0.1
  */
-public interface OffHeapHashSet extends DisposableBean {
+@SuppressWarnings("restriction")
+public interface OffHeapHashSet {
     /**
-     * check whether particular key is present in map and is so, return the off-heap pointer address.</p>
+     * check whether particular value (associated with given key) is present in this collection.</p>
      * 
-     * <b>NOTE:</b>concrete implementation <b>must</b> remove expired entities automatically in case of lease timeout
+     * <b>NOTE : </b>concrete implementation <b>must</b> remove expired entities automatically during read if such
+     * expiration has been detected.
      * 
      * @param key
      *            primary key
-     * @return the pointer's address if key exists or <code>0</code> if not
+     * @return <tt>true</tt> if this collection contains the specified element
      */
     boolean contains(Object key);
 
@@ -71,14 +73,6 @@ public interface OffHeapHashSet extends DisposableBean {
     ByteBuffer getAsSerializedData(Object key);
 
     /**
-     * match set entries by the given template
-     * 
-     * @param template
-     * @return array/list of matched objects in de-serialized form
-     */
-    List<ByteArrayPointer> match(CacheStoreEntryWrapper template);
-
-    /**
      * put(and probably replace previous pointer associated with the key(and do memory utilization in case of such
      * previous entity existence)) byte array pointer and associate it with given key.
      * 
@@ -100,6 +94,8 @@ public interface OffHeapHashSet extends DisposableBean {
      */
     int remove(Object key);
 
-    @Override
+    /**
+     * similar to spring's {@code DisposabelBean} - release off-heap resources.
+     */
     void destroy();
 }

@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import com.google.common.base.Function;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.OffHeapJSpace;
 import com.turbospaces.spaces.SimplisticJSpace;
@@ -42,21 +42,18 @@ public class ConcurrencyModificationPerformanceTest {
         final TestEntity1 e1 = new TestEntity1();
         e1.afterPropertiesSet();
 
-        List<Throwable> errors = SpaceUtility.repeatConcurrently(
-                Runtime.getRuntime().availableProcessors(),
-                1000000,
-                new Function<Integer, Object>() {
+        List<Throwable> errors = JVMUtil.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000000, new Function<Integer, Object>() {
 
-                    @Override
-                    public Object apply(final Integer iteration) {
-                        if ( iteration % 2 == 0 )
-                            jSpace.write( e1 );
-                        else
-                            jSpace.takeByID( e1.getUniqueIdentifier(), TestEntity1.class );
+            @Override
+            public Object apply(final Integer iteration) {
+                if ( iteration % 2 == 0 )
+                    jSpace.write( e1 );
+                else
+                    jSpace.takeByID( e1.getUniqueIdentifier(), TestEntity1.class );
 
-                        return this;
-                    }
-                } );
+                return this;
+            }
+        } );
 
         if ( !errors.isEmpty() )
             throw new AssertionError( "unexpected errors = " + errors.toString() );

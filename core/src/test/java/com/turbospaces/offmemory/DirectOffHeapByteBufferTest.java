@@ -31,7 +31,7 @@ import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceCapacityOverflowException;
 import com.turbospaces.api.SpaceConfiguration;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.CacheStoreEntryWrapper;
@@ -286,8 +286,7 @@ public class DirectOffHeapByteBufferTest {
                 JSpace.LEASE_FOREVER,
                 Integer.MAX_VALUE,
                 JSpace.WRITE_ONLY );
-        throw SpaceUtility.runAndGetExecutionException( new Runnable() {
-
+        throw JVMUtil.runAndGetExecutionException( new Runnable() {
             @Override
             public void run() {
                 try {
@@ -480,7 +479,7 @@ public class DirectOffHeapByteBufferTest {
             modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
         // lock entity for delete, but do not flush transaction modification context immediately
         buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 0, modifier.intValue() );
-        throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+        throw JVMUtil.runAndGetExecutionException( new Runnable() {
 
             @Override
             public void run() {
@@ -517,7 +516,7 @@ public class DirectOffHeapByteBufferTest {
             modifier.set( modifier.intValue() | JSpace.MATCH_BY_ID );
         buffer.fetch( new CacheStoreEntryWrapper( bo, configuration, entity1 ), modificationContext1, Long.MAX_VALUE, 1, modifier.intValue() );
         try {
-            throw SpaceUtility.runAndGetExecutionException( new Runnable() {
+            throw JVMUtil.runAndGetExecutionException( new Runnable() {
 
                 @Override
                 public void run() {
