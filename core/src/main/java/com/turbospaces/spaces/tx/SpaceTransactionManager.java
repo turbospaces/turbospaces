@@ -124,6 +124,7 @@ public class SpaceTransactionManager extends AbstractPlatformTransactionManager 
      * set {@link JSpace} and associate this transaction manager with given java space. this property is required.
      * 
      * @param jSpace
+     *            off-heap storage
      */
     public void setjSpace(final TransactionalJSpace jSpace) {
         this.jSpace = jSpace;

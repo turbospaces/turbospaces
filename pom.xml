@@ -38,25 +38,29 @@
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ssZ</maven.build.timestamp.format>
+        <!-- test libraries -->
         <junit-revision>4.9</junit-revision>
         <mockito-revision>1.8.5</mockito-revision>
         <hamcrest-revision>1.1</hamcrest-revision>
+        <!-- logging -->
         <logback-revision>1.0.1</logback-revision>
         <slf4j-revision>1.6.4</slf4j-revision>
+        <!-- actual turbospaces dependencies -->
         <spring-revision>3.1.1.RELEASE</spring-revision>
-        <jgroups-revision>3.0.9.Final</jgroups-revision>
-        <spring-data-commons-revision>1.2.1.RELEASE</spring-data-commons-revision>
+        <jgroups-revision>3.0.10.Final</jgroups-revision>
+        <spring-data-commons-revision>1.3.0.RELEASE</spring-data-commons-revision>
         <kryo-revision>1.04</kryo-revision>
         <sigar-revision>1.6.4</sigar-revision>
         <cglib-revision>2.2.2</cglib-revision>
         <spring-data-revision>1.0.1.RELEASE</spring-data-revision>
         <guava-revision>12.0</guava-revision>
-        <querydsl-revision>2.3.1</querydsl-revision>
+        <!-- sonar -->
         <sonar.java.source>1.6</sonar.java.source>
         <sonar.java.target>1.6</sonar.java.target>
         <sonar.jdbc.username>sonar</sonar.jdbc.username>
         <sonar.jdbc.password>sonar</sonar.jdbc.password>
         <sonar.hibernate.default_schema>sonar</sonar.hibernate.default_schema>
+        <!-- maven -->
         <cobertura.maxmem>512m</cobertura.maxmem>
         <maven.plugin.source.version>2.1.2</maven.plugin.source.version>
         <maven.plugin.jar.version>2.4</maven.plugin.jar.version>
@@ -66,6 +70,57 @@
         <maven.plugin.license.version>1.4.0</maven.plugin.license.version>
         <maven.plugin.docbkx.version>2.0.14</maven.plugin.docbkx.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-core</artifactId>
+                <version>${spring-revision}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>spring-asm</artifactId>
+                        <groupId>org.springframework</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>commons-logging</artifactId>
+                        <groupId>commons-logging</groupId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.data</groupId>
+                <artifactId>spring-data-commons-core</artifactId>
+                <version>${spring-data-commons-revision}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>junit-dep</artifactId>
+                        <groupId>junit</groupId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-asm</artifactId>
+                <version>${spring-revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-context</artifactId>
+                <version>${spring-revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.googlecode</groupId>
+                <artifactId>kryo</artifactId>
+                <version>${kryo-revision}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.googlecode</groupId>
+                        <artifactId>reflectasm</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -286,7 +341,7 @@
                                 <include>src/main/**/*.java</include>
                             </includes>
                             <properties>
-                                <year>${project.inceptionYear}</year>
+                                <year>${project.inceptionYear}-2012</year>
                                 <author>Andrey Borisov</author>
                                 <email>aandrey.borisov@gmail.com</email>
                             </properties>

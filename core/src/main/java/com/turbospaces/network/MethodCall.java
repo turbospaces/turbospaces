@@ -43,6 +43,7 @@ public class MethodCall {
      * associate response in form of bytes array with request object
      * 
      * @param responseBody
+     *            response in serialized form
      */
     public void setResponseBody(final byte[] responseBody) {
         this.responseBody = responseBody;
@@ -59,6 +60,7 @@ public class MethodCall {
      * set server exception (if any) that caused server processing failure
      * 
      * @param exception
+     *            execution exception of server side
      */
     public void setException(final Throwable exception) {
         this.exceptionAsString = Throwables.getStackTraceAsString( exception );
@@ -158,7 +160,7 @@ public class MethodCall {
     public static abstract class ModifyMethodCall extends CommitRollbackMethodCall {
         private byte[] entity;
         private int modifiers;
-        private long timeout;
+        private int timeout;
 
         public int getModifiers() {
             return modifiers;
@@ -168,11 +170,11 @@ public class MethodCall {
             this.modifiers = modifiers;
         }
 
-        public long getTimeout() {
+        public int getTimeout() {
             return timeout;
         }
 
-        public void setTimeout(final long timeout) {
+        public void setTimeout(final int timeout) {
             this.timeout = timeout;
         }
 
@@ -215,18 +217,18 @@ public class MethodCall {
      */
     @SuppressWarnings("javadoc")
     public static final class WriteMethodCall extends ModifyMethodCall {
-        private long timeToLive;
+        private int timeToLive;
 
         public WriteMethodCall() {
             super();
             methodId = (short) SpaceMethodsMapping.WRITE.ordinal();
         }
 
-        public long getTimeToLive() {
+        public int getTimeToLive() {
             return timeToLive;
         }
 
-        public void setTimeToLive(final long timeToLive) {
+        public void setTimeToLive(final int timeToLive) {
             this.timeToLive = timeToLive;
         }
 

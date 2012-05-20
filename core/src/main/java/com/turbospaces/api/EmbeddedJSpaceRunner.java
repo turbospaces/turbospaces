@@ -36,7 +36,7 @@ import com.turbospaces.logging.JGroupsCustomLoggerFactory;
  */
 public final class EmbeddedJSpaceRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger( EmbeddedJSpaceRunner.class );
-    private static final Object JOINED_NETWORK_CONDITION_MONITOR = new Object();
+    private static final Object joinNetworkMonitor = new Object();
 
     /**
      * launcher method
@@ -44,6 +44,7 @@ public final class EmbeddedJSpaceRunner {
      * @param args
      *            [1 argument = application context path]
      * @throws Exception
+     *             re-throw execution errors if any
      */
     public static void main(final String... args)
                                                  throws Exception {
@@ -62,8 +63,8 @@ public final class EmbeddedJSpaceRunner {
         for ( SpaceConfiguration spaceConfiguration : configurations )
             spaceConfiguration.joinNetwork();
         LOGGER.info( "all jspaces joined network, notifying waiting threads..." );
-        synchronized ( JOINED_NETWORK_CONDITION_MONITOR ) {
-            JOINED_NETWORK_CONDITION_MONITOR.notifyAll();
+        synchronized ( joinNetworkMonitor ) {
+            joinNetworkMonitor.notifyAll();
         }
 
         while ( !Thread.currentThread().isInterrupted() )
@@ -84,11 +85,12 @@ public final class EmbeddedJSpaceRunner {
      * await for network join event, useful for junit testing
      * 
      * @throws InterruptedException
+     *             re-throw exception
      */
     public static void awaitNetworkJoin()
                                          throws InterruptedException {
-        synchronized ( JOINED_NETWORK_CONDITION_MONITOR ) {
-            JOINED_NETWORK_CONDITION_MONITOR.wait();
+        synchronized ( joinNetworkMonitor ) {
+            joinNetworkMonitor.wait();
         }
     }
 

@@ -32,7 +32,6 @@ import com.turbospaces.spaces.EntryKeyLockQuard;
  * 
  * @since 0.1
  */
-@SuppressWarnings("rawtypes")
 @Immutable
 public final class WriteTakeEntry {
     /**
@@ -69,11 +68,17 @@ public final class WriteTakeEntry {
      * values.
      * 
      * @param obj
+     *            the actual bean
      * @param propertyValues
+     *            bean property values
      * @param idQuard
+     *            key locker guardian
      * @param pointer
+     *            byte array pointer
      * @param bo
+     *            class meta data holder
      * @param spaceConfiguration
+     *            jspace configuration
      */
 
     public WriteTakeEntry(final Object obj,
@@ -94,9 +99,13 @@ public final class WriteTakeEntry {
      * creates(or get from pool) space operation wrapper for key, entry pointer.
      * 
      * @param idQuard
+     *            key lock quardian
      * @param pointer
+     *            byte array pointer
      * @param bo
+     *            class meta-data holder
      * @param spaceConfiguration
+     *            jspace configuration
      */
     public WriteTakeEntry(final EntryKeyLockQuard idQuard,
                           final ByteArrayPointer pointer,
@@ -110,7 +119,10 @@ public final class WriteTakeEntry {
      */
     public Object getObj() {
         if ( obj == null )
-            return configuration.getEntitySerializer().deserialize( getPointer().getSerializedDataBuffer(), getPersistentEntity().getType() ).getObject();
+            return configuration
+                    .getKryo()
+                    .deserialize( getPointer().getSerializedDataBuffer(), getPersistentEntity().getOriginalPersistentEntity().getType() )
+                    .getObject();
         return obj;
     }
 
@@ -153,6 +165,7 @@ public final class WriteTakeEntry {
      * set the actual space operation
      * 
      * @param spaceOperation
+     *            which space operation caused the event
      */
     public void setSpaceOperation(final SpaceOperation spaceOperation) {
         this.spaceOperation = spaceOperation;
@@ -162,6 +175,7 @@ public final class WriteTakeEntry {
      * associate write entry(as is) or de-serialized entry.
      * 
      * @param obj
+     *            the actual bean
      */
     public void setObj(final Object obj) {
         this.obj = obj;
@@ -171,6 +185,7 @@ public final class WriteTakeEntry {
      * associate property values
      * 
      * @param propertyValues
+     *            entity's property values
      */
     public void setPropertyValues(final Object[] propertyValues) {
         this.propertyValues = propertyValues;

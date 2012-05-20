@@ -17,25 +17,8 @@ package com.turbospaces.core;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -50,22 +33,11 @@ import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
-import org.springframework.data.mapping.PersistentProperty;
-import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.util.ObjectUtils;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.ObjectBuffer;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.serialize.BigDecimalSerializer;
-import com.esotericsoftware.kryo.serialize.BigIntegerSerializer;
-import com.esotericsoftware.kryo.serialize.CollectionSerializer;
-import com.esotericsoftware.kryo.serialize.DateSerializer;
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
 import com.esotericsoftware.kryo.serialize.FieldSerializer;
-import com.esotericsoftware.kryo.serialize.MapSerializer;
-import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
@@ -79,7 +51,6 @@ import com.turbospaces.api.SpaceException;
 import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.model.BO;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
 import com.turbospaces.network.MethodCall.FetchMethodCall;
@@ -89,13 +60,7 @@ import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
 import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.SimpleObjectPool;
-import com.turbospaces.serialization.NetworkCommunicationSerializer;
-import com.turbospaces.serialization.PropertiesSerializer;
-import com.turbospaces.serialization.SingleDimensionArraySerializer;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
+import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
 import com.turbospaces.spaces.tx.TransactionScopeKeyLocker;
@@ -166,133 +131,36 @@ public abstract class SpaceUtility {
      *            space configuration
      * @param givenKryo
      *            user custom kryo serializer
-     * @return kryo with pre-registered application types and some defaults.
      * @throws ClassNotFoundException
-     *             re-throw kryo exceptions
+     *             re-throw class registration exceptions
+     * @throws NoSuchMethodException
+     *             re-throw cglib exceptions
+     * @throws SecurityException
+     *             re-throw cglib exceptions
      */
     @SuppressWarnings("rawtypes")
-    public static Kryo spaceKryo(final AbstractSpaceConfiguration configuration,
-                                 final Kryo givenKryo)
-                                                      throws ClassNotFoundException {
-        final Map<Class<?>, Serializer> serializers = new LinkedHashMap<Class<?>, Serializer>();
-        final Kryo kryo = givenKryo == null ? new Kryo() {
-            @Override
-            public String toString() {
-                StringBuilder builder = new StringBuilder();
-                builder.append( "serializers) = " ).append( "\n" );
-                for ( Entry<Class<?>, Serializer> entry : serializers.entrySet() ) {
-                    Class<?> key = entry.getKey();
-                    builder.append( "\t" );
-                    builder.append( key.getName() + " -> " + entry.getValue() );
-                    builder.append( "\n" );
-                }
-                return "Kryo(" + builder.toString();
-            }
-        } : givenKryo;
+    public static void registerSpaceClasses(final AbstractSpaceConfiguration configuration,
+                                            final DecoratedKryo givenKryo)
+                                                                          throws ClassNotFoundException,
+                                                                          SecurityException,
+                                                                          NoSuchMethodException {
+        givenKryo.register( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
+        givenKryo.register( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
 
-        serializers.put( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
-        serializers.put( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
-        serializers.put( Date.class, new DateSerializer() );
+        givenKryo.register( com.turbospaces.network.MethodCall.class, new FieldSerializer( givenKryo, com.turbospaces.network.MethodCall.class ) );
+        givenKryo.register( WriteMethodCall.class, new FieldSerializer( givenKryo, WriteMethodCall.class ) );
+        givenKryo.register( FetchMethodCall.class, new FieldSerializer( givenKryo, FetchMethodCall.class ) );
+        givenKryo.register( BeginTransactionMethodCall.class, new FieldSerializer( givenKryo, BeginTransactionMethodCall.class ) );
+        givenKryo.register( CommitRollbackMethodCall.class, new FieldSerializer( givenKryo, CommitRollbackMethodCall.class ) );
+        givenKryo.register( GetSpaceTopologyMethodCall.class, new FieldSerializer( givenKryo, GetSpaceTopologyMethodCall.class ) );
+        givenKryo.register( GetMbUsedMethodCall.class, new FieldSerializer( givenKryo, GetMbUsedMethodCall.class ) );
+        givenKryo.register( GetSizeMethodCall.class, new FieldSerializer( givenKryo, GetSizeMethodCall.class ) );
+        givenKryo.register( NotifyListenerMethodCall.class, new FieldSerializer( givenKryo, NotifyListenerMethodCall.class ) );
 
-        serializers.put( BigDecimal.class, new BigDecimalSerializer() );
-        serializers.put( BigInteger.class, new BigIntegerSerializer() );
-
-        serializers.put( Map.class, new MapSerializer( kryo ) );
-        serializers.put( List.class, new CollectionSerializer( kryo ) );
-        serializers.put( Set.class, new CollectionSerializer( kryo ) );
-        serializers.put( HashMap.class, new MapSerializer( kryo ) );
-
-        serializers.put( TreeMap.class, new MapSerializer( kryo ) );
-        serializers.put( LinkedHashMap.class, new MapSerializer( kryo ) );
-        serializers.put( Hashtable.class, new MapSerializer( kryo ) );
-        serializers.put( Properties.class, new MapSerializer( kryo ) );
-        serializers.put( ArrayList.class, new CollectionSerializer( kryo ) );
-        serializers.put( LinkedList.class, new CollectionSerializer( kryo ) );
-        serializers.put( HashSet.class, new CollectionSerializer( kryo ) );
-        serializers.put( TreeSet.class, new CollectionSerializer( kryo ) );
-        serializers.put( LinkedHashSet.class, new CollectionSerializer( kryo ) );
-
-        serializers.put( boolean[].class, new SingleDimensionArraySerializer( boolean[].class, kryo ) );
-        serializers.put( byte[].class, new SingleDimensionArraySerializer( byte[].class, kryo ) );
-        serializers.put( short[].class, new SingleDimensionArraySerializer( short[].class, kryo ) );
-        serializers.put( char[].class, new SingleDimensionArraySerializer( char[].class, kryo ) );
-        serializers.put( int[].class, new SingleDimensionArraySerializer( int[].class, kryo ) );
-        serializers.put( float[].class, new SingleDimensionArraySerializer( float[].class, kryo ) );
-        serializers.put( double[].class, new SingleDimensionArraySerializer( double[].class, kryo ) );
-        serializers.put( long[].class, new SingleDimensionArraySerializer( long[].class, kryo ) );
-
-        serializers.put( byte[][].class, new NetworkCommunicationSerializer() );
-
-        serializers.put( Boolean[].class, new SingleDimensionArraySerializer( Boolean[].class, kryo ) );
-        serializers.put( Byte[].class, new SingleDimensionArraySerializer( Byte[].class, kryo ) );
-        serializers.put( Short[].class, new SingleDimensionArraySerializer( Short[].class, kryo ) );
-        serializers.put( Character[].class, new SingleDimensionArraySerializer( Character[].class, kryo ) );
-        serializers.put( Integer[].class, new SingleDimensionArraySerializer( Integer[].class, kryo ) );
-        serializers.put( Float[].class, new SingleDimensionArraySerializer( Float[].class, kryo ) );
-        serializers.put( Double[].class, new SingleDimensionArraySerializer( Double[].class, kryo ) );
-        serializers.put( Long[].class, new SingleDimensionArraySerializer( Long[].class, kryo ) );
-        serializers.put( String[].class, new SingleDimensionArraySerializer( String[].class, kryo ) );
-
-        serializers.put( ByteArrayPointer.class, new FieldSerializer( kryo, ByteArrayPointer.class ) );
-        serializers.put( Throwable.class, new FieldSerializer( kryo, Throwable.class ) );
-
-        serializers.put( com.turbospaces.network.MethodCall.class, new FieldSerializer( kryo, com.turbospaces.network.MethodCall.class ) );
-        serializers.put( WriteMethodCall.class, new FieldSerializer( kryo, WriteMethodCall.class ) );
-        serializers.put( FetchMethodCall.class, new FieldSerializer( kryo, FetchMethodCall.class ) );
-        serializers.put( BeginTransactionMethodCall.class, new FieldSerializer( kryo, BeginTransactionMethodCall.class ) );
-        serializers.put( CommitRollbackMethodCall.class, new FieldSerializer( kryo, CommitRollbackMethodCall.class ) );
-        serializers.put( GetSpaceTopologyMethodCall.class, new FieldSerializer( kryo, GetSpaceTopologyMethodCall.class ) );
-        serializers.put( GetMbUsedMethodCall.class, new FieldSerializer( kryo, GetMbUsedMethodCall.class ) );
-        serializers.put( GetSizeMethodCall.class, new FieldSerializer( kryo, GetSizeMethodCall.class ) );
-        serializers.put( NotifyListenerMethodCall.class, new FieldSerializer( kryo, NotifyListenerMethodCall.class ) );
-
-        Collection<BasicPersistentEntity> persistentEntities = configuration.getMappingContext().getPersistentEntities();
-        for ( BasicPersistentEntity e : persistentEntities ) {
-            BO bo = configuration.boFor( e.getType() );
-            bo.doWithProperties( new PropertyHandler() {
-
-                @Override
-                public void doWithPersistentProperty(final PersistentProperty p) {
-                    Class type = p.getType();
-                    if ( type.isArray() && !serializers.containsKey( type ) ) {
-                        SingleDimensionArraySerializer serializer = new SingleDimensionArraySerializer( type, kryo );
-                        kryo.register( type, serializer );
-                        serializers.put( type, serializer );
-                    }
-                    else if ( type.isEnum() && !serializers.containsKey( type ) ) {
-                        EnumSerializer enumSerializer = new EnumSerializer( type );
-                        kryo.register( type, enumSerializer );
-                        serializers.put( type, enumSerializer );
-                    }
-                }
-            } );
-            Class<?> arrayWrapperType = Class.forName( "[L" + e.getType().getName() + ";" );
-            PropertiesSerializer serializer = new PropertiesSerializer( configuration, bo );
-            SingleDimensionArraySerializer arraysSerializer = new SingleDimensionArraySerializer( arrayWrapperType, kryo );
-            kryo.register( e.getType(), serializer );
-            kryo.register( arrayWrapperType, arraysSerializer );
-            serializers.put( e.getType(), serializer );
-            serializers.put( arrayWrapperType, arraysSerializer );
-        }
-
-        serializers.put( CacheStoreEntryWrapper.class, new SimpleSerializer<CacheStoreEntryWrapper>() {
-
-            @Override
-            public CacheStoreEntryWrapper read(final ByteBuffer buffer) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void write(final ByteBuffer buffer,
-                              final CacheStoreEntryWrapper entry) {
-                Serializer serializer = kryo.getRegisteredClass( entry.getPersistentEntity().getType() ).getSerializer();
-                ( (PropertiesSerializer) serializer ).write( buffer, entry );
-            }
-        } );
-
-        for ( Entry<Class<?>, Serializer> entry : serializers.entrySet() )
-            kryo.register( entry.getKey(), entry.getValue() );
-        return kryo;
+        Collection persistentEntities = configuration.getMappingContext().getPersistentEntities();
+        BasicPersistentEntity[] persistentEntitiesAsArray = (BasicPersistentEntity[]) persistentEntities
+                .toArray( new BasicPersistentEntity[persistentEntities.size()] );
+        givenKryo.registerPersistentClasses( persistentEntitiesAsArray );
     }
 
     /**
@@ -300,7 +168,9 @@ public abstract class SpaceUtility {
      * which caused space overflow.
      * 
      * @param size
+     *            how many items is currently in space
      * @param obj
+     *            object that needs to be added to the space
      */
     public static void raiseSpaceCapacityOverflowException(final long size,
                                                            final Object obj) {
@@ -311,7 +181,9 @@ public abstract class SpaceUtility {
      * raise new {@link DuplicateKeyException} exception for given uniqueIdentifier and persistent class.
      * 
      * @param uniqueIdentifier
+     *            primary key
      * @param persistentClass
+     *            space class
      * @see SpaceErrors#DUPLICATE_KEY_VIOLATION
      */
     public static void raiseDuplicateException(final Object uniqueIdentifier,
@@ -326,7 +198,9 @@ public abstract class SpaceUtility {
      * raise new {@link DataRetrievalFailureException} exception for given uniqueIdentifier and persistent class.
      * 
      * @param uniqueIdentifier
+     *            primary key
      * @param persistentClass
+     *            space class
      * @see SpaceErrors#ENTITY_IS_MISSING_FOR_UPDATE
      */
     public static void raiseObjectRetrieveFailureException(final Object uniqueIdentifier,
@@ -339,8 +213,11 @@ public abstract class SpaceUtility {
      * write or exclusive read type as last method parameter in order to format proper error message.
      * 
      * @param uniqueIdentifier
+     *            primary key
      * @param timeout
+     *            lock acquire timeout
      * @param write
+     *            exclusive write or exclusive read lock
      * @see SpaceErrors#UNABLE_TO_ACQUIRE_LOCK
      */
     public static void raiseCannotAcquireLockException(final Object uniqueIdentifier,
@@ -354,22 +231,28 @@ public abstract class SpaceUtility {
      * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
      * 
      * @param pointer
+     *            byte array pointer
      * @param capacityRestriction
+     *            capacity restriction configuration
      * @param memoryUsed
+     *            how many bytes is currently used
      */
     public static void ensureEnoughCapacity(final ByteArrayPointer pointer,
                                             final CapacityRestriction capacityRestriction,
                                             final AtomicLong memoryUsed) {
-        if ( memoryUsed.get() + pointer.bytesOccupied() > Memory.mb( capacityRestriction.getMaxMemorySizeInMb() ) )
-            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySizeInMb(), pointer.getSerializedData() );
+        if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySize() )
+            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySize(), pointer.getSerializedData() );
     }
 
     /**
      * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
      * 
      * @param obj
+     *            object that needs to be added to the jspace
      * @param capacityRestriction
+     *            space capacity restriction
      * @param itemsCount
+     *            how many items currently in space
      */
     public static void ensureEnoughCapacity(final Object obj,
                                             final CapacityRestriction capacityRestriction,
@@ -459,65 +342,10 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
+                return segments[( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
             }
         };
         return locker;
-    }
-
-    /**
-     * @return new {@link ObjectPool} pool
-     */
-    public static ObjectPool<ObjectBuffer> newObjectBufferPool() {
-        SimpleObjectPool<ObjectBuffer> simpleObjectPool = new SimpleObjectPool<ObjectBuffer>( new ObjectFactory<ObjectBuffer>() {
-            @Override
-            public ObjectBuffer newInstance() {
-                return new ObjectBuffer( null, 4 * 1024, 32 * 1024 );
-            }
-
-            @Override
-            public void invalidate(final ObjectBuffer obj) {
-                obj.setKryo( null );
-            }
-        } );
-        simpleObjectPool.setMaxElements( 1 << 4 );
-        return simpleObjectPool;
-    }
-
-    /**
-     * re-hashes a 4-byte sequence (Java int) using murmur3 hash algorithm.</p>
-     * 
-     * @param hash
-     *            bad quality hash
-     * @return good general purpose hash
-     */
-    public static int murmurRehash(final int hash) {
-        int k = hash;
-        k ^= k >>> 16;
-        k *= 0x85ebca6b;
-        k ^= k >>> 13;
-        k *= 0xc2b2ae35;
-        k ^= k >>> 16;
-        return k;
-    }
-
-    /**
-     * re-hashes a 4-byte sequence (Java int) using standard JDK re-hash algorithm.</p>
-     * 
-     * @param hash
-     *            bad quality hash
-     * @return good hash
-     */
-    public static int jdkRehash(final int hash) {
-        int h = hash;
-
-        h += h << 15 ^ 0xffffcd7d;
-        h ^= h >>> 10;
-        h += h << 3;
-        h ^= h >>> 6;
-        h += ( h << 2 ) + ( h << 14 );
-
-        return h ^ h >>> 16;
     }
 
     /**
@@ -557,6 +385,7 @@ public abstract class SpaceUtility {
      * {@link MapMaker}.</p>
      * 
      * @param compFunction
+     *            the computation function(callback)
      * @return concurrent map where get requests for missing keys will cause automatic creation of key-value for key
      *         using user supplied <code>compFunction</code>
      */

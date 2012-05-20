@@ -9,11 +9,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceCapacityOverflowException;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.spaces.OffHeapJSpace;
-import com.turbospaces.spaces.SimplisticJSpace;
 
 @SuppressWarnings("javadoc")
 public class SimplisticJSpaceTest {
@@ -23,7 +22,7 @@ public class SimplisticJSpaceTest {
     @Before
     public void before()
                         throws Exception {
-        configuration = TestEntity1.configurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
         jSpace = new SimplisticJSpace( new OffHeapJSpace( configuration ) );
         jSpace.afterPropertiesSet();
     }
@@ -48,8 +47,8 @@ public class SimplisticJSpaceTest {
             TestEntity1 entity2 = new TestEntity1();
             entity1.afterPropertiesSet();
             entity2.afterPropertiesSet();
-            jSpace.write( entity1, Long.MAX_VALUE, 0 );
-            jSpace.write( entity2, Long.MAX_VALUE, 0 );
+            jSpace.write( entity1, Integer.MAX_VALUE, 0 );
+            jSpace.write( entity2, Integer.MAX_VALUE, 0 );
             Assert.fail();
         }
         finally {
@@ -61,7 +60,7 @@ public class SimplisticJSpaceTest {
     public void canWriteOrUpdateWithProvidedTTLAndTimeout() {
         TestEntity1 entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
-        jSpace.write( entity1, Long.MAX_VALUE, 0 );
+        jSpace.write( entity1, Integer.MAX_VALUE, 0 );
 
         jSpace.readByID( entity1.getUniqueIdentifier(), entity1.getClass() ).get().assertMatch( entity1 );
     }

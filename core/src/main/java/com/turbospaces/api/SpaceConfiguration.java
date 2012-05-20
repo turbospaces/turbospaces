@@ -15,21 +15,17 @@
  */
 package com.turbospaces.api;
 
-import java.nio.ByteBuffer;
-
 import org.jgroups.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.core.convert.ConversionService;
 import org.springframework.data.mapping.context.AbstractMappingContext;
 
-import com.esotericsoftware.kryo.Kryo;
 import com.google.common.base.Preconditions;
 import com.turbospaces.network.ServerCommunicationDispatcher;
 import com.turbospaces.network.SpaceNetworkServiceProvider;
-import com.turbospaces.serialization.PropertiesSerializer;
+import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.spaces.SimplisticJSpace;
 
 /**
@@ -44,8 +40,7 @@ import com.turbospaces.spaces.SimplisticJSpace;
  * This configuration has nothing to do with actual external data source, but something still required from you:
  * <ul>
  * <li>(<b>required step</b>) set actual mappingContext - see {@link #setMappingContext(AbstractMappingContext)}</li>
- * <li>(<b>optional step</b>) set custom conversionService - see {@link #setConversionService(ConversionService)}</li>
- * <li>(<b>optional step</b>) set custom kryo serializer - see {@link #setKryo(Kryo)}</li>
+ * <li>(<b>optional step</b>) set custom kryo serializer - see {@link #setKryo(DecoratedKryo)}</li>
  * </ul>
  * 
  * <p>
@@ -60,25 +55,16 @@ import com.turbospaces.spaces.SimplisticJSpace;
  */
 public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     private SpaceNetworkServiceProvider networkServiceProvider;
-    private SpaceExpirationListener expirationListener = new SpaceExpirationListener() {
+    private SpaceExpirationListener expirationListener = new SpaceExpirationListener( false ) {
         private final Logger logger = LoggerFactory.getLogger( getClass() );
 
         @Override
         public void handleNotification(final Object entity,
+                                       final Object id,
                                        final Class<?> persistentClass,
                                        final long originalTimeToLive) {
-            if ( logger.isInfoEnabled() ) {
-                ByteBuffer byteBuffer = (ByteBuffer) entity;
-                PropertiesSerializer serializer = (PropertiesSerializer) getKryo().getRegisteredClass( persistentClass ).getSerializer();
-                Object id = serializer.readID( byteBuffer );
-                logger.info( "entity {} with ID={} has been expired after {} milliseconds and automatically removed from space", new Object[] {
-                        persistentClass.getSimpleName(), id, originalTimeToLive } );
-            }
-        }
-
-        @Override
-        public boolean retrieveAsEntity() {
-            return false;
+            logger.info( "entity {} with ID={} has been expired after {} milliseconds and automatically removed from space", new Object[] {
+                    persistentClass.getSimpleName(), id, originalTimeToLive } );
         }
     };
     private CapacityRestriction capacityRestriction = new CapacityRestriction();
@@ -101,6 +87,7 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
      * associate expiration listener with this jspace. this is optional step
      * 
      * @param expirationListener
+     *            space expiration listener
      */
     public void setExpirationListener(final SpaceExpirationListener expirationListener) {
         Preconditions.checkNotNull( expirationListener );
@@ -122,13 +109,13 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     }
 
     /**
-     * restrict jspace capacity
+     * globally restrict jspace capacity.
      * 
      * @param capacityRestriction
+     *            new global space capacity restriction
      */
     public void setCapacityRestriction(final CapacityRestriction capacityRestriction) {
-        Preconditions.checkNotNull( capacityRestriction );
-        this.capacityRestriction = capacityRestriction;
+        this.capacityRestriction = Preconditions.checkNotNull( capacityRestriction );
     }
 
     @Override

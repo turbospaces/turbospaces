@@ -11,9 +11,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.turbospaces.pool.ObjectPool;
 
 @SuppressWarnings("javadoc")
 public class JVMUtilTest {
@@ -101,8 +104,12 @@ public class JVMUtilTest {
     public void canRunAndDidntGetException() {
         JVMUtil.runAndGetExecutionException( new Runnable() {
             @Override
-            public void run() {}
-
+            public void run() {
+                ObjectPool<ObjectBuffer> objectPool = JVMUtil.newObjectBufferPool();
+                ObjectBuffer borrowObject = objectPool.borrowObject();
+                borrowObject.setKryo( new Kryo() );
+                objectPool.returnObject( borrowObject );
+            }
         } );
     }
 }

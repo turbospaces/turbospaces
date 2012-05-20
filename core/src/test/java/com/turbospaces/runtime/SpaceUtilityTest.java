@@ -12,8 +12,8 @@ import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.core.SpaceUtility;
-import com.turbospaces.model.TestEntity1;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
+import com.turbospaces.model.CacheStoreEntryWrapper;
+import com.turbospaces.serialization.DecoratedKryo;
 
 @SuppressWarnings("javadoc")
 public class SpaceUtilityTest {
@@ -69,9 +69,8 @@ public class SpaceUtilityTest {
 
     @Test(expected = UnsupportedOperationException.class)
     public void canGetUnsupportedOperationExceptionForCacheStoreEntryWrapper()
-                                                                              throws ClassNotFoundException,
-                                                                              Exception {
-        Kryo spaceKryo = SpaceUtility.spaceKryo( TestEntity1.configurationFor(), null );
+                                                                              throws Exception {
+        Kryo spaceKryo = new DecoratedKryo();
         ObjectBuffer objectBuffer = new ObjectBuffer( spaceKryo );
         objectBuffer.readObjectData( new byte[] { 1, 2, 3 }, CacheStoreEntryWrapper.class );
     }

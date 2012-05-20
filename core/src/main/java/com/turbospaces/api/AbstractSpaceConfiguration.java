@@ -28,19 +28,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.support.AbstractBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.core.convert.ConversionService;
-import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.mapping.context.AbstractMappingContext;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 
-import com.esotericsoftware.kryo.Kryo;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -48,8 +45,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
-import com.turbospaces.serialization.DefaultEntitySerializer;
-import com.turbospaces.serialization.EntitySerializer;
+import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.spaces.tx.SpaceTransactionManager;
 
 /**
@@ -87,12 +83,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      */
     private AbstractMappingContext mappingContext;
     /**
-     * optional conversion service
-     * 
-     * @see #setConversionService(ConversionService)
-     */
-    private ConversionService conversionService;
-    /**
      * jgroups communication channel
      * 
      * @see #setjChannel(JChannel)
@@ -101,7 +91,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * kryo serialization configuration
      */
-    private Kryo kryo;
+    private DecoratedKryo kryo;
     /**
      * jspace executor service
      */
@@ -110,10 +100,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * jspace scheduler executor service
      */
     private ListeningScheduledExecutorService scheduledExecutorService;
-    /**
-     * space entities serializer
-     */
-    private EntitySerializer entitySerializer;
     /**
      * default network communication timeout.
      */
@@ -128,7 +114,14 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         @SuppressWarnings("unchecked")
         @Override
         public BO apply(final Class<?> input) {
-            return new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( input ) );
+            for ( ;; )
+                try {
+                    return new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( input ) );
+                }
+                catch ( Exception e ) {
+                    logger.error( e.getMessage(), e );
+                    Throwables.propagate( e );
+                }
         }
     } );
 
@@ -144,9 +137,8 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * @param kryo
      *            custom kryo configuration(and implementation)
      */
-    public void setKryo(final Kryo kryo) {
-        Preconditions.checkNotNull( kryo );
-        this.kryo = kryo;
+    public void setKryo(final DecoratedKryo kryo) {
+        this.kryo = Preconditions.checkNotNull( kryo );
     }
 
     /**
@@ -160,8 +152,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      *            custom communication channel
      */
     public void setjChannel(final JChannel jChannel) {
-        Preconditions.checkNotNull( jChannel );
-        this.jChannel = jChannel;
+        this.jChannel = Preconditions.checkNotNull( jChannel );
     }
 
     /**
@@ -174,8 +165,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      *            logical(and network lookup) group
      */
     public void setGroup(final String spaceLogicalName) {
-        Preconditions.checkNotNull( spaceLogicalName );
-        this.group = spaceLogicalName;
+        this.group = Preconditions.checkNotNull( spaceLogicalName );
     }
 
     /**
@@ -187,17 +177,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      *            Concrete mapping context implementation.
      */
     public void setMappingContext(final AbstractMappingContext mappingContext) {
-        Preconditions.checkNotNull( mappingContext );
-        this.mappingContext = mappingContext;
-    }
-
-    /**
-     * set custom Conversion Service. Typically you would use default one, but just in case...
-     * 
-     * @param conversionService
-     */
-    public void setConversionService(final ConversionService conversionService) {
-        this.conversionService = conversionService;
+        this.mappingContext = Preconditions.checkNotNull( mappingContext );
     }
 
     /**
@@ -221,6 +201,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * associate executor service with jspace
      * 
      * @param executorService
+     *            asynchronous task executor
      */
     public void setExecutorService(final ExecutorService executorService) {
         this.executorService = MoreExecutors.listeningDecorator( Preconditions.checkNotNull( executorService ) );
@@ -230,16 +211,10 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * associate scheduled executor service
      * 
      * @param scheduledExecutorService
+     *            asynchronous task executor
      */
     public void setScheduledExecutorService(final ScheduledExecutorService scheduledExecutorService) {
         this.scheduledExecutorService = MoreExecutors.listeningDecorator( Preconditions.checkNotNull( scheduledExecutorService ) );
-    }
-
-    /**
-     * @return conversion service associated with this configuration.
-     */
-    public ConversionService getConversionService() {
-        return conversionService;
     }
 
     /**
@@ -276,7 +251,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * 
      * @return kryo serializer
      */
-    public Kryo getKryo() {
+    public DecoratedKryo getKryo() {
         return kryo;
     }
 
@@ -285,13 +260,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      */
     public String getGroup() {
         return group;
-    }
-
-    /**
-     * @return default space serializer
-     */
-    public EntitySerializer getEntitySerializer() {
-        return entitySerializer;
     }
 
     /**
@@ -323,7 +291,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * 2. initialize conversion service
      * 3. initialize mapping context
      * 4. initialize kryo
-     * 5. join network group
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -338,11 +305,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
             inputStream.close();
         }
         getJChannel().setDiscardOwnMessages( true );
-
-        if ( getConversionService() == null && applicationContext != null )
-            setConversionService( ( (AbstractBeanFactory) applicationContext.getAutowireCapableBeanFactory() ).getConversionService() );
-        if ( getConversionService() == null )
-            setConversionService( new DefaultConversionService() );
 
         if ( getMappingContext() == null )
             if ( applicationContext != null )
@@ -363,14 +325,16 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         for ( BasicPersistentEntity e : persistentEntities )
             boFor( e.getType() );
 
-        setKryo( SpaceUtility.spaceKryo( this, kryo ) );
-        entitySerializer = new DefaultEntitySerializer( this );
+        if ( kryo == null )
+            kryo = new DecoratedKryo();
+        SpaceUtility.registerSpaceClasses( this, kryo );
     }
 
     /**
      * get the {@link BO} class wrapper for target class (retrieve from internal cache)
      * 
      * @param clazz
+     *            space entity class
      * @return cached BO class wrapper
      */
     public BO boFor(final Class<?> clazz) {
@@ -381,7 +345,9 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * restrict space capacity on class level for particular class
      * 
      * @param clazz
+     *            class that needs capacity restriction
      * @param restriction
+     *            capacity restrictor
      * @return BO for given class
      */
     public BO restrictCapacity(final Class<?> clazz,
@@ -394,7 +360,6 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
 
     protected void dumpConfiguration() {
         logger.info( "Kryo: {}", kryo );
-        logger.info( "ConversionService: {}", conversionService );
         logger.info( "MappingContext: {}", mappingContext );
         logger.info( "JChannel: \n {}", jChannel.toString( true ) );
 
@@ -405,6 +370,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * join the network and begin communications with other nodes
      * 
      * @throws Exception
+     *             re-throw jgroup's exception
      */
     public void joinNetwork()
                              throws Exception {

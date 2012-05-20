@@ -6,14 +6,12 @@ import org.junit.Test;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.InvalidDataAccessResourceUsageException;
 
-import com.turbospaces.api.JSpace;
-import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.OffHeapJSpace;
 
 @SuppressWarnings("javadoc")
 public class SpaceErrorsTest {
-    static final long MAX_TIMEOUT = Long.MAX_VALUE;
+    static final int MAX_TIMEOUT = Integer.MAX_VALUE;
     static final int MAX_RESULTS = Integer.MAX_VALUE;
 
     static SpaceConfiguration configuration;
@@ -22,7 +20,7 @@ public class SpaceErrorsTest {
     @BeforeClass
     public static void before()
                                throws Exception {
-        configuration = TestEntity1.configurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
         offHeapJavaSpace = new OffHeapJSpace( configuration );
     }
 
@@ -102,20 +100,20 @@ public class SpaceErrorsTest {
     public void exceptionOnWriteOnlyAndUpdateOnlyOnWrite() {
         TestEntity1 template = new TestEntity1();
         template.afterPropertiesSet();
-        offHeapJavaSpace.write( template, Long.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_ONLY | JSpace.UPDATE_ONLY );
+        offHeapJavaSpace.write( template, Integer.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_ONLY | JSpace.UPDATE_ONLY );
     }
 
     @Test(expected = InvalidDataAccessResourceUsageException.class)
     public void exceptionOnWriteOrUpdateOnlyAndUpdateOnlyOnWrite() {
         TestEntity1 template = new TestEntity1();
         template.afterPropertiesSet();
-        offHeapJavaSpace.write( template, Long.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_OR_UPDATE | JSpace.UPDATE_ONLY );
+        offHeapJavaSpace.write( template, Integer.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_OR_UPDATE | JSpace.UPDATE_ONLY );
     }
 
     @Test(expected = InvalidDataAccessResourceUsageException.class)
     public void exceptionOnWriteOrUpdateOnlyAndWriteOnlyOnWrite() {
         TestEntity1 template = new TestEntity1();
         template.afterPropertiesSet();
-        offHeapJavaSpace.write( template, Long.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_OR_UPDATE | JSpace.WRITE_ONLY );
+        offHeapJavaSpace.write( template, Integer.MAX_VALUE, MAX_TIMEOUT, JSpace.WRITE_OR_UPDATE | JSpace.WRITE_ONLY );
     }
 }

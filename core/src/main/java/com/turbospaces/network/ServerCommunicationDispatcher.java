@@ -24,7 +24,7 @@ import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.pool.ObjectPool;
 
 /**
@@ -40,7 +40,7 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
     private final Object monitor = new Object();
 
     final AbstractSpaceConfiguration configuration;
-    final ObjectPool<ObjectBuffer> objectBufferPool = SpaceUtility.newObjectBufferPool();
+    final ObjectPool<ObjectBuffer> objectBufferPool = JVMUtil.newObjectBufferPool();
     private volatile Address[] serverNodes = new Address[0];
     private volatile Address[] clientNodes = new Address[0];
     private final Collection<Receiver> delegates = new LinkedHashSet<Receiver>();
@@ -59,6 +59,7 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
      * register message listener delegate
      * 
      * @param delegate
+     *            message receiver delegate
      */
     public void addMessageReceiver(final Receiver delegate) {
         delegates.add( delegate );
@@ -68,6 +69,7 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
      * un-register message listener delegate
      * 
      * @param delegate
+     *            message receiver delegate
      */
     public void removeMessageReceiver(final Receiver delegate) {
         delegates.remove( delegate );
@@ -137,6 +139,7 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
      * get server nodes(all) for partitioned topology or any one for synch replicated jspace.
      * 
      * @param spaceTopology
+     *            jspace topology
      * @return appropriate server nodes(or node) for space topology
      */
     public final Address[] getServerNodes(final SpaceTopology spaceTopology) {

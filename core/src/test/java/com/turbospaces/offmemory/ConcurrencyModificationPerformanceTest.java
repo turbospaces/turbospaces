@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.base.Function;
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.TestEntity1;
@@ -21,7 +22,7 @@ public class ConcurrencyModificationPerformanceTest {
     @Before
     public void before()
                         throws Exception {
-        configuration = TestEntity1.configurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
         OffHeapJSpace space = new OffHeapJSpace( configuration );
         jSpace = new SimplisticJSpace( space );
     }

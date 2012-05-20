@@ -11,7 +11,6 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.SpaceUtility;
 
 @SuppressWarnings("javadoc")
@@ -24,7 +23,6 @@ public class NamespaceParsingSpringIntegrationTest {
 
     @Test
     public void parsedConfiguration() {
-        assertThat( configuration.getConversionService(), is( notNullValue() ) );
         assertThat( configuration.getJChannel(), is( notNullValue() ) );
         assertThat( configuration.getKryo(), is( notNullValue() ) );
         assertThat( configuration.getGroup(), is( "tech-v" + SpaceUtility.projectVersion() + "-jspace" ) );

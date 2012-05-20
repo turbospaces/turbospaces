@@ -10,6 +10,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.turbospaces.api.ClientSpaceConfiguration;
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceTopology;
@@ -31,11 +32,11 @@ public class PartitionedBasicCommunicationTest {
     @BeforeClass
     public static void beforeClass()
                                     throws Exception {
-        configuration1 = TestEntity1.configurationFor();
-        configuration2 = TestEntity1.configurationFor();
+        configuration1 = EmbeddedJSpaceRunnerTest.configurationFor();
+        configuration2 = EmbeddedJSpaceRunnerTest.configurationFor();
         configuration1.setTopology( SpaceTopology.PARTITIONED );
         configuration2.setTopology( SpaceTopology.PARTITIONED );
-        clientConfiguration = TestEntity1.clientConfigurationFor();
+        clientConfiguration = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
 
         offHeapJSpace1 = new OffHeapJSpace( configuration1 );
         offHeapJSpace2 = new OffHeapJSpace( configuration2 );

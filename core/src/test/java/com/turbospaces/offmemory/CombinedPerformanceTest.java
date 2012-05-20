@@ -4,6 +4,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.PerformanceMonitor;
 import com.turbospaces.model.TestEntity1;
@@ -38,7 +39,7 @@ public class CombinedPerformanceTest {
     @Before
     public void before()
                         throws Exception {
-        configuration = TestEntity1.configurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
         space = new OffHeapJSpace( configuration );
         monitor = new PerformanceMonitor( space, objectFactory ).applyDefaultSettings();
         monitor.withThreadsCount( Runtime.getRuntime().availableProcessors() );

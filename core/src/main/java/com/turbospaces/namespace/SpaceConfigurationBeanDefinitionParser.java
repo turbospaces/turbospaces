@@ -41,7 +41,6 @@ class SpaceConfigurationBeanDefinitionParser extends AbstractSingleBeanDefinitio
                            final BeanDefinitionBuilder builder) {
         String group = element.getAttribute( "group" );
         String mappingContext = element.getAttribute( "mappingContext" );
-        String conversionService = element.getAttribute( "conversionService" );
         String kryo = element.getAttribute( "kryo" );
         String jChannel = element.getAttribute( "jChannel" );
 
@@ -49,8 +48,6 @@ class SpaceConfigurationBeanDefinitionParser extends AbstractSingleBeanDefinitio
             builder.addPropertyValue( "group", group );
         if ( StringUtils.hasText( mappingContext ) )
             builder.addPropertyReference( "mappingContext", mappingContext );
-        if ( StringUtils.hasText( conversionService ) )
-            builder.addPropertyReference( "conversionService", conversionService );
         if ( StringUtils.hasText( kryo ) )
             builder.addPropertyReference( "kryo", kryo );
         if ( StringUtils.hasText( jChannel ) )

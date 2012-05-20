@@ -14,6 +14,7 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.turbospaces.api.ClientSpaceConfiguration;
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceTopology;
@@ -35,8 +36,8 @@ public class BasicCommunicationTest {
     @BeforeClass
     public static void beforeClass()
                                     throws Exception {
-        configuration = TestEntity1.configurationFor();
-        clientConfiguration = TestEntity1.clientConfigurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
+        clientConfiguration = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
 
         offHeapJSpace = new OffHeapJSpace( configuration );
         offHeapJSpace.afterPropertiesSet();
@@ -90,7 +91,7 @@ public class BasicCommunicationTest {
         resp = remoteJSpace.fetch( entity1, 0, 1, JSpace.MATCH_BY_ID | JSpace.RETURN_AS_BYTES );
         entity1.assertMatch( (TestEntity1) remoteJSpace
                 .getSpaceConfiguration()
-                .getEntitySerializer()
+                .getKryo()
                 .deserialize( (ByteBuffer) resp[0], TestEntity1.class )
                 .getObject() );
     }

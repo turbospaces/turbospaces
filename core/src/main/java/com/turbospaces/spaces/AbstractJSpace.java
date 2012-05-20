@@ -35,6 +35,7 @@ import org.springframework.util.ObjectUtils;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
@@ -43,6 +44,7 @@ import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.core.Memory;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.OffHeapCacheStore;
 import com.turbospaces.serialization.SerializationEntry;
 import com.turbospaces.spaces.tx.SpaceTransactionHolder;
@@ -120,7 +122,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                        final int modifiers) {
         boolean isMatchById = SpaceModifiers.isMatchById( modifiers );
         BO bo = configuration.boFor( template.getClass() );
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, template );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
 
         if ( isMatchById && cacheStoreEntryWrapper.getId() == null )
             throw new InvalidDataAccessApiUsageException( String.format(
@@ -132,7 +134,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
     @Override
     public Object[] fetch(final Object entry,
-                          final long timeout,
+                          final int timeout,
                           final int maxResults,
                           final int modifiers) {
         SpaceTransactionHolder th = getTransactionHolder();
@@ -141,8 +143,8 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
     @Override
     public void write(final Object entry,
-                      final long timeToLive,
-                      final long timeout,
+                      final int timeToLive,
+                      final int timeout,
                       final int modifier) {
         SpaceTransactionHolder th = getTransactionHolder();
         write( th, entry, null, timeToLive, timeout, modifier );
@@ -150,18 +152,19 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
     Object[] fetch(final SpaceTransactionHolder th,
                    final Object entry,
-                   final long timeout,
+                   final int timeout,
                    final int maxResults,
                    final int modifiers) {
         final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
                 .getPersistentEntity()
+                .getOriginalPersistentEntity()
                 .getType() : entry.getClass() );
-        long txTimeout = timeout;
+        int txTimeout = timeout;
         TransactionModificationContext txModification;
 
         if ( th != null ) {
             if ( th.hasTimeout() && timeout > th.getTimeToLiveInMillis() )
-                txTimeout = th.getTimeToLiveInMillis();
+                txTimeout = Ints.checkedCast( th.getTimeToLiveInMillis() );
             txModification = (TransactionModificationContext) th.getModificationContext();
         }
         else
@@ -182,18 +185,19 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     void write(final SpaceTransactionHolder th,
                final Object entry,
                final byte[] serializedEntry,
-               final long timeToLive,
-               final long timeout,
+               final int timeToLive,
+               final int timeout,
                final int modifier) {
         final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
                 .getPersistentEntity()
+                .getOriginalPersistentEntity()
                 .getType() : entry.getClass() );
-        long txTimeout = timeout;
+        int txTimeout = timeout;
         TransactionModificationContext txModification;
 
         if ( th != null ) {
             if ( th.hasTimeout() && timeout > th.getTimeToLiveInMillis() )
-                txTimeout = th.getTimeToLiveInMillis();
+                txTimeout = Ints.checkedCast( th.getTimeToLiveInMillis() );
             txModification = (TransactionModificationContext) th.getModificationContext();
         }
         else
@@ -214,8 +218,8 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     private void write0(final TransactionModificationContext modificationContext,
                         final Object entry,
                         final byte[] serializedEntry,
-                        final long timeToLive,
-                        final long timeout,
+                        final int timeToLive,
+                        final int timeout,
                         final int modifier) {
         Preconditions.checkNotNull( entry );
 
@@ -230,7 +234,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         boolean isWriteOrUpdate = SpaceModifiers.isWriteOrUpdate( modifier );
         boolean isUpdateOnly = SpaceModifiers.isUpdateOnly( modifier );
 
-        CacheStoreEntryWrapper cacheStoreEntryWrapper = new CacheStoreEntryWrapper( bo, configuration, entry );
+        CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, entry );
         Preconditions.checkNotNull( cacheStoreEntryWrapper.getId(), "ID must be provided before writing to JSpace" );
         cacheStoreEntryWrapper.setBeanAsBytes( serializedEntry );
 
@@ -259,7 +263,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
     private Object[] fetch0(final TransactionModificationContext modificationContext,
                             final Object entry,
-                            final long timeout,
+                            final int timeout,
                             final int maxResults,
                             final int modifiers) {
         Preconditions.checkNotNull( entry );
@@ -272,12 +276,12 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
 
         if ( entry instanceof CacheStoreEntryWrapper ) {
             cacheStoreEntryWrapper = (CacheStoreEntryWrapper) entry;
-            heapBuffer = offHeapBuffers.get( cacheStoreEntryWrapper.getPersistentEntity().getType() );
+            heapBuffer = offHeapBuffers.get( cacheStoreEntryWrapper.getPersistentEntity().getOriginalPersistentEntity().getType() );
             template = cacheStoreEntryWrapper.getBean();
         }
         else {
             heapBuffer = offHeapBuffers.get( entry.getClass() );
-            cacheStoreEntryWrapper = new CacheStoreEntryWrapper( configuration.boFor( entry.getClass() ), configuration, entry );
+            cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( configuration.boFor( entry.getClass() ), entry );
             template = entry;
         }
 
@@ -329,12 +333,12 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         if ( c != null )
             if ( !isReturnAsBytes ) {
                 int size = c.length;
-                Class type = cacheStoreEntryWrapper.getPersistentEntity().getType();
+                Class type = cacheStoreEntryWrapper.getPersistentEntity().getOriginalPersistentEntity().getType();
 
                 Object[] result = new Object[size];
                 Map<EntryKeyLockQuard, WriteTakeEntry> takes = modificationContext.getTakes();
                 for ( int i = 0; i < size; i++ ) {
-                    SerializationEntry sEntry = configuration.getEntitySerializer().deserialize( c[i], type );
+                    SerializationEntry sEntry = configuration.getKryo().deserialize( c[i], type );
                     Object[] propertyValues = sEntry.getPropertyValues();
                     Object id = propertyValues[BO.getIdIndex()];
 

@@ -31,13 +31,13 @@ import org.springframework.util.ObjectUtils;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.offmemory.IndexManager;
 import com.turbospaces.pool.ObjectFactory;
 import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.pool.Reusable;
 import com.turbospaces.pool.SimpleObjectPool;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.NotificationContext;
 import com.turbospaces.spaces.SpaceModifiers;
@@ -86,6 +86,7 @@ public final class TransactionModificationContext implements Reusable {
      * return object to pool
      * 
      * @param context
+     *            transaction modification context that no longer needed
      */
     public static void recycle(final TransactionModificationContext context) {
         OBJECT_POOL.returnObject( context );
@@ -138,6 +139,7 @@ public final class TransactionModificationContext implements Reusable {
      * check whether transaction contains any write event for particular primary key(key wrapper).
      * 
      * @param uniqueIdentifier
+     *            primary key
      * @return true if transaction modification context already has write(insert) associated with transaction by given
      *         key(wrapper).
      */
@@ -150,7 +152,9 @@ public final class TransactionModificationContext implements Reusable {
      * current transaction.
      * 
      * @param guard
+     *            key lock guardian
      * @param value
+     *            write entry wrapper
      */
     public void addTake(final EntryKeyLockQuard guard,
                         final WriteTakeEntry value) {
@@ -163,7 +167,9 @@ public final class TransactionModificationContext implements Reusable {
      * previous deletes by the same ID from the transaction.
      * 
      * @param guard
+     *            key lock guardian
      * @param value
+     *            write entry wrapper
      */
     public void addWrite(final EntryKeyLockQuard guard,
                          final WriteTakeEntry value) {
@@ -175,6 +181,7 @@ public final class TransactionModificationContext implements Reusable {
      * add exclusive read lock event to the context of current transaction
      * 
      * @param uniqueIdentifier
+     *            primary key
      */
     public void addExclusiveReadLock(final EntryKeyLockQuard uniqueIdentifier) {
         getExclusiveReads().add( uniqueIdentifier );
@@ -185,7 +192,9 @@ public final class TransactionModificationContext implements Reusable {
      * manager (if there is no direct key association with-in transaction).
      * 
      * @param guard
+     *            key lock guardian
      * @param indexManager
+     *            space index manager
      * @return byte array pointer or <code>null</code>
      */
     public ByteArrayPointer getPointer(final EntryKeyLockQuard guard,
@@ -202,7 +211,9 @@ public final class TransactionModificationContext implements Reusable {
      * manager (if there is no direct key association with-in transaction).
      * 
      * @param key
+     *            primary key lock guardian
      * @param indexManager
+     *            space index manager
      * @return byte array pointer or <code>null</code>
      */
     public ByteBuffer getPointerData(final Object key,
@@ -231,7 +242,9 @@ public final class TransactionModificationContext implements Reusable {
      * synchronize pending modification with off-heap memory manager, notify space notification subscribers(listeners).
      * 
      * @param memoryManager
+     *            space store
      * @param notificationContext
+     *            space notification context
      */
     public void flush(final SpaceStore memoryManager,
                       final Set<NotificationContext> notificationContext) {
@@ -247,6 +260,7 @@ public final class TransactionModificationContext implements Reusable {
      * discard changes made by the current transaction , notify space notification subscribers.
      * 
      * @param memoryManager
+     *            space store manager
      */
     public void discard(final SpaceStore memoryManager) {
         sync( memoryManager, null, false );
@@ -287,7 +301,7 @@ public final class TransactionModificationContext implements Reusable {
                                          final boolean returnAsBytes) {
         if ( !CollectionUtils.isEmpty( map ) )
             for ( final WriteTakeEntry entry : map.values() )
-                if ( entry.getObj().getClass().isAssignableFrom( template.getPersistentEntity().getType() ) ) {
+                if ( entry.getObj().getClass().isAssignableFrom( template.getPersistentEntity().getOriginalPersistentEntity().getType() ) ) {
                     Object[] templatePropertyValues = template.asPropertyValuesArray();
                     Object[] entryPropertyValues = entry.getPropertyValues();
 
@@ -317,7 +331,7 @@ public final class TransactionModificationContext implements Reusable {
                 final WriteTakeEntry entry = next.getValue();
 
                 if ( ObjectUtils.nullSafeEquals( keyCandidate, uniqueIdentifier )
-                        && ObjectUtils.nullSafeEquals( entry.getPersistentEntity().getType(), template.getClass() ) ) {
+                        && ObjectUtils.nullSafeEquals( entry.getPersistentEntity().getOriginalPersistentEntity().getType(), template.getClass() ) ) {
                     assert entry.getObj() != null;
                     memoryManager.getSpaceConfiguration().getListeningExecutorService().execute( new Runnable() {
                         @Override
@@ -365,6 +379,7 @@ public final class TransactionModificationContext implements Reusable {
      * set whether transaction modification context reflects remote transaction, those working in proxy mode
      * 
      * @param proxyMode
+     *            whether this is remote transaction or local
      */
     public void setProxyMode(final boolean proxyMode) {
         this.proxyMode = proxyMode;

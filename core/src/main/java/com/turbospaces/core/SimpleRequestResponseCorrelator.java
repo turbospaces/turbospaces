@@ -26,6 +26,7 @@ public class SimpleRequestResponseCorrelator<K, V> {
      * remove key with associated value
      * 
      * @param key
+     *            operation's key
      */
     public void clear(final K key) {
         responses.remove( key );
@@ -37,7 +38,9 @@ public class SimpleRequestResponseCorrelator<K, V> {
      * stage client thread waiting for response on mutex object will be notified).
      * 
      * @param key
+     *            operation's key
      * @param response
+     *            actual response from server
      * 
      * @return monitor(mutex) object that needs to be passed back with {@link #responseFor(Object, Object, long)} method
      */
@@ -66,8 +69,11 @@ public class SimpleRequestResponseCorrelator<K, V> {
      * {@link #put(Object, Object)} and specify timeout for operation.
      * 
      * @param key
+     *            operation's key
      * @param monitor
+     *            object's monitor
      * @param timeoutInMillis
+     *            the maximum period of time to wait for response
      * @return response for the given key (or <code>null</code> meaning that response was not retrieved within timeout)
      */
     public V responseFor(final K key,

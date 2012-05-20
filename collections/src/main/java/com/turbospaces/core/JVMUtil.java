@@ -14,10 +14,14 @@ import org.slf4j.LoggerFactory;
 
 import sun.misc.Unsafe;
 
+import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.turbospaces.pool.ObjectFactory;
+import com.turbospaces.pool.ObjectPool;
+import com.turbospaces.pool.SimpleObjectPool;
 
 /**
  * This is placeholder for all utility method of turbospaces-collections maven project. We prefer creation of one such
@@ -299,6 +303,61 @@ public class JVMUtil {
                 return this;
             }
         } );
+    }
+
+    /**
+     * re-hashes a 4-byte sequence (Java int) using murmur3 hash algorithm.</p>
+     * 
+     * @param hash
+     *            bad quality hash
+     * @return good general purpose hash
+     */
+    public static int murmurRehash(final int hash) {
+        int k = hash;
+        k ^= k >>> 16;
+        k *= 0x85ebca6b;
+        k ^= k >>> 13;
+        k *= 0xc2b2ae35;
+        k ^= k >>> 16;
+        return k;
+    }
+
+    /**
+     * re-hashes a 4-byte sequence (Java int) using standard JDK re-hash algorithm.</p>
+     * 
+     * @param hash
+     *            bad quality hash
+     * @return good hash
+     */
+    public static int jdkRehash(final int hash) {
+        int h = hash;
+
+        h += h << 15 ^ 0xffffcd7d;
+        h ^= h >>> 10;
+        h += h << 3;
+        h ^= h >>> 6;
+        h += ( h << 2 ) + ( h << 14 );
+
+        return h ^ h >>> 16;
+    }
+
+    /**
+     * @return new {@link ObjectPool} pool for not-thread safe {@link ObjectBuffer} instances.
+     */
+    public static ObjectPool<ObjectBuffer> newObjectBufferPool() {
+        SimpleObjectPool<ObjectBuffer> simpleObjectPool = new SimpleObjectPool<ObjectBuffer>( new ObjectFactory<ObjectBuffer>() {
+            @Override
+            public ObjectBuffer newInstance() {
+                return new ObjectBuffer( null, 4 * 1024, 32 * 1024 );
+            }
+
+            @Override
+            public void invalidate(final ObjectBuffer obj) {
+                obj.setKryo( null );
+            }
+        } );
+        simpleObjectPool.setMaxElements( 1 << 4 );
+        return simpleObjectPool;
     }
 
     private JVMUtil() {}

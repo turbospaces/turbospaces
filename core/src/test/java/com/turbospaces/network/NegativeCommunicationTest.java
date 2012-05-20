@@ -13,9 +13,9 @@ import org.junit.Test;
 import org.springframework.remoting.RemoteLookupFailureException;
 
 import com.turbospaces.api.ClientSpaceConfiguration;
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.core.MutableObject;
-import com.turbospaces.model.TestEntity1;
 
 @SuppressWarnings("javadoc")
 public class NegativeCommunicationTest {
@@ -23,7 +23,7 @@ public class NegativeCommunicationTest {
     @Test
     public void cantGetExceptionLookupFailureException()
                                                         throws Exception {
-        ClientSpaceConfiguration clientConfigurationFor = TestEntity1.clientConfigurationFor();
+        ClientSpaceConfiguration clientConfigurationFor = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
         clientConfigurationFor.setDefaultCommunicationTimeoutInMillis( 10 );
         clientConfigurationFor.joinNetwork();
         NetworkCommunicationDispatcher receiever = clientConfigurationFor.getReceiever();
@@ -43,7 +43,7 @@ public class NegativeCommunicationTest {
     public void canHandleInteppurptionException()
                                                  throws Throwable {
         final MutableObject<Throwable> er = new MutableObject<Throwable>();
-        final ClientSpaceConfiguration clientConfigurationFor = TestEntity1.clientConfigurationFor();
+        final ClientSpaceConfiguration clientConfigurationFor = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
         clientConfigurationFor.setDefaultCommunicationTimeoutInMillis( TimeUnit.SECONDS.toMillis( 10 ) );
         clientConfigurationFor.joinNetwork();
         Thread t = new Thread( new Runnable() {

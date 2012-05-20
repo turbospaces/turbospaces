@@ -161,7 +161,7 @@ public interface JSpace extends InitializingBean, DisposableBean {
      *             exception
      */
     Object[] fetch(@Nonnull Object template,
-                   @Nonnegative long timeout,
+                   @Nonnegative int timeout,
                    @Nonnegative int maxResults,
                    int modifiers)
                                  throws CannotAcquireLockException,
@@ -225,8 +225,8 @@ public interface JSpace extends InitializingBean, DisposableBean {
      *             exception
      */
     void write(@Nonnull Object entry,
-               @Nonnegative long timeToLive,
-               @Nonnegative long timeout,
+               @Nonnegative int timeToLive,
+               @Nonnegative int timeout,
                int modifiers)
                              throws DuplicateKeyException,
                              CannotAcquireLockException,

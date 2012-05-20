@@ -45,7 +45,6 @@ public class ConfigurationSpringIntegrationTest {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Test
     public void configured() {
-        assertThat( configuration.getConversionService(), is( notNullValue() ) );
         assertThat( configuration.getMappingContext(), is( notNullValue() ) );
         assertThat( configuration.getKryo(), is( notNullValue() ) );
 

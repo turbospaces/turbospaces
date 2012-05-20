@@ -17,7 +17,6 @@
     <jspace:jspace-cfg id="jspace.configuration" 
                        mappingContext="mongo.mapping.context" 
                        group="tech-v${project.version}-jspace"
-                       conversionService="conversion.service"
                        jChannel="jchannel"
                        kryo="kryo"/>
 
@@ -29,7 +28,6 @@
 	   </property>
 	</bean>
 	
-	<bean id="conversion.service" class="org.springframework.core.convert.support.DefaultConversionService"/>
 	<bean id="jchannel" class="org.jgroups.JChannel"><constructor-arg value="turbospaces-jgroups-udp.xml"/></bean>
-	<bean id="kryo" class="com.esotericsoftware.kryo.Kryo"/>
+	<bean id="kryo" class="com.turbospaces.serialization.DecoratedKryo"/>
 </beans>

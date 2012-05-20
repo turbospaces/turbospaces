@@ -18,6 +18,7 @@ package com.turbospaces.spaces;
 import javax.annotation.concurrent.Immutable;
 
 import com.turbospaces.api.SpaceNotificationListener;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 
 /**
  * holder for space notifications (hold matching template, actual event listener and matching modifier).
@@ -35,9 +36,11 @@ public class NotificationContext {
      * create space notification context for given space template matching entity, listener and matching modifiers.
      * 
      * @param templateEntry
-     * 
+     *            space template entry
      * @param listener
+     *            actual notification listener
      * @param modifier
+     *            space matching modifier
      */
     public NotificationContext(final CacheStoreEntryWrapper templateEntry, final SpaceNotificationListener listener, final int modifier) {
         super();

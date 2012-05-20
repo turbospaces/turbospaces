@@ -31,7 +31,7 @@ import org.springframework.dao.DataAccessException;
 public class SpaceMemoryOverflowException extends DataAccessException {
     private static final long serialVersionUID = -4537158624229189977L;
 
-    private final int mb;
+    private final long bytes;
     private final byte[] serializedState;
 
     /**
@@ -39,22 +39,22 @@ public class SpaceMemoryOverflowException extends DataAccessException {
      * attempted to be added to the
      * space.
      * 
-     * @param mb
-     *            max megabytes of off-heap memory used by space
+     * @param bytes
+     *            max megabytes of off-heap memory used by space in bytes
      * @param serializedState
      *            bytes representation of object
      */
-    public SpaceMemoryOverflowException(final int mb, final byte[] serializedState) {
-        super( String.format( "Space exceeded it's memory capacity %s mb, attempt to add %s rejected.", mb, Arrays.toString( serializedState ) ) );
-        this.mb = mb;
+    public SpaceMemoryOverflowException(final long bytes, final byte[] serializedState) {
+        super( String.format( "Space exceeded it's memory capacity %s bytes, attempt to add %s rejected.", bytes, Arrays.toString( serializedState ) ) );
+        this.bytes = bytes;
         this.serializedState = Arrays.copyOf( serializedState, serializedState.length );
     }
 
     /**
      * @return maximum megabytes that can be used by space (off-heap cache store).
      */
-    public int getMb() {
-        return mb;
+    public long getBytes() {
+        return bytes;
     }
 
     /**

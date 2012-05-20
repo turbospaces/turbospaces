@@ -25,7 +25,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.jgroups.Address;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.ResponseMode;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
@@ -36,8 +35,9 @@ import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
@@ -57,7 +57,7 @@ import com.turbospaces.spaces.tx.TransactionModificationContextProxy;
  * @since 0.1
  */
 @ThreadSafe
-public class RemoteJSpace implements TransactionalJSpace, InitializingBean, SpaceErrors {
+public class RemoteJSpace implements TransactionalJSpace, SpaceErrors {
     private final NetworkCommunicationDispatcher clientReceiever;
     private final ClientSpaceConfiguration configuration;
 
@@ -66,12 +66,15 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
     private final ObjectPool<ObjectBuffer> objectBufferPool;
 
     /**
+     * create new remote jspace proxy over client's space configuration
+     * 
      * @param configuration
+     *            client's space configuration
      */
     public RemoteJSpace(final ClientSpaceConfiguration configuration) {
         this.clientReceiever = configuration.getReceiever();
         this.configuration = configuration;
-        this.objectBufferPool = SpaceUtility.newObjectBufferPool();
+        this.objectBufferPool = JVMUtil.newObjectBufferPool();
     }
 
     @Override
@@ -95,13 +98,13 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public Object[] fetch(final Object template,
-                          final long timeout,
+                          final int timeout,
                           final int maxResults,
                           final int modifiers) {
         final BO bo = getSpaceConfiguration().boFor( template.getClass() );
         final ObjectBuffer objectBuffer = borrowObjectBuffer();
         final SpaceTransactionHolder transactionHolder = getTransactionHolder();
-        final CacheStoreEntryWrapper entryWrapper = new CacheStoreEntryWrapper( bo, getSpaceConfiguration(), template );
+        final CacheStoreEntryWrapper entryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
         final Address[] serverNodes = clientReceiever.getServerNodes();
         final boolean returnAsBytes = SpaceModifiers.isReturnAsBytes( modifiers );
         final boolean matchById = SpaceModifiers.isMatchById( modifiers );
@@ -145,17 +148,16 @@ public class RemoteJSpace implements TransactionalJSpace, InitializingBean, Spac
         }
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
     public void write(final Object entry,
-                      final long timeToLive,
-                      final long timeout,
+                      final int timeToLive,
+                      final int timeout,
                       final int modifiers) {
         Preconditions.checkNotNull( entry );
         final BO bo = getSpaceConfiguration().boFor( entry.getClass() );
         final ObjectBuffer objectBuffer = borrowObjectBuffer();
         final SpaceTransactionHolder transactionHolder = getTransactionHolder();
-        final CacheStoreEntryWrapper entryWrapper = new CacheStoreEntryWrapper( bo, getSpaceConfiguration(), entry );
+        final CacheStoreEntryWrapper entryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, entry );
         final Address[] serverNodes = clientReceiever.getServerNodes();
 
         try {

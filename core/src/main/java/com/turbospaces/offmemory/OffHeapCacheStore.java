@@ -30,10 +30,11 @@ import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.core.CacheStatistics;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
 import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
@@ -55,7 +56,6 @@ import com.turbospaces.spaces.tx.WriteTakeEntry;
  */
 @ThreadSafe
 public class OffHeapCacheStore implements SpaceStore {
-    @SuppressWarnings("rawtypes")
     private final BO bo;
     private final SpaceConfiguration configuration;
     private final IndexManager indexManager;
@@ -68,8 +68,11 @@ public class OffHeapCacheStore implements SpaceStore {
      * create new off-heap memory buffer for the given configuration and particular entity class.
      * 
      * @param configuration
+     *            jspace store configuration
      * @param entityClass
+     *            target entity class that this instance has been created for
      * @param capacityRestriction
+     *            store capacity restriction
      */
     @SuppressWarnings("unchecked")
     public OffHeapCacheStore(final SpaceConfiguration configuration,
@@ -80,7 +83,7 @@ public class OffHeapCacheStore implements SpaceStore {
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );
         this.statsCounter = new CacheStatistics();
         this.lockManager = SpaceUtility.parallelizedKeyLocker();
-        this.objectBufferPool = SpaceUtility.newObjectBufferPool();
+        this.objectBufferPool = JVMUtil.newObjectBufferPool();
         this.bo = configuration.boFor( entityClass );
     }
 
@@ -137,8 +140,8 @@ public class OffHeapCacheStore implements SpaceStore {
     @Override
     public void write(final CacheStoreEntryWrapper entry,
                       final TransactionModificationContext modificationContext,
-                      final long timeToLive,
-                      final long timeout,
+                      final int timeToLive,
+                      final int timeout,
                       final int modifier) {
         Object uniqueIdentifier = entry.getId();
         ObjectBuffer objectBuffer = objectBufferPool.borrowObject();
@@ -159,9 +162,9 @@ public class OffHeapCacheStore implements SpaceStore {
 
         boolean hasWriteInModificationContext = modificationContext.hasWrite( writeLockQuard );
         if ( isWriteOnly && ( hasWriteInModificationContext || indexManager.containsUniqueIdentifier( uniqueIdentifier ) ) )
-            SpaceUtility.raiseDuplicateException( uniqueIdentifier, entry.getPersistentEntity().getType() );
+            SpaceUtility.raiseDuplicateException( uniqueIdentifier, entry.getPersistentEntity().getOriginalPersistentEntity().getType() );
         if ( isUpdateOnly && !hasWriteInModificationContext && !indexManager.containsUniqueIdentifier( uniqueIdentifier ) )
-            SpaceUtility.raiseObjectRetrieveFailureException( uniqueIdentifier, entry.getPersistentEntity().getType() );
+            SpaceUtility.raiseObjectRetrieveFailureException( uniqueIdentifier, entry.getPersistentEntity().getOriginalPersistentEntity().getType() );
 
         ByteArrayPointer p = new ByteArrayPointer( entry.asSerializedData( objectBuffer ), entry.getBean(), timeToLive );
         modificationContext.addWrite( writeLockQuard, new WriteTakeEntry(
@@ -178,7 +181,7 @@ public class OffHeapCacheStore implements SpaceStore {
     @Override
     public ByteBuffer[] fetch(final CacheStoreEntryWrapper template,
                               final TransactionModificationContext modificationContext,
-                              final long timeout,
+                              final int timeout,
                               final int maxResults,
                               final int modifiers) {
         boolean isTakeOnly = SpaceModifiers.isTakeOnly( modifiers );
@@ -249,7 +252,7 @@ public class OffHeapCacheStore implements SpaceStore {
         boolean isExclusiveRead = SpaceModifiers.isExclusiveRead( modifiers );
         boolean isEvictOnly = SpaceModifiers.isEvictOnly( modifiers );
 
-        boolean matches = configuration.getEntitySerializer().matchByTemplate( data, template );
+        boolean matches = configuration.getKryo().matchByTemplate( data, template );
 
         if ( matches )
             if ( isTakeOnly || isEvictOnly ) {
@@ -324,11 +327,6 @@ public class OffHeapCacheStore implements SpaceStore {
 
     @Override
     public String toString() {
-        return Objects
-                .toStringHelper( this )
-                .add( "indexManager", indexManager )
-                .add( "serializer", configuration.getEntitySerializer() )
-                .add( "lockManager", lockManager )
-                .toString();
+        return Objects.toStringHelper( this ).add( "indexManager", indexManager ).add( "lockManager", lockManager ).toString();
     }
 }

@@ -57,6 +57,7 @@ public class PerformanceMonitor implements Runnable {
      * @param space
      *            java space or some kind of proxy
      * @param objectFactory
+     *            object factory
      */
     public PerformanceMonitor(final JSpace space, final FastObjectFactory objectFactory) {
         this.space = space instanceof SimplisticJSpace ? (SimplisticJSpace) space : new SimplisticJSpace( (AbstractJSpace) space );

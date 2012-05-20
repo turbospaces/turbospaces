@@ -55,7 +55,9 @@ public class SpaceCapacityRestrictionHolder {
      * modify the current capacity restriction by the value of addedBytes field (and optional prevOccupation)
      * 
      * @param addedBytes
+     *            how many bytes were added
      * @param prevBytesOccupation
+     *            how many bytes where by previous entry
      */
     public void add(final int addedBytes,
                     final int prevBytesOccupation) {
@@ -70,6 +72,7 @@ public class SpaceCapacityRestrictionHolder {
      * modify the current capacity restriction by the value of removedBytes field
      * 
      * @param removedBytes
+     *            how many bytes where removed
      */
     public void remove(final int removedBytes) {
         if ( removedBytes > 0 ) {
@@ -82,7 +85,9 @@ public class SpaceCapacityRestrictionHolder {
      * ensure enough capacity for new entity
      * 
      * @param pointer
+     *            new byte array pointer
      * @param obj
+     *            the actual entity that needs to be added to the space
      */
     public void ensureCapacity(final ByteArrayPointer pointer,
                                final Object obj) {

@@ -29,6 +29,7 @@ public class SpaceTransactionHolder extends ResourceHolderSupport {
      * associate transaction modification object with space transaction holder.
      * 
      * @param modificationContext
+     *            transaction modification context
      */
     public void setModificationContext(final Object modificationContext) {
         this.modificationContext = modificationContext;

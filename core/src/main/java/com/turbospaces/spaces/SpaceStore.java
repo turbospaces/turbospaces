@@ -22,6 +22,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.IndexManager;
 import com.turbospaces.spaces.tx.TransactionModificationContext;
 
@@ -58,8 +59,8 @@ public interface SpaceStore extends DisposableBean, InitializingBean {
     @SuppressWarnings({ "javadoc" })
     void write(CacheStoreEntryWrapper entry,
                TransactionModificationContext modificationContext,
-               long timeToLive,
-               long timeout,
+               int timeToLive,
+               int timeout,
                int modifier);
 
     /**
@@ -78,7 +79,7 @@ public interface SpaceStore extends DisposableBean, InitializingBean {
     @SuppressWarnings({ "javadoc" })
     ByteBuffer[] fetch(CacheStoreEntryWrapper template,
                        TransactionModificationContext modificationContext,
-                       long timeout,
+                       int timeout,
                        int maxResults,
                        int modifiers);
 

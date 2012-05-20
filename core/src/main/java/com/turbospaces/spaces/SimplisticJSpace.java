@@ -15,7 +15,6 @@
  */
 package com.turbospaces.spaces;
 
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.transaction.TransactionStatus;
 
 import com.google.common.base.Optional;
@@ -24,6 +23,7 @@ import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.tx.SpaceTransactionHolder;
 
 /**
@@ -34,21 +34,21 @@ import com.turbospaces.spaces.tx.SpaceTransactionHolder;
  * 
  * @since 0.1
  */
-public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
+public class SimplisticJSpace implements TransactionalJSpace {
     /**
      * constant meaning that there is no timeout(without timeout, immediate feedback) for operations (basically
      * <code>timeout=0</code>). If you are trying to insert entity and the entity is currently locked or being
      * inserted(but not committed) within context of parallel transaction, you will get exception immediately
      * without waiting for concurrent transaction commit/rollback.
      */
-    public static final long WITHOUT_TIMEOUT = 0;
+    public static final int WITHOUT_TIMEOUT = 0;
 
     /**
      * constant meaning that timeout is not achievable and you will be blocked forever in case of concurrency
      * update/write/take operations. Better to say not forever, but until concurrent transaction will free write (or
      * read exclusive) lock and current transaction obtain lock. This is something very typical for RDBMS.
      */
-    public static final long WAIT_FOREVER_TIMEOUT = Long.MAX_VALUE;
+    public static final int WAIT_FOREVER_TIMEOUT = Integer.MAX_VALUE;
 
     private final TransactionalJSpace delegate;
 
@@ -73,8 +73,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
      */
     @SuppressWarnings("javadoc")
     public void write(final Object entry,
-                      final long timeToLive,
-                      final long timeout) {
+                      final int timeToLive,
+                      final int timeout) {
         write( entry, timeToLive, timeout, JSpace.WRITE_OR_UPDATE );
     }
 
@@ -84,7 +84,7 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
      */
     @SuppressWarnings("javadoc")
     public void write(final Object entry,
-                      final long timeout) {
+                      final int timeout) {
         write( entry, JSpace.LEASE_FOREVER, timeout, JSpace.WRITE_OR_UPDATE );
     }
 
@@ -104,7 +104,7 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
      */
     @SuppressWarnings("javadoc")
     public Object[] read(final Object template,
-                         final long timeout,
+                         final int timeout,
                          final int maxResults) {
         return fetch( template, timeout, maxResults, JSpace.READ_ONLY );
     }
@@ -139,8 +139,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     @SuppressWarnings({ "javadoc" })
     public <T> Optional<T> readByID(final Object id,
                                     final Class<T> clazz,
-                                    final long timeout) {
-        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+                                    final int timeout) {
+        final CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.readByIdValueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
         final Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
@@ -155,8 +155,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     @SuppressWarnings({ "javadoc" })
     public <T> Optional<T> readExclusivelyByID(final Object id,
                                                final Class<T> clazz,
-                                               final long timeout) {
-        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+                                               final int timeout) {
+        final CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.readByIdValueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
         final Object[] objects = fetch( wrapper, timeout, 1, JSpace.READ_ONLY | JSpace.MATCH_BY_ID | JSpace.EXCLUSIVE_READ_LOCK );
         return SpaceUtility.singleResult( objects );
     }
@@ -184,7 +184,7 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
      */
     @SuppressWarnings("javadoc")
     public Object[] take(final Object template,
-                         final long timeout) {
+                         final int timeout) {
         return fetch( template, timeout, Integer.MAX_VALUE, JSpace.TAKE_ONLY );
     }
 
@@ -209,8 +209,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     @SuppressWarnings({ "javadoc" })
     public <T> Optional<T> takeByID(final Object id,
                                     final Class<T> clazz,
-                                    final long timeout) {
-        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+                                    final int timeout) {
+        final CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.readByIdValueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
         final Object[] objects = fetch( wrapper, timeout, 1, JSpace.TAKE_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
@@ -239,7 +239,7 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
      */
     @SuppressWarnings("javadoc")
     public Object[] evict(final Object template,
-                          final long timeout) {
+                          final int timeout) {
         return fetch( template, timeout, Integer.MAX_VALUE, JSpace.EVICT_ONLY );
     }
 
@@ -261,8 +261,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
     @SuppressWarnings({ "javadoc" })
     public <T> Optional<T> evictByID(final Object id,
                                      final Class<T> clazz,
-                                     final long timeout) {
-        final CacheStoreEntryWrapper wrapper = new CacheStoreEntryWrapper( delegate.getSpaceConfiguration().boFor( clazz ), id );
+                                     final int timeout) {
+        final CacheStoreEntryWrapper wrapper = CacheStoreEntryWrapper.readByIdValueOf( delegate.getSpaceConfiguration().boFor( clazz ), id );
         final Object[] objects = fetch( wrapper, timeout, 1, JSpace.EVICT_ONLY | JSpace.MATCH_BY_ID );
         return SpaceUtility.singleResult( objects );
     }
@@ -288,7 +288,7 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
 
     @Override
     public Object[] fetch(final Object template,
-                          final long timeout,
+                          final int timeout,
                           final int maxResults,
                           final int modifiers) {
         return delegate.fetch( template, timeout, maxResults, modifiers );
@@ -296,8 +296,8 @@ public class SimplisticJSpace implements TransactionalJSpace, DisposableBean {
 
     @Override
     public void write(final Object entry,
-                      final long timeToLive,
-                      final long timeout,
+                      final int timeToLive,
+                      final int timeout,
                       final int modifier) {
         delegate.write( entry, timeToLive, timeout, modifier );
     }

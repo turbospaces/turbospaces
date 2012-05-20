@@ -90,3 +90,6 @@ tubrospaces
 maven
 util
 gc
+enums
+restrictor
+namespace

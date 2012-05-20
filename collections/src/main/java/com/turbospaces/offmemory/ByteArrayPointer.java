@@ -50,7 +50,7 @@ public final class ByteArrayPointer {
     private static enum FormatFields {
         LENGTH(Ints.BYTES),
         CREATION_TIMESTAMP(Longs.BYTES),
-        TIME_TO_LIVE(Longs.BYTES),
+        TIME_TO_LIVE(Ints.BYTES),
         DATA(Integer.MAX_VALUE);
 
         private FormatFields(final int lenght) {
@@ -68,12 +68,13 @@ public final class ByteArrayPointer {
             offset += f.lenght;
         }
     }
+    private static int INTERNAL_BYTES_OCCUPATION = ( FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght + FormatFields.TIME_TO_LIVE.lenght );
 
     private byte[] serializedBytes;
     private ByteBuffer serializedData;
     private long address;
     private Object object;
-    private long ttl;
+    private int ttl;
 
     /**
      * create new byte array pointer at given address and byte array(buffer) - this is constructor is used for reading
@@ -102,7 +103,7 @@ public final class ByteArrayPointer {
      * @param ttl
      *            time-to-live
      */
-    public ByteArrayPointer(final byte[] serializedData, final Object object, final long ttl) {
+    public ByteArrayPointer(final byte[] serializedData, final Object object, final int ttl) {
         assert serializedData != null;
 
         this.object = object;
@@ -118,7 +119,7 @@ public final class ByteArrayPointer {
      * @return buffer over internal state
      */
     public static byte[] getEntityState(final long address) {
-        return JVMUtil.readBytesArray( address + FormatFields.DATA.offset, getBytesOccupied( address ) );
+        return JVMUtil.readBytesArray( address + FormatFields.DATA.offset, JVMUtil.getInt( address + FormatFields.LENGTH.offset ) );
     }
 
     /**
@@ -129,7 +130,7 @@ public final class ByteArrayPointer {
      * @return how many bytes occupied by pointer
      */
     public static int getBytesOccupied(final long address) {
-        return JVMUtil.getInt( address + FormatFields.LENGTH.offset );
+        return JVMUtil.getInt( address + FormatFields.LENGTH.offset ) + INTERNAL_BYTES_OCCUPATION;
     }
 
     /**
@@ -151,7 +152,7 @@ public final class ByteArrayPointer {
      * @return ttl time-to-live associate with entry
      */
     public static long getTimeToLive(final long address) {
-        return JVMUtil.getLong( address + FormatFields.TIME_TO_LIVE.offset );
+        return JVMUtil.getInt( address + FormatFields.TIME_TO_LIVE.offset );
     }
 
     /**
@@ -188,7 +189,7 @@ public final class ByteArrayPointer {
      * @return how many off-heap bytes are being occupied by this pointer
      */
     public int bytesOccupied() {
-        return getSerializedData().length;
+        return getSerializedData().length + INTERNAL_BYTES_OCCUPATION;
     }
 
     /**
@@ -257,7 +258,7 @@ public final class ByteArrayPointer {
     private void flush2offheap() {
         JVMUtil.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
         JVMUtil.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, System.currentTimeMillis() );
-        JVMUtil.putLong( address + FormatFields.TIME_TO_LIVE.offset, ttl >= Integer.MAX_VALUE ? Integer.MAX_VALUE : ttl );
+        JVMUtil.putInt( address + FormatFields.TIME_TO_LIVE.offset, ttl );
         JVMUtil.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
     }
 

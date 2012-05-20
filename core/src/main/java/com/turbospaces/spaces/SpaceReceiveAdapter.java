@@ -39,7 +39,7 @@ import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceOperation;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
@@ -67,7 +67,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
 
     SpaceReceiveAdapter(final AbstractJSpace jSpace) {
         this.jSpace = jSpace;
-        this.objectBufferPool = SpaceUtility.newObjectBufferPool();
+        this.objectBufferPool = JVMUtil.newObjectBufferPool();
         this.durableTransactions = new ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>>();
     }
 
@@ -179,8 +179,8 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                         ByteBuffer byteBuffer = ByteBuffer.wrap( entityAndClassData );
 
                         int modifiers = writeMethodCall.getModifiers();
-                        long timeout = writeMethodCall.getTimeout();
-                        long timeToLive = writeMethodCall.getTimeToLive();
+                        int timeout = writeMethodCall.getTimeout();
+                        int timeToLive = writeMethodCall.getTimeToLive();
 
                         /**
                          * 1. read registered class (without actual data)
@@ -210,7 +210,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                         byte[] entityData = fetchMethodCall.getEntity();
 
                         int originalModifiers = fetchMethodCall.getModifiers();
-                        long timeout = fetchMethodCall.getTimeout();
+                        int timeout = fetchMethodCall.getTimeout();
                         int maxResults = fetchMethodCall.getMaxResults();
                         Object template = objectBuffer.readClassAndObject( entityData );
                         int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;

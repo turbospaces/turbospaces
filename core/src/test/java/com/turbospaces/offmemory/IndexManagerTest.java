@@ -1,6 +1,7 @@
 package com.turbospaces.offmemory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
 import java.util.Collections;
@@ -13,12 +14,12 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.serialization.DefaultEntitySerializer;
-import com.turbospaces.spaces.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
 import com.turbospaces.spaces.tx.TransactionScopeKeyLocker;
@@ -26,9 +27,7 @@ import com.turbospaces.spaces.tx.TransactionScopeKeyLocker;
 @SuppressWarnings("javadoc")
 public class IndexManagerTest {
     IndexManager indexManager;
-    DefaultEntitySerializer serializer;
     SpaceConfiguration configuration;
-    @SuppressWarnings("rawtypes")
     BO bo;
     KeyLocker keyLocker;
 
@@ -36,9 +35,8 @@ public class IndexManagerTest {
     public IndexManagerTest() throws Exception {
         super();
 
-        configuration = TestEntity1.configurationFor();
+        configuration = EmbeddedJSpaceRunnerTest.configurationFor();
         indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( TestEntity1.class ), configuration );
-        serializer = new DefaultEntitySerializer( configuration );
         bo = new BO( (BasicPersistentEntity) configuration.getMappingContext().getPersistentEntity( TestEntity1.class ) );
         keyLocker = new TransactionScopeKeyLocker();
     }
@@ -62,7 +60,6 @@ public class IndexManagerTest {
         configuration.boFor( TestEntity1.class ).getCapacityRestriction().setMaxMemorySizeInMb( 1 );
         configuration.afterPropertiesSet();
 
-        serializer = new DefaultEntitySerializer( configuration );
         indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( TestEntity1.class ), configuration );
         indexManager.afterPropertiesSet();
 
@@ -71,8 +68,9 @@ public class IndexManagerTest {
             while ( System.currentTimeMillis() > 0 ) {
                 TestEntity1 entity = new TestEntity1();
                 entity.afterPropertiesSet();
-                pointer = new ByteArrayPointer( serializer.serialize( new CacheStoreEntryWrapper( bo, configuration, entity ), new ObjectBuffer(
-                        configuration.getKryo() ) ), entity, Long.MAX_VALUE );
+                pointer = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf(
+                        bo,
+                        entity ) ), entity, Integer.MAX_VALUE );
                 indexManager.add(
                         entity,
                         keyLocker.writeLock( entity.getUniqueIdentifier(), new Random().nextLong(), Integer.MAX_VALUE, true ),
@@ -81,7 +79,7 @@ public class IndexManagerTest {
             Assert.fail();
         }
         catch ( SpaceMemoryOverflowException e ) {
-            assertThat( e.getMb(), is( 1 ) );
+            assertThat( e.getBytes(), is( greaterThan( 1L ) ) );
             assertThat( e.getSerializedState(), is( pointer.getSerializedData() ) );
         }
         finally {
@@ -103,18 +101,14 @@ public class IndexManagerTest {
 
         entity4.setUniqueIdentifier( entity2.getUniqueIdentifier() );
 
-        ByteArrayPointer pointer1 = new ByteArrayPointer( serializer.serialize(
-                new CacheStoreEntryWrapper( bo, configuration, entity1 ),
-                new ObjectBuffer( configuration.getKryo() ) ), entity1, Integer.MAX_VALUE );
-        ByteArrayPointer pointer2 = new ByteArrayPointer( serializer.serialize(
-                new CacheStoreEntryWrapper( bo, configuration, entity2 ),
-                new ObjectBuffer( configuration.getKryo() ) ), entity2, Integer.MAX_VALUE );
-        ByteArrayPointer pointer3 = new ByteArrayPointer( serializer.serialize(
-                new CacheStoreEntryWrapper( bo, configuration, entity3 ),
-                new ObjectBuffer( configuration.getKryo() ) ), entity3, Integer.MAX_VALUE );
-        ByteArrayPointer pointer4 = new ByteArrayPointer( serializer.serialize(
-                new CacheStoreEntryWrapper( bo, configuration, entity4 ),
-                new ObjectBuffer( configuration.getKryo() ) ), entity4, Integer.MAX_VALUE );
+        ByteArrayPointer pointer1 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
+                .writeValueOf( bo, entity1 ) ), entity1, Integer.MAX_VALUE );
+        ByteArrayPointer pointer2 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
+                .writeValueOf( bo, entity2 ) ), entity2, Integer.MAX_VALUE );
+        ByteArrayPointer pointer3 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
+                .writeValueOf( bo, entity3 ) ), entity3, Integer.MAX_VALUE );
+        ByteArrayPointer pointer4 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
+                .writeValueOf( bo, entity4 ) ), entity4, Integer.MAX_VALUE );
 
         indexManager.add( entity1, keyLocker.writeLock( entity1.getUniqueIdentifier(), 234, Integer.MAX_VALUE, true ), pointer1 );
         indexManager.add( entity2, keyLocker.writeLock( entity2.getUniqueIdentifier(), 235, Integer.MAX_VALUE, true ), pointer2 );

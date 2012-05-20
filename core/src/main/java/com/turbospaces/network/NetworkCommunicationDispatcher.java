@@ -51,6 +51,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
      * create client side receiver over jchannel with given default network communication timeout.
      * 
      * @param configuration
+     *            jspace configuration
      */
     public NetworkCommunicationDispatcher(final AbstractSpaceConfiguration configuration) {
         super( configuration );
@@ -60,6 +61,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
      * set kryo serializer
      * 
      * @param kryo
+     *            serializer
      */
     public void setKryo(final Kryo kryo) {
         this.kryo = kryo;
@@ -69,8 +71,11 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
      * send message(in form of {@link MethodCall}) to the remote destination with assigned correlation id.
      * 
      * @param destinations
+     *            the target server nodes
      * @param methodCall
+     *            remote method call
      * @param objectBuffer
+     *            kryo's object buffer for entity serialization
      * @return original methodCall (pre-populated with correlation id)
      */
     public MethodCall[] sendAndReceive(final MethodCall methodCall,

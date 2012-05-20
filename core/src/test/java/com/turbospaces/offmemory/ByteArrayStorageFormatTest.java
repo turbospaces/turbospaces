@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.turbospaces.model.TestEntity1;
-import com.turbospaces.offmemory.ByteArrayPointer;
 
 @SuppressWarnings("javadoc")
 public class ByteArrayStorageFormatTest {
@@ -46,7 +45,7 @@ public class ByteArrayStorageFormatTest {
 
     @Test
     public void storesCreationTimestampCorrectly() {
-        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Long.MAX_VALUE );
+        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
         long address = p.dumpAndGetAddress();
         long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
 
@@ -69,7 +68,7 @@ public class ByteArrayStorageFormatTest {
 
     @Test
     public void storesInternalStateCorrectly() {
-        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Long.MAX_VALUE );
+        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
         long address = p.dumpAndGetAddress();
         byte[] b = p.getSerializedData();
         assertThat( b, is( new byte[] { 1, 2, 3 } ) );
@@ -89,7 +88,7 @@ public class ByteArrayStorageFormatTest {
 
         assertThat( (TestEntity1) p.getObject(), is( testEntity1 ) );
 
-        ByteArrayPointer p2 = new ByteArrayPointer( new byte[] { 2, 3, 4 }, testEntity1, Long.MAX_VALUE );
+        ByteArrayPointer p2 = new ByteArrayPointer( new byte[] { 2, 3, 4 }, testEntity1, Integer.MAX_VALUE );
         p2.dumpAndGetAddress();
         Assert.assertFalse( p2.equals( p1 ) );
 

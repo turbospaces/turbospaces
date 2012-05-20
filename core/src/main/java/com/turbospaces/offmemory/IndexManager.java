@@ -25,11 +25,13 @@ import com.google.common.base.Objects;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.collections.OffHeapLinearProbingSet;
 import com.turbospaces.model.BO;
+import com.turbospaces.serialization.PropertiesSerializer;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
 
 /**
- * index manager is responsible for managing indexes over space index fields for much faster data retrieve.
+ * index manager is responsible for managing indexes over space index fields for much faster data retrieve and primary
+ * key itself.
  * 
  * @since 0.1
  */
@@ -44,15 +46,19 @@ public class IndexManager implements DisposableBean, InitializingBean {
     public IndexManager(final MutablePersistentEntity mutablePersistentEntity, final SpaceConfiguration configuration) {
         bo = configuration.boFor( mutablePersistentEntity.getType() );
         capacityRestriction = new SpaceCapacityRestrictionHolder( bo.getCapacityRestriction() );
-        idCache = new OffHeapLinearProbingSet( configuration, bo );
+        idCache = new OffHeapLinearProbingSet( bo.getCapacityRestriction(), (PropertiesSerializer) configuration.getKryo().getSerializer(
+                mutablePersistentEntity.getType() ), configuration.getListeningExecutorService() );
     }
 
     /**
      * put object into cache and index space index fields(properties).
      * 
      * @param obj
+     *            space object
      * @param idGuard
+     *            key locker guardian
      * @param pointer
+     *            byte array pointer
      * @return how many bytes were previously occupied by key's value
      */
     public int add(final Object obj,
@@ -68,6 +74,7 @@ public class IndexManager implements DisposableBean, InitializingBean {
      * check whether id cache contains <code>key=uniqueIdentifier</code>
      * 
      * @param id
+     *            primary key
      * @return true if contains unique identifier as key
      */
     public boolean containsUniqueIdentifier(final Object id) {
@@ -78,7 +85,9 @@ public class IndexManager implements DisposableBean, InitializingBean {
      * retrieve byte array pointer(or as serialized data) by identifier
      * 
      * @param id
+     *            primary key
      * @param asPointer
+     *            whether result must be returned as byte array pointer
      * @return byte array pointer if any
      */
     public Object getByUniqueIdentifier(final Object id,

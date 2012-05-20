@@ -65,6 +65,7 @@ public final class TransactionModificationContextProxy {
      * return object to pool
      * 
      * @param context
+     *            modication context
      */
     public static void recycle(final TransactionModificationContextProxy context) {
         OBJECT_POOL.returnObject( context );
@@ -74,7 +75,9 @@ public final class TransactionModificationContextProxy {
      * assign transaction id for the remote address
      * 
      * @param address
+     *            off-heap memory address
      * @param transactionId
+     *            transaction identifier
      * @return given address itself
      */
     public long assignTransactionId(final Address address,
@@ -87,6 +90,7 @@ public final class TransactionModificationContextProxy {
      * get the assigned remote transaction id
      * 
      * @param address
+     *            off-heap memoryt address
      * @return transaction id
      */
     public Long getAssignedTransactionId(final Address address) {
@@ -97,6 +101,7 @@ public final class TransactionModificationContextProxy {
      * check if transaction id has been assigned for the given address previously
      * 
      * @param address
+     *            off-heap memory address
      * @return true if transaction id has been assigned previously
      */
     public boolean hasAssignedId(final Address address) {
