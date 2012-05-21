@@ -2,6 +2,7 @@ package com.turbospaces.serialization;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
@@ -20,6 +21,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 
+import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
@@ -38,11 +40,12 @@ import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.collect.Maps;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
+import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
 
 /**
  * This is decorated version of {@link Kryo} - adds some more user predictable behavior (like registering JDK
- * collection, arrays, enums over user provided classes).
+ * collection, arrays, enums over user provided classes) - we consider this sugar enhancements as reasonable defaults.
  * 
  * @since 0.1
  */
@@ -107,6 +110,9 @@ public final class DecoratedKryo extends Kryo {
                 ( (PropertiesSerializer) serializer ).write( buffer, entry );
             }
         } );
+        register( ExplicitCacheEntry.class, new ExplicitCacheEntrySerializer( this ) );
+        register( RoundingMode.class, new EnumSerializer( RoundingMode.class ) );
+        register( Autowire.class, new EnumSerializer( Autowire.class ) );
     }
 
     @Override
@@ -154,8 +160,6 @@ public final class DecoratedKryo extends Kryo {
             Class<?> arrayWrapperType = Class.forName( "[L" + e.getType().getName() + ";" );
             PropertiesSerializer serializer = new PropertiesSerializer( this, bo );
             SingleDimensionArraySerializer arraysSerializer = new SingleDimensionArraySerializer( arrayWrapperType, this );
-            register( e.getType(), serializer );
-            register( arrayWrapperType, arraysSerializer );
             register( e.getType(), serializer );
             register( arrayWrapperType, arraysSerializer );
         }

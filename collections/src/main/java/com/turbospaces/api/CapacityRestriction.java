@@ -30,7 +30,7 @@ public class CapacityRestriction {
     /**
      * @return the maximum memory size in megabytes (default value {@code Integer.MAX_VALUE / 16}).
      */
-    public long getMaxMemorySize() {
+    public long getMaxMemorySizeInBytes() {
         return maxMemorySizeInBytes;
     }
 

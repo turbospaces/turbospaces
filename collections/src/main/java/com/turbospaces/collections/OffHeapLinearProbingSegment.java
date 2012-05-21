@@ -207,7 +207,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                     final long address,
                     final ByteArrayPointer p) {
         final Lock lock = writeLock();
-
         lock.lock();
         try {
             // probably re-size immediately
@@ -249,7 +248,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     public int remove(final Object key) {
         int bytesOccupied = 0;
         final Lock lock = writeLock();
-
         lock.lock();
         try {
             // try to find entry with the key
@@ -357,15 +355,21 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     /**
      * @return size of segment, this is suitable method for unit-testing only
      */
-    @VisibleForTesting
-    int size() {
-        return n;
+    @Override
+    public int size() {
+        final Lock lock = readLock();
+        lock.lock();
+        try {
+            return n;
+        }
+        finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public void destroy() {
         final Lock lock = writeLock();
-
         lock.lock();
         try {
             for ( int i = 0; i < m; i++ ) {
@@ -389,7 +393,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     @Override
     public String toString() {
         final Lock lock = readLock();
-
         lock.lock();
         try {
             return Objects.toStringHelper( this ).add( "size", size() ).toString();

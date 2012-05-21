@@ -111,13 +111,7 @@
             <dependency>
                 <groupId>com.googlecode</groupId>
                 <artifactId>kryo</artifactId>
-                <version>${kryo-revision}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>com.googlecode</groupId>
-                        <artifactId>reflectasm</artifactId>
-                    </exclusion>
-                </exclusions>
+                <version>${kryo-revision}</version>                
             </dependency>
         </dependencies>
     </dependencyManagement>

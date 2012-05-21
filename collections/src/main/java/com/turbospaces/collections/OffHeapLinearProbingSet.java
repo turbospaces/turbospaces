@@ -104,6 +104,14 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
             entry.setExpirationListener( expirationListener );
     }
 
+    @Override
+    public int size() {
+        int size = 0;
+        for ( OffHeapLinearProbingSegment entry : segments )
+            size += entry.size();
+        return size;
+    }
+
     /**
      * similar to the spring's afterPropertySet()
      */

@@ -240,8 +240,8 @@ public abstract class SpaceUtility {
     public static void ensureEnoughCapacity(final ByteArrayPointer pointer,
                                             final CapacityRestriction capacityRestriction,
                                             final AtomicLong memoryUsed) {
-        if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySize() )
-            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySize(), pointer.getSerializedData() );
+        if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySizeInBytes() )
+            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySizeInBytes(), pointer.getSerializedData() );
     }
 
     /**

@@ -119,4 +119,9 @@ public interface OffHeapHashSet {
      *            expiration listener
      */
     void setExpirationListener(SpaceExpirationListener expirationListener);
+
+    /**
+     * @return the size of set(potentially counting expired entities)
+     */
+    int size();
 }

@@ -115,6 +115,8 @@ public class OffHeapHashMapTest {
     @After
     public void after()
                        throws Exception {
+        heapHashMap.size();
+        heapHashMap.size();
         System.out.println( heapHashMap );
         heapHashMap.destroy();
     }

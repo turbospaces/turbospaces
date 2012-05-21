@@ -42,7 +42,14 @@ public final class PropertiesSerializer extends SimpleSerializer {
     private final DecoratedKryo kryo;
     private final CachedSerializationProperty[] cachedProperties;
 
-    @SuppressWarnings({ "javadoc" })
+    /**
+     * create new properties serialized with the provided entity meta-data information.
+     * 
+     * @param kryo
+     *            kryo serialization provider
+     * @param entityMetadata
+     *            class meta data provider
+     */
     public PropertiesSerializer(final DecoratedKryo kryo, final BO entityMetadata) {
         this.entityMetadata = entityMetadata;
         this.kryo = Preconditions.checkNotNull( kryo );
