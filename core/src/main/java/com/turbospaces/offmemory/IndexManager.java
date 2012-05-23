@@ -129,7 +129,8 @@ public class IndexManager implements DisposableBean, InitializingBean {
 
     @Override
     public void afterPropertiesSet() {
-        idCache.afterPropertiesSet();
+        // TODO: schedule cleanup task
+        // idCache.afterPropertiesSet();
     }
 
     @Override
