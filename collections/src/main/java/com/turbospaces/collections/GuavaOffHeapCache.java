@@ -1,16 +1,16 @@
 package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
-import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Preconditions;
-import com.google.common.cache.Cache;
+import com.google.common.cache.AbstractCache;
 import com.google.common.cache.CacheStats;
-import com.google.common.collect.ImmutableMap;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -30,40 +30,74 @@ import com.turbospaces.serialization.DecoratedKryo;
  * @param <V>
  *            value type
  */
-public class GuavaOffHeapCache<K, V> implements Cache<K, V> {
-    private OffHeapHashSet offHeapHashSet;
-    private final ObjectPool<ObjectBuffer> objectsPool = JVMUtil.newObjectBufferPool();
-    private DecoratedKryo kryo;
-    private int ttlAfterWrite;
+public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
+    private final Logger logger = LoggerFactory.getLogger( getClass() );
+    private final OffHeapHashSet offHeapHashSet;
+    private final ObjectPool<ObjectBuffer> objectsPool;
+    private final DecoratedKryo kryo;
+    private final int ttlAfterWrite;
+    private final SimpleStatsCounter statsCounter = new SimpleStatsCounter();
+
+    /**
+     * create new guava's cache over off-heap set delegate and associated kryo serializer. also time-2-live must be
+     * explicitly passed.
+     * 
+     * @param offHeapHashSet
+     *            off-heap cache collection
+     * @param kryo
+     *            serialization provider
+     * @param ttlAfterWrite
+     *            time-to-live after write
+     */
+    public GuavaOffHeapCache(final OffHeapHashSet offHeapHashSet, final DecoratedKryo kryo, final int ttlAfterWrite) {
+        this.offHeapHashSet = offHeapHashSet;
+        this.kryo = kryo;
+        this.ttlAfterWrite = ttlAfterWrite;
+        this.objectsPool = JVMUtil.newObjectBufferPool();
+    }
 
     @Override
     @SuppressWarnings({ "unchecked" })
     public V getIfPresent(final Object key) {
         ByteBuffer dataBuffer = offHeapHashSet.getAsSerializedData( key );
-        ObjectBuffer objectBuffer = objectsPool.borrowObject();
-        objectBuffer.setKryo( kryo );
+        V result = null;
 
-        try {
-            ExplicitCacheEntry<K, V> explicitCacheEntry = objectBuffer.readObject( dataBuffer.array(), ExplicitCacheEntry.class );
-            return explicitCacheEntry.getBean();
+        if ( dataBuffer != null ) {
+            ObjectBuffer objectBuffer = objectsPool.borrowObject();
+            objectBuffer.setKryo( kryo );
+
+            try {
+                ExplicitCacheEntry<K, V> explicitCacheEntry = objectBuffer.readObject( dataBuffer.array(), ExplicitCacheEntry.class );
+                result = explicitCacheEntry.getBean();
+            }
+            finally {
+                objectsPool.returnObject( objectBuffer );
+            }
         }
-        finally {
-            objectsPool.returnObject( objectBuffer );
-        }
+        return result;
     }
 
     @Override
     public V get(final K key,
                  final Callable<? extends V> valueLoader)
                                                          throws ExecutionException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public ImmutableMap<K, V> getAllPresent(final Iterable<?> keys) {
-        // TODO Auto-generated method stub
-        return null;
+        V value = getIfPresent( key );
+        if ( value == null )
+            synchronized ( valueLoader ) {
+                try {
+                    // re-check under lock first
+                    value = getIfPresent( key );
+                    if ( value == null ) {
+                        value = valueLoader.call();
+                        put( key, value );
+                    }
+                }
+                catch ( Exception e ) {
+                    logger.error( e.getMessage(), e );
+                    throw new ExecutionException( e );
+                }
+            }
+        return value;
     }
 
     @Override
@@ -83,23 +117,8 @@ public class GuavaOffHeapCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public void putAll(final Map<? extends K, ? extends V> m) {}
-
-    @Override
     public void invalidate(final Object key) {
-        // TODO Auto-generated method stub
-    }
-
-    @Override
-    public void invalidateAll(final Iterable<?> keys) {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void invalidateAll() {
-        // TODO Auto-generated method stub
-
+        offHeapHashSet.remove( key );
     }
 
     @Override
@@ -114,13 +133,7 @@ public class GuavaOffHeapCache<K, V> implements Cache<K, V> {
     }
 
     @Override
-    public ConcurrentMap<K, V> asMap() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
     public void cleanUp() {
-        // TODO Auto-generated method stub
+        offHeapHashSet.cleanUp();
     }
 }

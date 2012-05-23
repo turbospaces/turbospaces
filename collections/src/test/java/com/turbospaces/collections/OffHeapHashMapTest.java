@@ -247,4 +247,23 @@ public class OffHeapHashMapTest {
         for ( int i = 2 * arr.length / 3; i < arr.length; i++ )
             Assert.assertTrue( heapHashMap.match( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) ) == null );
     }
+
+    @Test
+    public void canRemoveExpiredEntitiesAutomaticallyAfterCleanupOperationCall()
+                                                                                throws InterruptedException {
+        TestEntity1[] arr = new TestEntity1[1500];
+        for ( int i = 0; i < arr.length; i++ ) {
+            arr[i] = new TestEntity1();
+            arr[i].afterPropertiesSet();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
+            ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], 1 );
+
+            heapHashMap.put( arr[i].getUniqueIdentifier(), p );
+        }
+        Thread.sleep( 2 );
+        heapHashMap.cleanUp();
+        for ( int i = 0; i < arr.length; i++ )
+            Assert.assertTrue( heapHashMap.getAsPointer( arr[i].getUniqueIdentifier() ) == null );
+    }
 }

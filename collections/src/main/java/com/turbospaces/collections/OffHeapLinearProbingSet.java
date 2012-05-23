@@ -15,7 +15,7 @@ import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.serialization.PropertiesSerializer;
+import com.turbospaces.serialization.MatchingSerializer;
 
 /**
  * Default implementation of off-heap hash set build on top of multiple concurrent segments with good concurrency for
@@ -38,7 +38,7 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
      *            concurrent executor service
      */
     public OffHeapLinearProbingSet(final CapacityRestriction capacityRestriction,
-                                   final PropertiesSerializer serializer,
+                                   final MatchingSerializer<?> serializer,
                                    final ExecutorService executorService) {
         this( IntMath.pow( 2, IntMath.log2(
                 Math.max( (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ), 1 ),
@@ -46,7 +46,7 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     }
 
     @VisibleForTesting
-    OffHeapLinearProbingSet(final int initialSegments, final PropertiesSerializer serializer, final ExecutorService executorService) {
+    OffHeapLinearProbingSet(final int initialSegments, final MatchingSerializer<?> serializer, final ExecutorService executorService) {
         segments = new OffHeapLinearProbingSegment[initialSegments];
         for ( int i = 0; i < initialSegments; i++ )
             segments[i] = new OffHeapLinearProbingSegment( serializer, executorService );
@@ -112,11 +112,10 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
         return size;
     }
 
-    /**
-     * similar to the spring's afterPropertySet()
-     */
-    public void afterPropertiesSet() {
-        // TODO: schedule cleanup task
+    @Override
+    public void cleanUp() {
+        for ( OffHeapLinearProbingSegment entry : segments )
+            entry.cleanUp();
     }
 
     @Override

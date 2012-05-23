@@ -23,7 +23,6 @@ import org.springframework.util.ObjectUtils;
 import com.esotericsoftware.kryo.Kryo.RegisteredClass;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serialize.FieldSerializer;
-import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Preconditions;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
@@ -37,7 +36,7 @@ import com.turbospaces.model.CacheStoreEntryWrapper;
  * @since 0.1
  */
 @SuppressWarnings("rawtypes")
-public final class PropertiesSerializer extends SimpleSerializer {
+public final class PropertiesSerializer extends MatchingSerializer {
     private final BO entityMetadata;
     private final DecoratedKryo kryo;
     private final CachedSerializationProperty[] cachedProperties;
@@ -92,13 +91,7 @@ public final class PropertiesSerializer extends SimpleSerializer {
         }
     }
 
-    /**
-     * read the id property value from byte array(buffer) source
-     * 
-     * @param buffer
-     *            byte array source
-     * @return id property value
-     */
+    @Override
     public Object readID(final ByteBuffer buffer) {
         buffer.clear();
         final CachedSerializationProperty idProperty = cachedProperties[BO.getIdIndex()];
@@ -129,21 +122,7 @@ public final class PropertiesSerializer extends SimpleSerializer {
         return new SerializationEntry( buffer, entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ), values );
     }
 
-    /**
-     * check whether entitie's content stored in byte buffer array matches with template object. this is classical 'find
-     * by example' method operating on low-level byte array buffer. </p>
-     * 
-     * if the match is happening, then construct new entity and return shallow copy of matched entity.</p>
-     * 
-     * <strong>NOTE:</strong> you should be very careful with primitive types and default values as this it not handled
-     * at the time at all.
-     * 
-     * @param cacheEntryTemplate
-     *            matching template
-     * @param buffer
-     *            byte array buffer
-     * @return matched or not
-     */
+    @Override
     public boolean match(final ByteBuffer buffer,
                          final CacheStoreEntryWrapper cacheEntryTemplate) {
         Object[] values = new Object[cachedProperties.length];
@@ -189,5 +168,10 @@ public final class PropertiesSerializer extends SimpleSerializer {
      */
     public BO getBO() {
         return entityMetadata;
+    }
+
+    @Override
+    public Class getType() {
+        return getBO().getOriginalPersistentEntity().getType();
     }
 }

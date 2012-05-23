@@ -36,7 +36,7 @@ import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.serialization.PropertiesSerializer;
+import com.turbospaces.serialization.MatchingSerializer;
 
 /**
  * Off-heap linear probing segment which uses linear probing hash algorithm for collision handling .</p>
@@ -66,7 +66,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
     private final ExecutorService executorService;
     private final Logger logger = LoggerFactory.getLogger( getClass() );
-    private final PropertiesSerializer serializer;
+    private final MatchingSerializer<?> serializer;
     private SpaceExpirationListener expirationListener;
 
     private int n;
@@ -81,12 +81,12 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
      * @param executorService
      *            this is for asynchronous cache expiration notification
      */
-    public OffHeapLinearProbingSegment(final PropertiesSerializer serializer, final ExecutorService executorService) {
+    public OffHeapLinearProbingSegment(final MatchingSerializer<?> serializer, final ExecutorService executorService) {
         this( DEFAULT_SEGMENT_CAPACITY, serializer, executorService );
     }
 
     @VisibleForTesting
-    OffHeapLinearProbingSegment(final int initialCapacity, final PropertiesSerializer serializer, final ExecutorService executorService) {
+    OffHeapLinearProbingSegment(final int initialCapacity, final MatchingSerializer<?> serializer, final ExecutorService executorService) {
         this.serializer = Preconditions.checkNotNull( serializer );
         this.executorService = Preconditions.checkNotNull( executorService );
 
@@ -132,7 +132,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                         if ( expiredEntries == null )
                             expiredEntries = Lists.newLinkedList();
                         ExpiredEntry expiredEntry = new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address ) );
-                        expiredEntry.setId( serializer.readID( buffer ) );
                         expiredEntries.add( expiredEntry );
                         continue;
                     }
@@ -305,15 +304,13 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                     try {
                         boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
                         if ( retrieveAsEntity )
-                            expirationListener.handleNotification( serializer.read( expiredEntry.buffer ), expiredEntry.id, serializer
-                                    .getBO()
-                                    .getOriginalPersistentEntity()
-                                    .getType(), expiredEntry.ttl );
+                            expirationListener.handleNotification(
+                                    serializer.read( expiredEntry.buffer ),
+                                    expiredEntry.id,
+                                    serializer.getType(),
+                                    expiredEntry.ttl );
                         else
-                            expirationListener.handleNotification( expiredEntry.buffer, expiredEntry.id, serializer
-                                    .getBO()
-                                    .getOriginalPersistentEntity()
-                                    .getType(), expiredEntry.ttl );
+                            expirationListener.handleNotification( expiredEntry.buffer, expiredEntry.id, serializer.getType(), expiredEntry.ttl );
                     }
                     catch ( Exception e ) {
                         logger.error( "unable to properly notify expiration listener", e );
@@ -391,6 +388,38 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     }
 
     @Override
+    public void cleanUp() {
+        List<ExpiredEntry> expiredEntries = null;
+        final Lock lock = writeLock();
+        lock.lock();
+        try {
+            // just iterate over all all element and find (without any actions) expired entries
+            for ( int i = 0; i < m; i++ ) {
+                long address = addresses[i];
+                if ( address != 0 )
+                    if ( ByteArrayPointer.isExpired( address ) ) {
+                        if ( expiredEntries == null )
+                            expiredEntries = Lists.newLinkedList();
+
+                        byte[] entityState = ByteArrayPointer.getEntityState( address );
+                        ByteBuffer buffer = ByteBuffer.wrap( entityState );
+                        expiredEntries.add( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address ) ) );
+                    }
+            }
+
+            // now if there are any expired entries, remove them
+            if ( expiredEntries != null )
+                for ( ExpiredEntry entry : expiredEntries )
+                    // potentially another thread removed entry? check if bytesOccupied > 0
+                    if ( remove( entry.id ) > 0 )
+                        notifyExpired( entry );
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
     public String toString() {
         final Lock lock = readLock();
         lock.lock();
@@ -405,16 +434,12 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private static final class ExpiredEntry {
         private final ByteBuffer buffer;
         private final long ttl;
-        private Object id;
+        private final Object id;
 
         private ExpiredEntry(final ByteBuffer buffer, final Object id, final long ttl) {
             super();
             this.buffer = buffer;
             this.ttl = ttl;
-            this.id = id;
-        }
-
-        void setId(final Object id) {
             this.id = id;
         }
     }

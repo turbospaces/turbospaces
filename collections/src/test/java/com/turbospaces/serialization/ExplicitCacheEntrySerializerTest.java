@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -32,21 +33,23 @@ public class ExplicitCacheEntrySerializerTest {
         SingleDimensionArraySerializer s2 = new SingleDimensionArraySerializer( cl2, kryo );
         kryo.register( cl1, s1 );
         kryo.register( cl2, s2 );
+        serializer = (ExplicitCacheEntrySerializer) kryo.getSerializer( ExplicitCacheEntry.class );
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void able2SerializeDeserialize() {
         Long id = System.currentTimeMillis();
         TestEntity1 entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
-        ExplicitCacheEntry explicitCacheEntry1 = new ExplicitCacheEntry( id, entity1 );
+        ExplicitCacheEntry<Long, TestEntity1> explicitCacheEntry1 = new ExplicitCacheEntry<Long, TestEntity1>( id, entity1 );
         explicitCacheEntry1.withRouting( "124" );
 
         ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
         byte[] data = objectBuffer.writeObjectData( explicitCacheEntry1 );
-        ExplicitCacheEntry explicitCacheEntry2 = objectBuffer.readObjectData( data, ExplicitCacheEntry.class );
+        ExplicitCacheEntry<Long, TestEntity1> explicitCacheEntry2 = objectBuffer.readObjectData( data, ExplicitCacheEntry.class );
 
-        ( (TestEntity1) explicitCacheEntry1.getBean() ).assertMatch( (TestEntity1) explicitCacheEntry2.getBean() );
+        explicitCacheEntry1.getBean().assertMatch( explicitCacheEntry2.getBean() );
         assertThat( explicitCacheEntry1.getRouting(), is( explicitCacheEntry2.getRouting() ) );
         assertThat( explicitCacheEntry2.getVersion(), is( nullValue() ) );
 
@@ -54,8 +57,26 @@ public class ExplicitCacheEntrySerializerTest {
         explicitCacheEntry1.withVersion( 896 );
         data = objectBuffer.writeObjectData( explicitCacheEntry1 );
         explicitCacheEntry2 = objectBuffer.readObjectData( data, ExplicitCacheEntry.class );
-        ( (TestEntity1) explicitCacheEntry1.getBean() ).assertMatch( (TestEntity1) explicitCacheEntry2.getBean() );
+        explicitCacheEntry1.getBean().assertMatch( explicitCacheEntry2.getBean() );
         assertThat( explicitCacheEntry1.getVersion(), is( explicitCacheEntry2.getVersion() ) );
         assertThat( explicitCacheEntry2.getRouting(), is( nullValue() ) );
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void canReadId() {
+        TestEntity1 entity1 = new TestEntity1();
+        entity1.afterPropertiesSet();
+        ExplicitCacheEntry<String, TestEntity1> explicitCacheEntry1 = new ExplicitCacheEntry<String, TestEntity1>(
+                entity1.getUniqueIdentifier(),
+                entity1 );
+
+        ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
+        byte[] data = objectBuffer.writeObjectData( explicitCacheEntry1 );
+        assertThat( (String) serializer.readID( ByteBuffer.wrap( data ) ), is( entity1.getUniqueIdentifier() ) );
+        ExplicitCacheEntry<Long, TestEntity1> explicitCacheEntry2 = objectBuffer.readObjectData( data, ExplicitCacheEntry.class );
+
+        explicitCacheEntry1.getBean().assertMatch( explicitCacheEntry2.getBean() );
+
     }
 }

@@ -104,6 +104,14 @@ public interface OffHeapHashSet {
     void destroy();
 
     /**
+     * Performs any pending maintenance operations needed by the cache. This is automatic removal of expired cache
+     * entries.</p>
+     * 
+     * <b>NOTE</b> - this method is different from {@link #destroy()}, don't confuse
+     */
+    void cleanUp();
+
+    /**
      * iterate over all elements in segment and perform matchByTemplate
      * 
      * @param template
