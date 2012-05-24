@@ -68,7 +68,8 @@ public final class ByteArrayPointer {
             offset += f.lenght;
         }
     }
-    private static int INTERNAL_BYTES_OCCUPATION = ( FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght + FormatFields.TIME_TO_LIVE.lenght );
+    private static int INTERNAL_BYTES_OCCUPATION = FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght
+            + FormatFields.TIME_TO_LIVE.lenght;
 
     private byte[] serializedBytes;
     private ByteBuffer serializedData;
@@ -151,7 +152,7 @@ public final class ByteArrayPointer {
      *            off-heap memory address
      * @return ttl time-to-live associate with entry
      */
-    public static long getTimeToLive(final long address) {
+    public static int getTimeToLive(final long address) {
         return JVMUtil.getInt( address + FormatFields.TIME_TO_LIVE.offset );
     }
 

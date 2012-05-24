@@ -55,14 +55,15 @@ import com.turbospaces.spaces.SimplisticJSpace;
  */
 public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     private SpaceNetworkServiceProvider networkServiceProvider;
-    private SpaceExpirationListener expirationListener = new SpaceExpirationListener( false ) {
+    private SpaceExpirationListener<?, ?> expirationListener = new SpaceExpirationListener<Object, Object>( false ) {
         private final Logger logger = LoggerFactory.getLogger( getClass() );
 
+        @SuppressWarnings("rawtypes")
         @Override
         public void handleNotification(final Object entity,
                                        final Object id,
-                                       final Class<?> persistentClass,
-                                       final long originalTimeToLive) {
+                                       final Class persistentClass,
+                                       final int originalTimeToLive) {
             logger.info( "entity {} with ID={} has been expired after {} milliseconds and automatically removed from space", new Object[] {
                     persistentClass.getSimpleName(), id, originalTimeToLive } );
         }
@@ -89,7 +90,7 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
      * @param expirationListener
      *            space expiration listener
      */
-    public void setExpirationListener(final SpaceExpirationListener expirationListener) {
+    public void setExpirationListener(final SpaceExpirationListener<?, ?> expirationListener) {
         Preconditions.checkNotNull( expirationListener );
         this.expirationListener = expirationListener;
     }
@@ -104,7 +105,7 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     /**
      * @return user expiration listener(if any)
      */
-    public SpaceExpirationListener getExpirationListener() {
+    public SpaceExpirationListener<?, ?> getExpirationListener() {
         return expirationListener;
     }
 

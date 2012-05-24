@@ -17,8 +17,6 @@ package com.turbospaces.serialization;
 
 import java.nio.ByteBuffer;
 
-import org.springframework.data.mapping.PersistentProperty;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 
@@ -27,24 +25,23 @@ import com.esotericsoftware.kryo.Serializer;
  * 
  * @since 0.1
  */
-@SuppressWarnings("rawtypes")
 final class CachedSerializationProperty {
-    private final PersistentProperty persistentProperty;
+    private final Class<?> type;
     private Serializer serializer;
     private final boolean canBeNull, isFinal;
 
     /**
      * create cached serialization binding for particular persistent property.
      * 
-     * @param persistentProperty
+     * @param type
      *            The concrete persistent property. The serializer registered by default {@link EntitySerializer} for
      *            the specified class will be used. Only set to a non-null value if the property type
      *            in the class definition is final or the values for this field will not vary.
      */
-    CachedSerializationProperty(final PersistentProperty persistentProperty) {
-        this.persistentProperty = persistentProperty;
-        this.canBeNull = !persistentProperty.getType().isPrimitive();
-        this.isFinal = Kryo.isFinal( persistentProperty.getType() );
+    CachedSerializationProperty(final Class<?> type) {
+        this.type = type;
+        this.canBeNull = !type.isPrimitive();
+        this.isFinal = Kryo.isFinal( type );
     }
 
     /**
@@ -76,7 +73,7 @@ final class CachedSerializationProperty {
      * @return field's value property class.
      */
     public Class<?> getPropertyType() {
-        return persistentProperty.getType();
+        return type;
     }
 
     /**

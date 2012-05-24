@@ -121,12 +121,12 @@ public interface OffHeapHashSet {
     List<ByteArrayPointer> match(CacheStoreEntryWrapper template);
 
     /**
-     * associate entity expiration listener with this set
+     * associate entity expiration listener(listeners) with this set
      * 
-     * @param expirationListener
-     *            expiration listener
+     * @param expirationListeners
+     *            expiration listeners
      */
-    void setExpirationListener(SpaceExpirationListener expirationListener);
+    void setExpirationListeners(SpaceExpirationListener<?, ?>... expirationListeners);
 
     /**
      * @return the size of set(potentially counting expired entities)

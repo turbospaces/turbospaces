@@ -93,3 +93,4 @@ gc
 enums
 restrictor
 namespace
+stats

@@ -16,14 +16,11 @@
 package com.turbospaces.serialization;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 import org.springframework.data.mapping.PersistentProperty;
-import org.springframework.util.ObjectUtils;
 
-import com.esotericsoftware.kryo.Kryo.RegisteredClass;
-import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serialize.FieldSerializer;
-import com.google.common.base.Preconditions;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 
@@ -38,8 +35,6 @@ import com.turbospaces.model.CacheStoreEntryWrapper;
 @SuppressWarnings("rawtypes")
 public final class PropertiesSerializer extends MatchingSerializer {
     private final BO entityMetadata;
-    private final DecoratedKryo kryo;
-    private final CachedSerializationProperty[] cachedProperties;
 
     /**
      * create new properties serialized with the provided entity meta-data information.
@@ -50,13 +45,16 @@ public final class PropertiesSerializer extends MatchingSerializer {
      *            class meta data provider
      */
     public PropertiesSerializer(final DecoratedKryo kryo, final BO entityMetadata) {
-        this.entityMetadata = entityMetadata;
-        this.kryo = Preconditions.checkNotNull( kryo );
+        super( kryo, new ArrayList<CachedSerializationProperty>( entityMetadata.getOrderedProperties().length ) {
+            private static final long serialVersionUID = 1L;
 
-        PersistentProperty[] orderedProperties = entityMetadata.getOrderedProperties();
-        cachedProperties = new CachedSerializationProperty[orderedProperties.length];
-        for ( int i = 0; i < orderedProperties.length; i++ )
-            cachedProperties[i] = new CachedSerializationProperty( orderedProperties[i] );
+            {
+                PersistentProperty[] orderedProperties = entityMetadata.getOrderedProperties();
+                for ( PersistentProperty orderedPropertie : orderedProperties )
+                    add( new CachedSerializationProperty( orderedPropertie.getType() ) );
+            }
+        }.toArray( new CachedSerializationProperty[entityMetadata.getOrderedProperties().length] ) );
+        this.entityMetadata = entityMetadata;
     }
 
     @Override
@@ -70,24 +68,7 @@ public final class PropertiesSerializer extends MatchingSerializer {
         for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
             CachedSerializationProperty cachedProperty = cachedProperties[i];
             Object value = bulkPropertyValues[i];
-            Serializer serializer = cachedProperty.getSerializer();
-
-            if ( cachedProperty.isFinal() ) {
-                if ( serializer == null )
-                    cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
-                cachedProperty.write( buffer, value );
-            }
-            else {
-                if ( value == null ) {
-                    kryo.writeClass( buffer, null );
-                    continue;
-                }
-                RegisteredClass registeredClass = kryo.writeClass( buffer, value.getClass() );
-
-                if ( serializer == null )
-                    serializer = registeredClass.getSerializer();
-                serializer.writeObjectData( buffer, value );
-            }
+            writePropertyValue( cachedProperty, value, buffer );
         }
     }
 
@@ -116,51 +97,16 @@ public final class PropertiesSerializer extends MatchingSerializer {
      * @return de-serialized entry
      */
     public SerializationEntry readToSerializedEntry(final ByteBuffer buffer) {
+        buffer.clear();
         Object values[] = new Object[cachedProperties.length];
         for ( int i = 0, n = cachedProperties.length; i < n; i++ )
             values[i] = readPropertyValue( cachedProperties[i], buffer );
-        return new SerializationEntry( buffer, entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ), values );
-    }
-
-    @Override
-    public boolean match(final ByteBuffer buffer,
-                         final CacheStoreEntryWrapper cacheEntryTemplate) {
-        Object[] values = new Object[cachedProperties.length];
-        Object[] templateValues = cacheEntryTemplate.asPropertyValuesArray();
-        boolean matches = true;
-        for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
-            CachedSerializationProperty cachedProperty = cachedProperties[i];
-            Object templateValue = templateValues[i];
-            Object value = readPropertyValue( cachedProperty, buffer );
-            values[i] = value;
-
-            if ( templateValue != null && !ObjectUtils.nullSafeEquals( templateValue, value ) ) {
-                matches = false;
-                break;
-            }
-        }
-        return matches;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Object readPropertyValue(final CachedSerializationProperty cachedProperty,
-                                     final ByteBuffer buffer) {
-        Object value = null;
-        Serializer serializer = cachedProperty.getSerializer();
-        if ( cachedProperty.isFinal() ) {
-            if ( serializer == null )
-                cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
-            value = cachedProperty.read( buffer, cachedProperty.getPropertyType() );
-        }
-        else {
-            RegisteredClass registeredClass = kryo.readClass( buffer );
-            if ( registeredClass != null ) {
-                if ( serializer == null )
-                    serializer = registeredClass.getSerializer();
-                value = serializer.readObjectData( buffer, registeredClass.getType() );
-            }
-        }
-        return value;
+        SerializationEntry entry = new SerializationEntry(
+                buffer,
+                entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ),
+                values );
+        buffer.clear();
+        return entry;
     }
 
     /**

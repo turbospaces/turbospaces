@@ -104,7 +104,7 @@ public class PropertiesSerializerTest {
         template.fi2 = entity1.fi2;
 
         CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
@@ -116,7 +116,7 @@ public class PropertiesSerializerTest {
         template.cleanBeanProperties();
 
         CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
@@ -132,7 +132,7 @@ public class PropertiesSerializerTest {
         template.uniqueIdentifier = entity1.getUniqueIdentifier();
 
         CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
@@ -150,7 +150,7 @@ public class PropertiesSerializerTest {
         template.optimisticLockVersion = entity1.getOptimisticLockVersion();
 
         CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
@@ -166,11 +166,11 @@ public class PropertiesSerializerTest {
         template.s1 = entity1.s1;
         template.s4 = entity1.s4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
 
         template ) ) );
         template.s2 = UUID.randomUUID().toString();
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
 
         template ) ) );
     }
@@ -190,10 +190,10 @@ public class PropertiesSerializerTest {
         template.l1 = entity1.l1;
         template.l4 = entity1.l4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
 
         template.l2 = System.currentTimeMillis();
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
     }
 
     @Test
@@ -213,12 +213,12 @@ public class PropertiesSerializerTest {
         template.dt1 = entity1.dt1;
         template.dt4 = entity1.dt4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
 
         template ) ) );
 
         template.dt2 = new Date( System.currentTimeMillis() );
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
 
         template ) ) );
     }
@@ -244,10 +244,10 @@ public class PropertiesSerializerTest {
         template.d1 = entity1.d1;
         template.d4 = entity1.d4;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
 
         template.d1 = -123.234234;
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
     }
 
     @Test
@@ -272,9 +272,9 @@ public class PropertiesSerializerTest {
         template.d4 = entity1.d4;
         template.data1 = entity1.data1;
 
-        Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
         template.data1 = Integer.valueOf( (int) System.currentTimeMillis() );
-        Assert.assertFalse( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
     }
 
     @Test
@@ -304,7 +304,7 @@ public class PropertiesSerializerTest {
 
             @Override
             public void run() {
-                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+                Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
             }
         } );
         Assert.assertTrue( errors.isEmpty() );
@@ -329,7 +329,7 @@ public class PropertiesSerializerTest {
 
             @Override
             public void run() {
-                Assert.assertTrue( serializer.match( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
+                Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
             }
         } );
         Assert.assertTrue( errors.isEmpty() );

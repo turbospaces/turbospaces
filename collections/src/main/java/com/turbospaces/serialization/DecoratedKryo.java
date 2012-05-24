@@ -184,7 +184,6 @@ public final class DecoratedKryo extends Kryo {
         SerializationEntry entry = ( (PropertiesSerializer) getSerializer( clazz ) ).readToSerializedEntry( source );
         source.clear();
         return entry;
-
     }
 
     /**
@@ -205,7 +204,7 @@ public final class DecoratedKryo extends Kryo {
                                                                                    throws SerializationException {
         source.clear();
         Serializer serializer = getSerializer( cacheEntryTemplate.getPersistentEntity().getOriginalPersistentEntity().getType() );
-        boolean match = ( (PropertiesSerializer) serializer ).match( source, cacheEntryTemplate );
+        boolean match = ( (PropertiesSerializer) serializer ).matches( source, cacheEntryTemplate );
         source.clear();
         return match;
     }

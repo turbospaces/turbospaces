@@ -30,7 +30,6 @@ import org.springframework.util.ObjectUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.JVMUtil;
@@ -50,6 +49,7 @@ import com.turbospaces.serialization.MatchingSerializer;
  * @since 0.1
  * @see OffHeapLinearProbingSet
  */
+@SuppressWarnings("rawtypes")
 @ThreadSafe
 class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
     private static final long serialVersionUID = -9179258635918662649L;
@@ -67,7 +67,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private final ExecutorService executorService;
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final MatchingSerializer<?> serializer;
-    private SpaceExpirationListener expirationListener;
+    private SpaceExpirationListener[] expirationListeners;
 
     private int n;
     private int m;
@@ -95,8 +95,8 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     }
 
     @Override
-    public void setExpirationListener(final SpaceExpirationListener expirationListener) {
-        this.expirationListener = expirationListener;
+    public void setExpirationListeners(final SpaceExpirationListener... expirationListeners) {
+        this.expirationListeners = expirationListeners;
     }
 
     @Override
@@ -126,7 +126,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 if ( address != 0 ) {
                     final byte[] serializedData = ByteArrayPointer.getEntityState( address );
                     final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
-                    final boolean matches = serializer.match( buffer, template );
+                    final boolean matches = serializer.matches( buffer, template );
 
                     if ( ByteArrayPointer.isExpired( address ) ) {
                         if ( expiredEntries == null )
@@ -161,7 +161,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
         boolean expired = false;
         ByteBuffer buffer = null;
-        long ttl = 0;
+        int ttl = 0;
 
         lock.lock();
         try {
@@ -257,6 +257,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 // if the key equals - release memory
                 if ( keyEquals( key, buffer ) ) {
                     bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i] );
+                    assert bytesOccupied > 0;
                     JVMUtil.releaseMemory( addresses[i] );
                     break;
                 }
@@ -275,8 +276,10 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             while ( addresses[i] != 0 ) {
                 long addressToRedo = addresses[i];
                 addresses[i] = 0;
+                // first decrement size because this can cause resize
                 n--;
 
+                // and simply put it back
                 Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addressToRedo ) ) );
                 put( id, addressToRedo, null );
                 i = ( i + 1 ) % m;
@@ -284,7 +287,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             // decrement size
             n--;
             // probably re-size
-            if ( n > 0 && n == m / 8 )
+            if ( n > 0 && n <= m / 8 )
                 resize( m / 2 );
         }
         finally {
@@ -296,26 +299,27 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private void notifyExpired(final ExpiredEntry expiredEntry) {
         assert expiredEntry != null;
         expiredEntry.buffer.clear();
-        if ( expirationListener != null )
+        if ( expirationListeners != null )
             // do in background
-            executorService.submit( new Runnable() {
+            executorService.execute( new Runnable() {
+                @SuppressWarnings("unchecked")
                 @Override
                 public void run() {
-                    try {
-                        boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
-                        if ( retrieveAsEntity )
-                            expirationListener.handleNotification(
-                                    serializer.read( expiredEntry.buffer ),
-                                    expiredEntry.id,
-                                    serializer.getType(),
-                                    expiredEntry.ttl );
-                        else
-                            expirationListener.handleNotification( expiredEntry.buffer, expiredEntry.id, serializer.getType(), expiredEntry.ttl );
-                    }
-                    catch ( Exception e ) {
-                        logger.error( "unable to properly notify expiration listener", e );
-                        Throwables.propagateIfPossible( e );
-                    }
+                    Object obj2notify = null;
+                    for ( SpaceExpirationListener expirationListener : expirationListeners )
+                        try {
+                            boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
+                            if ( retrieveAsEntity ) {
+                                if ( obj2notify == null )
+                                    obj2notify = serializer.read( expiredEntry.buffer );
+                                expirationListener.handleNotification( obj2notify, expiredEntry.id, serializer.getType(), expiredEntry.ttl );
+                            }
+                            else
+                                expirationListener.handleNotification( expiredEntry.buffer, expiredEntry.id, serializer.getType(), expiredEntry.ttl );
+                        }
+                        catch ( Exception e ) {
+                            logger.error( "unable to properly notify expiration listener", e );
+                        }
                 }
             } );
     }
@@ -329,6 +333,13 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         return ( JVMUtil.murmurRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
     }
 
+    /**
+     * Resize off-heap set to new capacity(either bigger or smaller, doesn't matter). This method can be called only is
+     * synchronous manner because will cause concurrency issues.
+     * 
+     * @param capacity
+     *            new capacity
+     */
     private void resize(final int capacity) {
         OffHeapLinearProbingSegment temp = new OffHeapLinearProbingSegment( capacity, serializer, executorService );
         for ( int i = 0; i < m; i++ ) {
@@ -347,6 +358,8 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         }
         addresses = temp.addresses;
         m = temp.m;
+        // re-assign number of items because potentially we already skipped expired entries, but didn't decrement n.
+        n = temp.n;
     }
 
     /**
@@ -381,6 +394,9 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                     addresses[i] = 0;
                 }
             }
+            this.addresses = new long[DEFAULT_SEGMENT_CAPACITY];
+            this.m = DEFAULT_SEGMENT_CAPACITY;
+            this.n = 0;
         }
         finally {
             lock.unlock();
@@ -408,11 +424,15 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             }
 
             // now if there are any expired entries, remove them
-            if ( expiredEntries != null )
+            if ( expiredEntries != null ) {
+                logger.trace( "detected {} items of {} for removal due to ttl expiration", expiredEntries.size(), n );
                 for ( ExpiredEntry entry : expiredEntries )
                     // potentially another thread removed entry? check if bytesOccupied > 0
-                    if ( remove( entry.id ) > 0 )
+                    if ( remove( entry.id ) > 0 ) {
                         notifyExpired( entry );
+                        logger.trace( "automatically removed expired entry with key {}", entry.id );
+                    }
+            }
         }
         finally {
             lock.unlock();
@@ -421,22 +441,15 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
     @Override
     public String toString() {
-        final Lock lock = readLock();
-        lock.lock();
-        try {
-            return Objects.toStringHelper( this ).add( "size", size() ).toString();
-        }
-        finally {
-            lock.unlock();
-        }
+        return Objects.toStringHelper( this ).add( "size", size() ).toString();
     }
 
     private static final class ExpiredEntry {
         private final ByteBuffer buffer;
-        private final long ttl;
+        private final int ttl;
         private final Object id;
 
-        private ExpiredEntry(final ByteBuffer buffer, final Object id, final long ttl) {
+        private ExpiredEntry(final ByteBuffer buffer, final Object id, final int ttl) {
             super();
             this.buffer = buffer;
             this.ttl = ttl;

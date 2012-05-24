@@ -61,18 +61,17 @@ public class OffHeapHashMapTest {
                 { new OffHeapLinearProbingSet( bo.getCapacityRestriction(), propertySerializer, MoreExecutors.sameThreadExecutor() ) } } );
     }
 
-    @SuppressWarnings({})
+    @SuppressWarnings({ "rawtypes" })
     public OffHeapHashMapTest(final OffHeapHashSet set) throws Exception {
         heapHashMap = set;
         if ( heapHashMap instanceof InitializingBean )
             ( (InitializingBean) heapHashMap ).afterPropertiesSet();
-        set.setExpirationListener( new SpaceExpirationListener() {
-
+        set.setExpirationListeners( new SpaceExpirationListener() {
             @Override
             public void handleNotification(final Object entity,
                                            final Object id,
-                                           final Class<?> persistentClass,
-                                           final long originalTimeToLive) {
+                                           final Class persistentClass,
+                                           final int originalTimeToLive) {
                 Assert.assertNotNull( entity );
                 Assert.assertTrue( persistentClass == TestEntity1.class );
                 Assert.assertTrue( originalTimeToLive > 0 );
@@ -263,7 +262,8 @@ public class OffHeapHashMapTest {
         }
         Thread.sleep( 2 );
         heapHashMap.cleanUp();
-        for ( int i = 0; i < arr.length; i++ )
-            Assert.assertTrue( heapHashMap.getAsPointer( arr[i].getUniqueIdentifier() ) == null );
+        assertThat( heapHashMap.size(), is( 0 ) );
+        for ( TestEntity1 element : arr )
+            Assert.assertTrue( heapHashMap.getAsPointer( element.getUniqueIdentifier() ) == null );
     }
 }

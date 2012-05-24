@@ -98,10 +98,11 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
             entry.destroy();
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public void setExpirationListener(final SpaceExpirationListener expirationListener) {
+    public void setExpirationListeners(final SpaceExpirationListener... expirationListeners) {
         for ( OffHeapLinearProbingSegment entry : segments )
-            entry.setExpirationListener( expirationListener );
+            entry.setExpirationListeners( expirationListeners );
     }
 
     @Override

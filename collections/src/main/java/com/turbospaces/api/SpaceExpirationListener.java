@@ -11,9 +11,14 @@ import java.util.EventListener;
  * guaranteed that entity will be removed during read/take by id/template, so it is impossible to retrieve such expired
  * entity.
  * 
+ * @param <K>
+ *            expired entry's key type
+ * @param <V>
+ *            expired entry's value type
+ * 
  * @since 0.1
  */
-public abstract class SpaceExpirationListener implements EventListener {
+public abstract class SpaceExpirationListener<K, V> implements EventListener {
     private final boolean retrieveAsEntity;
 
     /**
@@ -30,7 +35,7 @@ public abstract class SpaceExpirationListener implements EventListener {
      * @param retrieveAsEntity
      *            how to return
      */
-    SpaceExpirationListener(final boolean retrieveAsEntity) {
+    public SpaceExpirationListener(final boolean retrieveAsEntity) {
         super();
         this.retrieveAsEntity = retrieveAsEntity;
     }
@@ -48,14 +53,14 @@ public abstract class SpaceExpirationListener implements EventListener {
      * @param originalTimeToLive
      *            original time to live for the initial entry write(or last update)
      */
-    public abstract void handleNotification(Object entity,
-                                            Object id,
-                                            Class<?> persistentClass,
-                                            long originalTimeToLive);
+    public abstract void handleNotification(V entity,
+                                            K id,
+                                            Class<V> persistentClass,
+                                            int originalTimeToLive);
 
     /**
      * @return true if you want to get entity as POJO, otherwise you will get as {@link ByteBuffer} back (also take care
-     *         about proper casting to ByteBuffer in {@link #handleNotification(Object, Object, Class, long)} method in
+     *         about proper casting to ByteBuffer in {@link #handleNotification(Object, Object, Class, int)} method in
      *         this
      *         case).
      */
