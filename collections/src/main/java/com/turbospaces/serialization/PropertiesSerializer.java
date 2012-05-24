@@ -64,7 +64,7 @@ public final class PropertiesSerializer extends MatchingSerializer {
         if ( !( object instanceof CacheStoreEntryWrapper ) )
             cacheEntry = CacheStoreEntryWrapper.writeValueOf( entityMetadata, object );
 
-        Object[] bulkPropertyValues = ( cacheEntry == null ? (CacheStoreEntryWrapper) object : cacheEntry ).asPropertyValuesArray();
+        final Object[] bulkPropertyValues = ( cacheEntry == null ? (CacheStoreEntryWrapper) object : cacheEntry ).asPropertyValuesArray();
         for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
             CachedSerializationProperty cachedProperty = cachedProperties[i];
             Object value = bulkPropertyValues[i];
@@ -98,15 +98,12 @@ public final class PropertiesSerializer extends MatchingSerializer {
      */
     public SerializationEntry readToSerializedEntry(final ByteBuffer buffer) {
         buffer.clear();
-        Object values[] = new Object[cachedProperties.length];
+        final Object values[] = new Object[cachedProperties.length];
         for ( int i = 0, n = cachedProperties.length; i < n; i++ )
             values[i] = readPropertyValue( cachedProperties[i], buffer );
-        SerializationEntry entry = new SerializationEntry(
-                buffer,
-                entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ),
-                values );
         buffer.clear();
-        return entry;
+
+        return new SerializationEntry( buffer, entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ), values );
     }
 
     /**

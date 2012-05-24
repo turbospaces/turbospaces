@@ -16,8 +16,6 @@
 package com.turbospaces.spaces.tx;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -28,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.core.SpaceUtility;
@@ -99,20 +99,20 @@ public final class TransactionModificationContext implements Reusable {
      * @see JSpace#WRITE_OR_UPDATE
      * @see JSpace#UPDATE_ONLY
      */
-    private final Map<EntryKeyLockQuard, WriteTakeEntry> writes = new HashMap<EntryKeyLockQuard, WriteTakeEntry>();
+    private final Map<EntryKeyLockQuard, WriteTakeEntry> writes = Maps.newHashMap();
     /**
      * map of removed space entries
      * 
      * @see JSpace#EVICT_ONLY
      * @see JSpace#TAKE_ONLY
      */
-    private final Map<EntryKeyLockQuard, WriteTakeEntry> takes = new HashMap<EntryKeyLockQuard, WriteTakeEntry>();
+    private final Map<EntryKeyLockQuard, WriteTakeEntry> takes = Maps.newHashMap();
     /**
      * map of exclusively locked keys
      * 
      * @see JSpace#EXCLUSIVE_READ_LOCK
      */
-    private final Set<EntryKeyLockQuard> exclusiveReads = new HashSet<EntryKeyLockQuard>();
+    private final Set<EntryKeyLockQuard> exclusiveReads = Sets.newHashSet();
 
     /**
      * unique identifier of transaction

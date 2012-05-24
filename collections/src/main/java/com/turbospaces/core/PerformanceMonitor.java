@@ -15,7 +15,9 @@
  */
 package com.turbospaces.core;
 
+import java.util.AbstractMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -31,6 +33,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.turbospaces.pool.ObjectFactory;
+import com.turbospaces.pool.ObjectPool;
+import com.turbospaces.pool.SimpleObjectPool;
 
 /**
  * utility class for performance results measurement. allows to set overall number of iteration, number of concurrent
@@ -45,7 +50,9 @@ public class PerformanceMonitor<V> implements Runnable {
     private int threadsCount;
     private int numberOfIterations;
     private int putPercentage, getPercentage;
-    private final Function<String, V> putFunction, getFunction, removeFunction;
+    private final Function<Map.Entry<String, V>, V> putFunction;
+    private final Function<String, V> getFunction, removeFunction;
+    private final ObjectPool<V> objectPool;
 
     /**
      * create new performance monitor(runner) with user supplied put/get/remove callback functions.
@@ -56,9 +63,15 @@ public class PerformanceMonitor<V> implements Runnable {
      *            function used for reading entities in cache
      * @param removeFunction
      *            function used for removing entities from cache
+     * @param objectFactory
+     *            values instantiation factory (we need to re-use object to minimize GC impact)
      */
-    public PerformanceMonitor(final Function<String, V> putFunction, final Function<String, V> getFunction, final Function<String, V> removeFunction) {
+    public PerformanceMonitor(final Function<Map.Entry<String, V>, V> putFunction,
+                              final Function<String, V> getFunction,
+                              final Function<String, V> removeFunction,
+                              final ObjectFactory<V> objectFactory) {
         super();
+        this.objectPool = new SimpleObjectPool<V>( objectFactory );
         this.putFunction = Preconditions.checkNotNull( putFunction );
         this.getFunction = Preconditions.checkNotNull( getFunction );
         this.removeFunction = Preconditions.checkNotNull( removeFunction );
@@ -111,8 +124,10 @@ public class PerformanceMonitor<V> implements Runnable {
         logger.info( " Take Percentage   : {}", putPercentage );
 
         final AtomicBoolean completitionSemapshore = new AtomicBoolean( false );
-        final AtomicLong reads = new AtomicLong();
-        final AtomicLong takes = new AtomicLong();
+        final AtomicLong readsHit = new AtomicLong();
+        final AtomicLong readsMiss = new AtomicLong();
+        final AtomicLong takesHit = new AtomicLong();
+        final AtomicLong takesMiss = new AtomicLong();
         final AtomicLong writes = new AtomicLong();
 
         Executors.newSingleThreadExecutor( new ThreadFactory() {
@@ -128,10 +143,13 @@ public class PerformanceMonitor<V> implements Runnable {
                 while ( !completitionSemapshore.get() ) {
                     Uninterruptibles.sleepUninterruptibly( 1, TimeUnit.SECONDS );
 
-                    long total = reads.get() + writes.get() + takes.get();
-                    logger.info( "TPS = {} [reads={}, writes={}, takes={}]", new Object[] { total, reads.get(), writes.get(), takes.get() } );
-                    reads.set( 0 );
-                    takes.set( 0 );
+                    long total = readsHit.get() + readsMiss.get() + writes.get() + takesHit.get() + takesMiss.get();
+                    logger.info( "TPS = {} [readsHit={}, readsMiss={}, writes={}, takesHit={}, takesMiss={}]", new Object[] { total, readsHit.get(),
+                            readsMiss.get(), writes.get(), takesHit.get(), takesMiss.get() } );
+                    readsHit.set( 0 );
+                    readsMiss.set( 0 );
+                    takesHit.set( 0 );
+                    takesMiss.set( 0 );
                     writes.set( 0 );
                 }
             }
@@ -143,20 +161,28 @@ public class PerformanceMonitor<V> implements Runnable {
 
                 @Override
                 public Object apply(final Integer iteration) {
-                    int key = random.nextInt( numberOfIterations );
-                    int action = random.nextInt( 100 );
+                    final int key = random.nextInt( numberOfIterations );
+                    final int action = random.nextInt( 100 );
 
                     if ( action < getPercentage ) {
-                        getFunction.apply( String.valueOf( key ) );
-                        reads.incrementAndGet();
+                        V v = getFunction.apply( String.valueOf( key ) );
+                        if ( v != null )
+                            readsHit.incrementAndGet();
+                        else
+                            readsMiss.incrementAndGet();
                     }
                     else if ( action < getPercentage + putPercentage ) {
-                        putFunction.apply( String.valueOf( key ) );
+                        V entryToAdd = objectPool.borrowObject();
+                        putFunction.apply( new AbstractMap.SimpleEntry<String, V>( String.valueOf( key ), entryToAdd ) );
                         writes.incrementAndGet();
+                        objectPool.returnObject( entryToAdd );
                     }
                     else {
-                        removeFunction.apply( String.valueOf( key ) );
-                        takes.incrementAndGet();
+                        V v = removeFunction.apply( String.valueOf( key ) );
+                        if ( v != null )
+                            takesHit.incrementAndGet();
+                        else
+                            takesMiss.incrementAndGet();
                     }
                     return this;
                 }
