@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Andrey Borisov <aandrey.borisov@gmail.com>
+ * Copyright (C) 2011-2012 Andrey Borisov <aandrey.borisov@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
-import com.turbospaces.core.CacheStatistics;
+import com.turbospaces.core.CacheStatisticsCounter;
+import com.turbospaces.core.CacheStatisticsCounter.CompleteCacheStats;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
@@ -59,7 +60,7 @@ public class OffHeapCacheStore implements SpaceStore {
     private final BO bo;
     private final SpaceConfiguration configuration;
     private final IndexManager indexManager;
-    private final CacheStatistics statsCounter;
+    private final CacheStatisticsCounter statsCounter;
     private final KeyLocker lockManager;
     private final ObjectPool<ObjectBuffer> objectBufferPool;
     private final SpaceCapacityRestrictionHolder capacityRestriction;
@@ -81,7 +82,7 @@ public class OffHeapCacheStore implements SpaceStore {
         this.configuration = configuration;
         this.capacityRestriction = capacityRestriction;
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );
-        this.statsCounter = new CacheStatistics();
+        this.statsCounter = new CacheStatisticsCounter();
         this.lockManager = SpaceUtility.parallelizedKeyLocker();
         this.objectBufferPool = JVMUtil.newObjectBufferPool();
         this.bo = configuration.boFor( entityClass );
@@ -104,7 +105,7 @@ public class OffHeapCacheStore implements SpaceStore {
                         int prevBytesOccupation = indexManager.add( value.getObj(), value.getIdLockQuard(), value.getPointer() );
                         value.setSpaceOperation( prevBytesOccupation > 0 ? SpaceOperation.UPDATE : SpaceOperation.WRITE );
                         capacityRestriction.add( value.getPointer().bytesOccupied(), prevBytesOccupation );
-                        statsCounter.increasePutsCount();
+                        statsCounter.recordPuts( 1 );
                     }
                     else
                         entry.getValue().getPointer().utilize();
@@ -117,7 +118,7 @@ public class OffHeapCacheStore implements SpaceStore {
                         entry.getValue().setSpaceOperation( SpaceOperation.TAKE );
                         int bytesFreed = indexManager.takeByUniqueIdentifier( entry.getKey() );
                         capacityRestriction.remove( bytesFreed );
-                        statsCounter.increaseTakesCount();
+                        statsCounter.recordTakes( 1 );
                     }
                 }
 
@@ -125,7 +126,7 @@ public class OffHeapCacheStore implements SpaceStore {
                 for ( EntryKeyLockQuard keyGuard : modificationContext.getExclusiveReads() )
                     if ( apply ) {
                         unlockKeys.add( keyGuard );
-                        statsCounter.increaseExclusiveReadsCount();
+                        statsCounter.recordExclusiveReads( 1 );
                     }
         }
         finally {
@@ -216,7 +217,7 @@ public class OffHeapCacheStore implements SpaceStore {
             else {
                 entryState = modificationContext.getPointerData( uniqueIdentifier, indexManager );
                 if ( entryState != null )
-                    statsCounter.increaseHitsCount();
+                    statsCounter.recordHits( 1 );
             }
 
             if ( entryState != null )
@@ -273,7 +274,7 @@ public class OffHeapCacheStore implements SpaceStore {
             else {
                 ByteBuffer entityState = modificationContext.getPointerData( uniqueIdentifier, indexManager );
                 if ( entityState != null )
-                    statsCounter.increaseHitsCount();
+                    statsCounter.recordHits( 1 );
                 // l.add( match );
             }
     }
@@ -291,20 +292,6 @@ public class OffHeapCacheStore implements SpaceStore {
         return writeLockGuard;
     }
 
-    @SuppressWarnings("javadoc")
-    public CacheStatistics cacheStatisticsSnapshot() {
-        CacheStatistics statistics = statsCounter.clone();
-        statistics.setOffHeapBytesOccupied( indexManager.offHeapBytesOccuiped() );
-        return statistics;
-    }
-
-    @SuppressWarnings("javadoc")
-    public CacheStatistics resetCacheStatistics() {
-        CacheStatistics clone = cacheStatisticsSnapshot();
-        statsCounter.reset();
-        return clone;
-    }
-
     @Override
     public IndexManager getIndexManager() {
         return indexManager;
@@ -313,6 +300,11 @@ public class OffHeapCacheStore implements SpaceStore {
     @Override
     public SpaceConfiguration getSpaceConfiguration() {
         return configuration;
+    }
+
+    @Override
+    public CompleteCacheStats stats() {
+        return statsCounter.snapshotCompleteCacheStats();
     }
 
     @Override

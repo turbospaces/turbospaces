@@ -55,7 +55,7 @@ public class GuavaOffHeapCacheBuilderTest {
     @After
     public void destroy() {
         cache.cleanUp();
-        cache.destroy();
+        cache.invalidateAll();
     }
 
     @Test

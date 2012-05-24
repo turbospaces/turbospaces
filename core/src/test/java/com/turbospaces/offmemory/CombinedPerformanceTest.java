@@ -4,45 +4,45 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.common.base.Function;
 import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.core.PerformanceMonitor;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.OffHeapJSpace;
+import com.turbospaces.spaces.SimplisticJSpace;
 
 @SuppressWarnings("javadoc")
 public class CombinedPerformanceTest {
-    PerformanceMonitor monitor;
-    PerformanceMonitor.FastObjectFactory objectFactory = new PerformanceMonitor.FastObjectFactory() {
-
-        @Override
-        public Object newInstance() {
-            TestEntity1 entity1 = new TestEntity1();
-            entity1.afterPropertiesSet();
-            return entity1;
-        }
-
-        @Override
-        public void invalidate(final Object obj) {}
-
-        @Override
-        public Object setId(final Object target,
-                            final Object id) {
-            ( (TestEntity1) target ).uniqueIdentifier = (String) id;
-            return target;
-        }
-    };
-
+    PerformanceMonitor<TestEntity1> monitor;
     SpaceConfiguration configuration;
-    OffHeapJSpace space;
+    SimplisticJSpace space;
 
     @Before
     public void before()
                         throws Exception {
         configuration = EmbeddedJSpaceRunnerTest.configurationFor();
-        space = new OffHeapJSpace( configuration );
-        monitor = new PerformanceMonitor( space, objectFactory ).applyDefaultSettings();
-        monitor.withThreadsCount( Runtime.getRuntime().availableProcessors() );
+        space = new SimplisticJSpace( new OffHeapJSpace( configuration ) );
+        space.afterPropertiesSet();
+        monitor = new PerformanceMonitor<TestEntity1>( new Function<String, TestEntity1>() {
+            @Override
+            public TestEntity1 apply(final String input) {
+                TestEntity1 entity1 = new TestEntity1();
+                entity1.afterPropertiesSet( input );
+                space.write( entity1 );
+                return entity1;
+            }
+        }, new Function<String, TestEntity1>() {
+            @Override
+            public TestEntity1 apply(final String input) {
+                return space.readByID( input, TestEntity1.class ).orNull();
+            }
+        }, new Function<String, TestEntity1>() {
+            @Override
+            public TestEntity1 apply(final String input) {
+                return space.takeByID( input, TestEntity1.class ).orNull();
+            }
+        } );
         monitor.withNumberOfIterations( 10 * 1000000 );
     }
 

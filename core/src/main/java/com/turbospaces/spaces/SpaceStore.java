@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Andrey Borisov <aandrey.borisov@gmail.com>
+ * Copyright (C) 2011-2012 Andrey Borisov <aandrey.borisov@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceConfiguration;
+import com.turbospaces.core.CacheStatisticsCounter;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.IndexManager;
 import com.turbospaces.spaces.tx.TransactionModificationContext;
@@ -92,4 +93,11 @@ public interface SpaceStore extends DisposableBean, InitializingBean {
      * @return jspace configuration associated with jspace
      */
     SpaceConfiguration getSpaceConfiguration();
+
+    /**
+     * snapshot cache access statistics
+     * 
+     * @return snapshot with performance statistics
+     */
+    CacheStatisticsCounter.CompleteCacheStats stats();
 }

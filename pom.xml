@@ -42,6 +42,7 @@
         <junit-revision>4.9</junit-revision>
         <mockito-revision>1.8.5</mockito-revision>
         <hamcrest-revision>1.1</hamcrest-revision>
+        <junit-benchmarks-revision>0.3.0</junit-benchmarks-revision>
         <!-- logging -->
         <logback-revision>1.0.1</logback-revision>
         <slf4j-revision>1.6.4</slf4j-revision>
@@ -60,6 +61,7 @@
         <sonar.jdbc.username>sonar</sonar.jdbc.username>
         <sonar.jdbc.password>sonar</sonar.jdbc.password>
         <sonar.hibernate.default_schema>sonar</sonar.hibernate.default_schema>
+        <sonar.skippedModules>turbospaces-collections-uat</sonar.skippedModules>
         <!-- maven -->
         <cobertura.maxmem>512m</cobertura.maxmem>
         <maven.plugin.source.version>2.1.2</maven.plugin.source.version>
@@ -109,9 +111,24 @@
                 <version>${spring-revision}</version>
             </dependency>
             <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-tx</artifactId>
+                <version>${spring-revision}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.googlecode</groupId>
                 <artifactId>kryo</artifactId>
-                <version>${kryo-revision}</version>                
+                <version>${kryo-revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>cglib</groupId>
+                <artifactId>cglib</artifactId>
+                <version>${cglib-revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jgroups</groupId>
+                <artifactId>jgroups</artifactId>
+                <version>${jgroups-revision}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -263,6 +280,7 @@
         <module>core</module>
         <module>monitor</module>
         <module>documentation</module>
+        <module>uat</module>
     </modules>
     <profiles>
         <profile>
@@ -311,6 +329,10 @@
         </profile>
         <profile>
             <id>release</id>
+            <modules>
+                <module>collections</module>
+                <module>core</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>

@@ -66,6 +66,10 @@ public class TestEntity1 implements InitializingBean, Cloneable {
 
     @Override
     public void afterPropertiesSet() {
+        afterPropertiesSet( getClass().getSimpleName() + ":" + UUID.randomUUID().toString() );
+    }
+
+    public void afterPropertiesSet(final String id) {
         s1 = "s1" + random.nextDouble();
         s2 = "s2" + random.nextDouble();
         s3 = "s3" + random.nextDouble();
@@ -95,7 +99,7 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         fi2 = random.nextInt();
 
         data1 = Integer.valueOf( random.nextInt() );
-        uniqueIdentifier = getClass().getSimpleName() + ":" + UUID.randomUUID().toString();
+        uniqueIdentifier = id;
         mode = RoundingMode.FLOOR;
         autowire = Autowire.BY_TYPE;
         routing = "hash" + random.nextLong();

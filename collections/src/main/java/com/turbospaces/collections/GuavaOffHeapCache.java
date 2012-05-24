@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2011-2012 Andrey Borisov <aandrey.borisov@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
@@ -6,7 +21,6 @@ import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Preconditions;
@@ -34,7 +48,7 @@ import com.turbospaces.serialization.DecoratedKryo;
  * @param <V>
  *            value type
  */
-final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements DisposableBean {
+final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final OffHeapHashSet offHeapHashSet;
     private final ObjectPool<ObjectBuffer> objectsPool;
@@ -141,7 +155,7 @@ final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements Dispo
     }
 
     @Override
-    public void destroy() {
+    public void invalidateAll() {
         offHeapHashSet.destroy();
     }
 

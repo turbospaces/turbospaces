@@ -234,7 +234,7 @@ public class DirectOffHeapByteBufferTest {
         ( (TestEntity1) configuration.getKryo().deserialize( match2[0], TestEntity1.class ).getObject() ).assertMatch( entity2 );
         ( (TestEntity1) configuration.getKryo().deserialize( match3[0], TestEntity1.class ).getObject() ).assertMatch( entity3 );
 
-        buffer.cacheStatisticsSnapshot();
+        buffer.stats();
         CountingSpaceNotificationListener listener = new CountingSpaceNotificationListener();
         modificationContext.flush(
                 buffer,
@@ -450,8 +450,6 @@ public class DirectOffHeapByteBufferTest {
         ( (TestEntity1) configuration.getKryo().deserialize( match3[0], TestEntity1.class ).getObject() ).assertMatch( entity3 );
 
         modificationContext.flush( buffer );
-
-        buffer.resetCacheStatistics();
 
         assertThat( match1.length, is( 1 ) );
         assertThat( match2.length, is( 1 ) );

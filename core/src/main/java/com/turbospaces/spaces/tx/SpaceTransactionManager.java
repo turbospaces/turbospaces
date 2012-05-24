@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Andrey Borisov <aandrey.borisov@gmail.com>
+ * Copyright (C) 2011-2012 Andrey Borisov <aandrey.borisov@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
