@@ -42,10 +42,14 @@ import org.springframework.data.mapping.PropertyHandler;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.data.mapping.model.BeanWrapper;
 
+import com.esotericsoftware.kryo.serialize.EnumSerializer;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.CapacityRestriction;
+import com.turbospaces.serialization.DecoratedKryo;
+import com.turbospaces.serialization.PropertiesSerializer;
+import com.turbospaces.serialization.SingleDimensionArraySerializer;
 
 /**
  * Business object wrapper around spring's data {@link PersistentEntity}.</p>
@@ -180,14 +184,15 @@ public final class BO {
             return;
         }
 
-        cacheStoreEntry.setId( cacheStoreEntry.getBeanWrapper().getProperty( delegate.getIdProperty(), delegate.getIdProperty().getType(), false ) );
+        final BeanWrapper beanWrapper = BeanWrapper.create( cacheStoreEntry.getBean(), null );
+        cacheStoreEntry.setId( beanWrapper.getProperty( delegate.getIdProperty(), delegate.getIdProperty().getType(), false ) );
         if ( getOptimisticLockVersionProperty() != null )
-            cacheStoreEntry.setOptimisticLockVersion( (Integer) cacheStoreEntry.getBeanWrapper().getProperty(
+            cacheStoreEntry.setOptimisticLockVersion( (Integer) beanWrapper.getProperty(
                     getOptimisticLockVersionProperty(),
                     getOptimisticLockVersionProperty().getType(),
                     false ) );
         if ( getRoutingProperty() != null )
-            cacheStoreEntry.setRouting( cacheStoreEntry.getBeanWrapper().getProperty( getRoutingProperty(), getRoutingProperty().getType(), false ) );
+            cacheStoreEntry.setRouting( beanWrapper.getProperty( getRoutingProperty(), getRoutingProperty().getType(), false ) );
     }
 
     /**
@@ -233,7 +238,7 @@ public final class BO {
 
         // if cglib can't be used for property extraction, us spring's data to read property values
         if ( bulkBean == null ) {
-            BeanWrapper beanWrapper = cacheEntry.getBeanWrapper();
+            final BeanWrapper beanWrapper = BeanWrapper.create( cacheEntry.getBean(), null );
             Object[] propertyValues = new Object[orderedProperties.length];
             for ( int i = 0; i < orderedProperties.length; i++ )
                 propertyValues[i] = beanWrapper.getProperty( orderedProperties[i], orderedProperties[i].getType(), false );
@@ -386,5 +391,48 @@ public final class BO {
     private static boolean hasReadWriteMethods(final PersistentProperty p) {
         return p != null && p.getPropertyDescriptor() != null && p.getPropertyDescriptor().getReadMethod() != null
                 && p.getPropertyDescriptor().getWriteMethod() != null;
+    }
+
+    /**
+     * register the set of persistent classes and enrich kryo with some extract serialized related to persistent class.
+     * 
+     * @param kryo
+     *            serialization provider
+     * @param persistentEntities
+     *            classes to register
+     * @throws ClassNotFoundException
+     *             re-throw conversion service
+     * @throws NoSuchMethodException
+     *             re-throw cglib's exception
+     * @throws SecurityException
+     *             re-throw cglib's exception
+     */
+    public static void registerPersistentClasses(final DecoratedKryo kryo,
+                                                 final BasicPersistentEntity... persistentEntities)
+                                                                                                   throws ClassNotFoundException,
+                                                                                                   SecurityException,
+                                                                                                   NoSuchMethodException {
+        for ( BasicPersistentEntity<?, ?> e : persistentEntities ) {
+            BO bo = new BO( e );
+            bo.getOriginalPersistentEntity().doWithProperties( new PropertyHandler() {
+                @Override
+                public void doWithPersistentProperty(final PersistentProperty p) {
+                    Class type = p.getType();
+                    if ( type.isArray() && !kryo.isTypeRegistered( type ) ) {
+                        SingleDimensionArraySerializer serializer = new SingleDimensionArraySerializer( type, kryo );
+                        kryo.register( type, serializer );
+                    }
+                    else if ( type.isEnum() && !kryo.isTypeRegistered( type ) ) {
+                        EnumSerializer enumSerializer = new EnumSerializer( type );
+                        kryo.register( type, enumSerializer );
+                    }
+                }
+            } );
+            Class<?> arrayWrapperType = Class.forName( "[L" + e.getType().getName() + ";" );
+            PropertiesSerializer serializer = new PropertiesSerializer( kryo, bo );
+            SingleDimensionArraySerializer arraysSerializer = new SingleDimensionArraySerializer( arrayWrapperType, kryo );
+            kryo.register( e.getType(), serializer );
+            kryo.register( arrayWrapperType, arraysSerializer );
+        }
     }
 }

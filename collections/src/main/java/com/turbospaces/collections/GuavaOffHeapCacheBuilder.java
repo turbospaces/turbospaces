@@ -148,7 +148,7 @@ public class GuavaOffHeapCacheBuilder<K, V> {
      * 
      * @return new off-heap linear probing set having the requested features
      */
-    public GuavaOffHeapCache<K, V> build(final Class<V> clazz) {
+    public Cache<K, V> build(final Class<V> clazz) {
         if ( executorService == null )
             executorService = MoreExecutors.sameThreadExecutor();
         if ( kryo == null )

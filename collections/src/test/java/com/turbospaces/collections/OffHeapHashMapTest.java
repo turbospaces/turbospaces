@@ -53,7 +53,7 @@ public class OffHeapHashMapTest {
                                        throws Exception {
         bo = TestEntity1.getPersistentEntity();
         decoratedKryo = new DecoratedKryo();
-        decoratedKryo.registerPersistentClasses( bo.getOriginalPersistentEntity() );
+        BO.registerPersistentClasses( decoratedKryo, bo.getOriginalPersistentEntity() );
         objectBuffer = new ObjectBuffer( decoratedKryo );
         propertySerializer = new PropertiesSerializer( decoratedKryo, bo );
 

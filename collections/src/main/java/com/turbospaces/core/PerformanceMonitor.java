@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.Assert;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -53,6 +52,7 @@ public class PerformanceMonitor<V> implements Runnable {
     private final Function<Map.Entry<String, V>, V> putFunction;
     private final Function<String, V> getFunction, removeFunction;
     private final ObjectPool<V> objectPool;
+    private final boolean returnObjects2Pool;
 
     /**
      * create new performance monitor(runner) with user supplied put/get/remove callback functions.
@@ -65,12 +65,17 @@ public class PerformanceMonitor<V> implements Runnable {
      *            function used for removing entities from cache
      * @param objectFactory
      *            values instantiation factory (we need to re-use object to minimize GC impact)
+     * 
+     * @param returnObjects2Pool
+     *            return objects to the pool after write
      */
     public PerformanceMonitor(final Function<Map.Entry<String, V>, V> putFunction,
                               final Function<String, V> getFunction,
                               final Function<String, V> removeFunction,
-                              final ObjectFactory<V> objectFactory) {
+                              final ObjectFactory<V> objectFactory,
+                              final boolean returnObjects2Pool) {
         super();
+        this.returnObjects2Pool = returnObjects2Pool;
         this.objectPool = new SimpleObjectPool<V>( objectFactory );
         this.putFunction = Preconditions.checkNotNull( putFunction );
         this.getFunction = Preconditions.checkNotNull( getFunction );
@@ -175,7 +180,8 @@ public class PerformanceMonitor<V> implements Runnable {
                         V entryToAdd = objectPool.borrowObject();
                         putFunction.apply( new AbstractMap.SimpleEntry<String, V>( String.valueOf( key ), entryToAdd ) );
                         writes.incrementAndGet();
-                        objectPool.returnObject( entryToAdd );
+                        if ( returnObjects2Pool )
+                            objectPool.returnObject( entryToAdd );
                     }
                     else {
                         V v = removeFunction.apply( String.valueOf( key ) );
@@ -187,7 +193,7 @@ public class PerformanceMonitor<V> implements Runnable {
                     return this;
                 }
             } );
-            Assert.isTrue( exceptions.isEmpty(), "Errors = " + exceptions );
+            Preconditions.checkState( exceptions.isEmpty(), "Errors = " + exceptions );
         }
         catch ( Exception e ) {
             logger.error( e.getMessage(), e );

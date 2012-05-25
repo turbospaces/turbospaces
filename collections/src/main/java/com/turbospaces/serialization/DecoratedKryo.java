@@ -36,11 +36,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 
-import org.springframework.beans.factory.annotation.Autowire;
-import org.springframework.data.mapping.PersistentProperty;
-import org.springframework.data.mapping.PropertyHandler;
-import org.springframework.data.mapping.model.BasicPersistentEntity;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.SerializationException;
 import com.esotericsoftware.kryo.Serializer;
@@ -53,7 +48,6 @@ import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.esotericsoftware.kryo.serialize.MapSerializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.collect.Maps;
-import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -64,7 +58,7 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * 
  * @since 0.1
  */
-@SuppressWarnings({ "rawtypes", "unchecked" })
+@SuppressWarnings({ "rawtypes" })
 public final class DecoratedKryo extends Kryo {
     private ConcurrentMap<Class, RegisteredClass> serializers;
 
@@ -127,7 +121,6 @@ public final class DecoratedKryo extends Kryo {
         } );
         register( ExplicitCacheEntry.class, new ExplicitCacheEntrySerializer( this ) );
         register( RoundingMode.class, new EnumSerializer( RoundingMode.class ) );
-        register( Autowire.class, new EnumSerializer( Autowire.class ) );
     }
 
     @Override
@@ -141,43 +134,14 @@ public final class DecoratedKryo extends Kryo {
     }
 
     /**
-     * register the set of persistent classes and enrich kryo with some extract serialized related to persistent class.
+     * check whether given class has been registered.
      * 
-     * @param persistentEntities
-     *            classes to register
-     * @throws ClassNotFoundException
-     *             re-throw conversion service
-     * @throws NoSuchMethodException
-     *             re-throw cglib's exception
-     * @throws SecurityException
-     *             re-throw cglib's exception
+     * @param type
+     *            user type
+     * @return true if class has been registered
      */
-    public void registerPersistentClasses(final BasicPersistentEntity... persistentEntities)
-                                                                                            throws ClassNotFoundException,
-                                                                                            SecurityException,
-                                                                                            NoSuchMethodException {
-        for ( BasicPersistentEntity<?, ?> e : persistentEntities ) {
-            BO bo = new BO( e );
-            bo.getOriginalPersistentEntity().doWithProperties( new PropertyHandler() {
-                @Override
-                public void doWithPersistentProperty(final PersistentProperty p) {
-                    Class type = p.getType();
-                    if ( type.isArray() && !serializers.containsKey( type ) ) {
-                        SingleDimensionArraySerializer serializer = new SingleDimensionArraySerializer( type, DecoratedKryo.this );
-                        register( type, serializer );
-                    }
-                    else if ( type.isEnum() && !serializers.containsKey( type ) ) {
-                        EnumSerializer enumSerializer = new EnumSerializer( type );
-                        register( type, enumSerializer );
-                    }
-                }
-            } );
-            Class<?> arrayWrapperType = Class.forName( "[L" + e.getType().getName() + ";" );
-            PropertiesSerializer serializer = new PropertiesSerializer( this, bo );
-            SingleDimensionArraySerializer arraysSerializer = new SingleDimensionArraySerializer( arrayWrapperType, this );
-            register( e.getType(), serializer );
-            register( arrayWrapperType, arraysSerializer );
-        }
+    public boolean isTypeRegistered(final Class<?> type) {
+        return serializers.containsKey( type );
     }
 
     /**

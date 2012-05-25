@@ -51,7 +51,7 @@ public class PropertiesSerializerTest {
                         throws Exception {
         bo = TestEntity1.getPersistentEntity();
         kryo = new DecoratedKryo();
-        kryo.registerPersistentClasses( bo.getOriginalPersistentEntity() );
+        BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );
         serializer = new PropertiesSerializer( kryo, bo );
 
         entity1 = new TestEntity1();

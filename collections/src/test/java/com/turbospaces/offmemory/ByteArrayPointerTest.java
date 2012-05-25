@@ -17,7 +17,7 @@ public class ByteArrayPointerTest {
                                ClassNotFoundException {
         DecoratedKryo kryo = new DecoratedKryo();
         BO bo = TestEntity1.getPersistentEntity();
-        kryo.registerPersistentClasses( bo.getOriginalPersistentEntity() );
+        BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );
         ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
 
         TestEntity1 entity1 = new TestEntity1();

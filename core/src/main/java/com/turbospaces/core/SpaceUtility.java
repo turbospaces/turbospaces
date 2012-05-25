@@ -51,6 +51,7 @@ import com.turbospaces.api.SpaceException;
 import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.api.SpaceTopology;
+import com.turbospaces.model.BO;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
 import com.turbospaces.network.MethodCall.FetchMethodCall;
@@ -129,7 +130,7 @@ public abstract class SpaceUtility {
      * 
      * @param configuration
      *            space configuration
-     * @param givenKryo
+     * @param kryo
      *            user custom kryo serializer
      * @throws ClassNotFoundException
      *             re-throw class registration exceptions
@@ -140,27 +141,27 @@ public abstract class SpaceUtility {
      */
     @SuppressWarnings("rawtypes")
     public static void registerSpaceClasses(final AbstractSpaceConfiguration configuration,
-                                            final DecoratedKryo givenKryo)
+                                            final DecoratedKryo kryo)
                                                                           throws ClassNotFoundException,
                                                                           SecurityException,
                                                                           NoSuchMethodException {
-        givenKryo.register( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
-        givenKryo.register( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
+        kryo.register( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
+        kryo.register( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
 
-        givenKryo.register( com.turbospaces.network.MethodCall.class, new FieldSerializer( givenKryo, com.turbospaces.network.MethodCall.class ) );
-        givenKryo.register( WriteMethodCall.class, new FieldSerializer( givenKryo, WriteMethodCall.class ) );
-        givenKryo.register( FetchMethodCall.class, new FieldSerializer( givenKryo, FetchMethodCall.class ) );
-        givenKryo.register( BeginTransactionMethodCall.class, new FieldSerializer( givenKryo, BeginTransactionMethodCall.class ) );
-        givenKryo.register( CommitRollbackMethodCall.class, new FieldSerializer( givenKryo, CommitRollbackMethodCall.class ) );
-        givenKryo.register( GetSpaceTopologyMethodCall.class, new FieldSerializer( givenKryo, GetSpaceTopologyMethodCall.class ) );
-        givenKryo.register( GetMbUsedMethodCall.class, new FieldSerializer( givenKryo, GetMbUsedMethodCall.class ) );
-        givenKryo.register( GetSizeMethodCall.class, new FieldSerializer( givenKryo, GetSizeMethodCall.class ) );
-        givenKryo.register( NotifyListenerMethodCall.class, new FieldSerializer( givenKryo, NotifyListenerMethodCall.class ) );
+        kryo.register( com.turbospaces.network.MethodCall.class, new FieldSerializer( kryo, com.turbospaces.network.MethodCall.class ) );
+        kryo.register( WriteMethodCall.class, new FieldSerializer( kryo, WriteMethodCall.class ) );
+        kryo.register( FetchMethodCall.class, new FieldSerializer( kryo, FetchMethodCall.class ) );
+        kryo.register( BeginTransactionMethodCall.class, new FieldSerializer( kryo, BeginTransactionMethodCall.class ) );
+        kryo.register( CommitRollbackMethodCall.class, new FieldSerializer( kryo, CommitRollbackMethodCall.class ) );
+        kryo.register( GetSpaceTopologyMethodCall.class, new FieldSerializer( kryo, GetSpaceTopologyMethodCall.class ) );
+        kryo.register( GetMbUsedMethodCall.class, new FieldSerializer( kryo, GetMbUsedMethodCall.class ) );
+        kryo.register( GetSizeMethodCall.class, new FieldSerializer( kryo, GetSizeMethodCall.class ) );
+        kryo.register( NotifyListenerMethodCall.class, new FieldSerializer( kryo, NotifyListenerMethodCall.class ) );
 
         Collection persistentEntities = configuration.getMappingContext().getPersistentEntities();
         BasicPersistentEntity[] persistentEntitiesAsArray = (BasicPersistentEntity[]) persistentEntities
                 .toArray( new BasicPersistentEntity[persistentEntities.size()] );
-        givenKryo.registerPersistentClasses( persistentEntitiesAsArray );
+        BO.registerPersistentClasses( kryo, persistentEntitiesAsArray );
     }
 
     /**

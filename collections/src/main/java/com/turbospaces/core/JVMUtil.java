@@ -276,7 +276,7 @@ public class JVMUtil {
                             try {
                                 task.apply( l );
                             }
-                            catch ( Exception e ) {
+                            catch ( Throwable e ) {
                                 LOGGER.error( e.getMessage(), e );
                                 errors.add( e );
                                 Throwables.propagate( e );

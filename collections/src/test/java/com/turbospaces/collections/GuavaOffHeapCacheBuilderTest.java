@@ -22,6 +22,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowire;
 
+import com.esotericsoftware.kryo.serialize.EnumSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -47,6 +48,7 @@ public class GuavaOffHeapCacheBuilderTest {
         SingleDimensionArraySerializer s2 = new SingleDimensionArraySerializer( cl2, kryo );
         kryo.register( cl1, s1 );
         kryo.register( cl2, s2 );
+        kryo.register( Autowire.class, new EnumSerializer( Autowire.class ) );
 
         builder = new GuavaOffHeapCacheBuilder<String, TestEntity1>();
         builder.expireAfterWrite( Integer.MAX_VALUE, TimeUnit.MILLISECONDS ).kryo( kryo ).recordStats( true );
@@ -54,6 +56,7 @@ public class GuavaOffHeapCacheBuilderTest {
 
     @After
     public void destroy() {
+        cache.toString();
         cache.cleanUp();
         cache.invalidateAll();
     }
@@ -61,7 +64,7 @@ public class GuavaOffHeapCacheBuilderTest {
     @Test
     public void trivialSunnyDayScenario()
                                          throws ExecutionException {
-        cache = builder.expireAfterWrite( Integer.MAX_VALUE, null ).build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.expireAfterWrite( Integer.MAX_VALUE, null ).build( TestEntity1.class );
 
         for ( int i = 0; i < 100; i++ ) {
             TestEntity1 entity1 = new TestEntity1();
@@ -88,7 +91,7 @@ public class GuavaOffHeapCacheBuilderTest {
     @Test
     public void trivialSunnyDayScenario1()
                                           throws ExecutionException {
-        cache = builder.build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.build( TestEntity1.class );
         for ( int i = 0; i < 100; i++ ) {
             final String key = String.valueOf( System.currentTimeMillis() + i );
             assertThat( cache.getIfPresent( key ), is( nullValue() ) );
@@ -113,7 +116,7 @@ public class GuavaOffHeapCacheBuilderTest {
 
     @Test
     public void trivialSunnyDayScenario2() {
-        cache = builder.executorService( MoreExecutors.sameThreadExecutor() ).build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.executorService( MoreExecutors.sameThreadExecutor() ).build( TestEntity1.class );
         final TestEntity1[] entities = new TestEntity1[2048];
         Assert.assertTrue( JVMUtil.repeatConcurrently( Runtime.getRuntime().availableProcessors(), entities.length, new Function<Integer, Object>() {
             @Override
@@ -154,7 +157,7 @@ public class GuavaOffHeapCacheBuilderTest {
     @Test
     public void handlesLoadingExceptionProperly()
                                                  throws Exception {
-        cache = builder.build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.build( TestEntity1.class );
         Callable<TestEntity1> loader = mock( Callable.class );
         when( loader.call() ).thenThrow( new IllegalStateException( "failed to load 123 key" ) );
         try {
@@ -184,7 +187,7 @@ public class GuavaOffHeapCacheBuilderTest {
                         assertThat( entity.getUniqueIdentifier(), is( id ) );
                     }
                 } );
-        cache = builder.build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.build( TestEntity1.class );
 
         final TestEntity1[] entities = new TestEntity1[128];
         for ( int i = 0; i < entities.length; i++ ) {
@@ -208,7 +211,7 @@ public class GuavaOffHeapCacheBuilderTest {
     @Test
     public void canLoadKeysValueConcurrently()
                                               throws Exception {
-        cache = builder.recordStats( false ).build( TestEntity1.class );
+        cache = (GuavaOffHeapCache<String, TestEntity1>) builder.recordStats( false ).build( TestEntity1.class );
         final TestEntity1 entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
         final Callable<TestEntity1> loader = mock( Callable.class );

@@ -159,9 +159,14 @@ final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
         offHeapHashSet.destroy();
     }
 
+    @Override
+    public String toString() {
+        return offHeapHashSet.toString();
+    }
+
     @SuppressWarnings("unchecked")
     private V getIfPresent(final Object key,
-                           final boolean record) {
+                           final boolean recordStatistics) {
         ByteBuffer dataBuffer = offHeapHashSet.getAsSerializedData( key );
         V result = null;
 
@@ -172,14 +177,14 @@ final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
             try {
                 ExplicitCacheEntry<K, V> explicitCacheEntry = objectBuffer.readObjectData( dataBuffer.array(), ExplicitCacheEntry.class );
                 result = explicitCacheEntry.getBean();
-                if ( record && statsCounter != null )
+                if ( recordStatistics && statsCounter != null )
                     statsCounter.recordHits( 1 );
             }
             finally {
                 objectsPool.returnObject( objectBuffer );
             }
         }
-        else if ( record && statsCounter != null )
+        else if ( recordStatistics && statsCounter != null )
             statsCounter.recordMisses( 1 );
         return result;
     }

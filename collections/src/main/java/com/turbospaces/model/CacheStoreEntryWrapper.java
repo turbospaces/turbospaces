@@ -15,8 +15,6 @@
  */
 package com.turbospaces.model;
 
-import org.springframework.data.mapping.model.BeanWrapper;
-
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Preconditions;
 
@@ -25,7 +23,6 @@ import com.google.common.base.Preconditions;
  * 
  * @since 0.1
  */
-@SuppressWarnings("rawtypes")
 public final class CacheStoreEntryWrapper {
     /**
      * meta information about {@link #bean}'s class.
@@ -55,10 +52,6 @@ public final class CacheStoreEntryWrapper {
      * de-serialized form of {@link #bean}.
      */
     private byte[] beanAsBytes;
-    /**
-     * spring's data bean wrapper
-     */
-    private BeanWrapper beanWrapper;
 
     /**
      * create new cache store instance for the given persistent class over actual bean.
@@ -179,15 +172,6 @@ public final class CacheStoreEntryWrapper {
      */
     public Object getBean() {
         return bean;
-    }
-
-    /**
-     * @return the spring's data bean wrapper
-     */
-    public BeanWrapper getBeanWrapper() {
-        if ( beanWrapper == null )
-            beanWrapper = BeanWrapper.create( getBean(), null );
-        return beanWrapper;
     }
 
     /**

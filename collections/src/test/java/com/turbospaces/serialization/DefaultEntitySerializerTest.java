@@ -42,7 +42,7 @@ public class DefaultEntitySerializerTest {
                         throws Exception {
         bo = TestEntity1.getPersistentEntity();
         kryo = new DecoratedKryo();
-        kryo.registerPersistentClasses( bo.getOriginalPersistentEntity() );
+        BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );
         entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
     }

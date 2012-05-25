@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowire;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.kryo.serialize.EnumSerializer;
 import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.model.TestEntity1;
@@ -33,6 +34,7 @@ public class ExplicitCacheEntrySerializerTest {
         SingleDimensionArraySerializer s2 = new SingleDimensionArraySerializer( cl2, kryo );
         kryo.register( cl1, s1 );
         kryo.register( cl2, s2 );
+        kryo.register( Autowire.class, new EnumSerializer( Autowire.class ) );
         serializer = (ExplicitCacheEntrySerializer) kryo.getSerializer( ExplicitCacheEntry.class );
     }
 

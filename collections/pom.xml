@@ -14,15 +14,14 @@
             <groupId>com.googlecode</groupId>
             <artifactId>kryo</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
         <!-- optional dependencies -->
         <dependency>
             <groupId>cglib</groupId>
             <artifactId>cglib</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>

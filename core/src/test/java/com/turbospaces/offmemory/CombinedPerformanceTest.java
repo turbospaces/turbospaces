@@ -56,7 +56,7 @@ public class CombinedPerformanceTest {
 
             @Override
             public void invalidate(final TestEntity1 obj) {}
-        } );
+        }, true );
         monitor.withNumberOfIterations( 10 * 1000000 );
     }
 
