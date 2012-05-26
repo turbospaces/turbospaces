@@ -48,7 +48,7 @@ import com.turbospaces.serialization.DecoratedKryo;
  * @param <V>
  *            value type
  */
-final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
+public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements EvictableCache {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final OffHeapHashSet offHeapHashSet;
     private final ObjectPool<ObjectBuffer> objectsPool;
@@ -157,6 +157,16 @@ final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> {
     @Override
     public void invalidateAll() {
         offHeapHashSet.destroy();
+    }
+
+    @Override
+    public int evictPercentage(final int percentage) {
+        return offHeapHashSet.evictPercentage( percentage );
+    }
+
+    @Override
+    public int evictElements(final int elements) {
+        return offHeapHashSet.evictElements( elements );
     }
 
     @Override

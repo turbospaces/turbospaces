@@ -97,6 +97,22 @@ public class JVMUtil {
     }
 
     /**
+     * Allocate an instance but do not run any constructor.
+     * Initializes the class if it has not yet been.
+     * 
+     * @param clazz
+     *            type of new instance
+     * @return new instance of class
+     * @throws InstantiationException
+     *             re-throw exceptions
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(final Class<T> clazz)
+                                                         throws InstantiationException {
+        return (T) UNSAFE.allocateInstance( clazz );
+    }
+
+    /**
      * allocate off-heap memory and returns the address of the memory.
      * 
      * @param size

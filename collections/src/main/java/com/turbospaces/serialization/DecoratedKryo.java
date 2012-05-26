@@ -48,6 +48,7 @@ import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.esotericsoftware.kryo.serialize.MapSerializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.collect.Maps;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -59,7 +60,7 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * @since 0.1
  */
 @SuppressWarnings({ "rawtypes" })
-public final class DecoratedKryo extends Kryo {
+public class DecoratedKryo extends Kryo {
     private ConcurrentMap<Class, RegisteredClass> serializers;
 
     /**
@@ -131,6 +132,16 @@ public final class DecoratedKryo extends Kryo {
             serializers = Maps.newConcurrentMap();
         serializers.put( type, regClass );
         return regClass;
+    }
+
+    @Override
+    public final <T> T newInstance(final Class<T> type) {
+        try {
+            return JVMUtil.newInstance( type );
+        }
+        catch ( InstantiationException e ) {
+            return super.newInstance( type );
+        }
     }
 
     /**

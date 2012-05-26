@@ -1,5 +1,10 @@
 package com.turbospaces.offmemory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+
 import org.junit.Test;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
@@ -11,10 +16,10 @@ import com.turbospaces.serialization.DecoratedKryo;
 public class ByteArrayPointerTest {
 
     @Test
-    public void occupiedBytes()
-                               throws SecurityException,
-                               NoSuchMethodException,
-                               ClassNotFoundException {
+    public void verify()
+                        throws SecurityException,
+                        NoSuchMethodException,
+                        ClassNotFoundException {
         DecoratedKryo kryo = new DecoratedKryo();
         BO bo = TestEntity1.getPersistentEntity();
         BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );
@@ -25,7 +30,12 @@ public class ByteArrayPointerTest {
         byte[] serializedData = objectBuffer.writeObject( entity1 );
         ByteArrayPointer p = new ByteArrayPointer( serializedData, entity1, Integer.MAX_VALUE );
         p.dumpAndGetAddress();
-        System.out.println( p.bytesOccupied() );
+        assertThat( p.bytesOccupied(), is( greaterThan( 0 ) ) );
+        assertThat( ByteArrayPointer.getLastAccessTime( p.dumpAndGetAddress() ), is( lessThanOrEqualTo( System.currentTimeMillis() ) ) );
+        assertThat( ByteArrayPointer.getCreationTimestamp( p.dumpAndGetAddress() ), is( lessThanOrEqualTo( System.currentTimeMillis() ) ) );
+        long lastUpdateTmst = System.currentTimeMillis() + 123;
+        ByteArrayPointer.updateLastAccessTime( p.dumpAndGetAddress(), lastUpdateTmst );
+        assertThat( ByteArrayPointer.getLastAccessTime( p.dumpAndGetAddress() ), is( lastUpdateTmst ) );
         p.utilize();
     }
 }

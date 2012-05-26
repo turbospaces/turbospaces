@@ -51,6 +51,7 @@ public final class ByteArrayPointer {
         LENGTH(Ints.BYTES),
         CREATION_TIMESTAMP(Longs.BYTES),
         TIME_TO_LIVE(Ints.BYTES),
+        LAST_ACCESS_DATE(Longs.BYTES),
         DATA(Integer.MAX_VALUE);
 
         private FormatFields(final int lenght) {
@@ -69,7 +70,7 @@ public final class ByteArrayPointer {
         }
     }
     private static int INTERNAL_BYTES_OCCUPATION = FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght
-            + FormatFields.TIME_TO_LIVE.lenght;
+            + FormatFields.TIME_TO_LIVE.lenght + FormatFields.LAST_ACCESS_DATE.lenght;
 
     private byte[] serializedBytes;
     private ByteBuffer serializedData;
@@ -110,6 +111,33 @@ public final class ByteArrayPointer {
         this.object = object;
         this.serializedBytes = serializedData;
         this.ttl = ttl;
+    }
+
+    /**
+     * read the latest access timestamp for this pointer.</p>
+     * 
+     * <b>NOTE:</b> this method potentially not-thread safe and you can see stale data, so please make sure to call this
+     * under proper lock.
+     * 
+     * @param address
+     *            off-heap memory address
+     * @return the last access timestamp for this pointer
+     */
+    public static long getLastAccessTime(final long address) {
+        return JVMUtil.getLong( address + FormatFields.LAST_ACCESS_DATE.offset );
+    }
+
+    /**
+     * update the last access timestamp to given value.
+     * 
+     * @param address
+     *            off-heap memory address
+     * @param now
+     *            new last access timestamp value
+     */
+    public static void updateLastAccessTime(final long address,
+                                            final long now) {
+        JVMUtil.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
     }
 
     /**
@@ -257,9 +285,11 @@ public final class ByteArrayPointer {
     }
 
     private void flush2offheap() {
+        long now = System.currentTimeMillis();
         JVMUtil.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
-        JVMUtil.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, System.currentTimeMillis() );
+        JVMUtil.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, now );
         JVMUtil.putInt( address + FormatFields.TIME_TO_LIVE.offset, ttl );
+        JVMUtil.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
         JVMUtil.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
     }
 

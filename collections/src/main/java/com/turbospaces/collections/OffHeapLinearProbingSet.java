@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.math.IntMath;
+import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.JVMUtil;
@@ -57,14 +58,17 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
                                    final ExecutorService executorService) {
         this( IntMath.pow( 2, IntMath.log2(
                 Math.max( (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ), 1 ),
-                RoundingMode.UP ) ), serializer, executorService );
+                RoundingMode.UP ) ), serializer, executorService, capacityRestriction.getEvictionPolicy() );
     }
 
     @VisibleForTesting
-    OffHeapLinearProbingSet(final int initialSegments, final MatchingSerializer<?> serializer, final ExecutorService executorService) {
+    OffHeapLinearProbingSet(final int initialSegments,
+                            final MatchingSerializer<?> serializer,
+                            final ExecutorService executorService,
+                            final CacheEvictionPolicy cacheEvictionPolicy) {
         segments = new OffHeapLinearProbingSegment[initialSegments];
         for ( int i = 0; i < initialSegments; i++ )
-            segments[i] = new OffHeapLinearProbingSegment( serializer, executorService );
+            segments[i] = new OffHeapLinearProbingSegment( serializer, executorService, cacheEvictionPolicy );
     }
 
     @Override
@@ -132,6 +136,22 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     public void cleanUp() {
         for ( OffHeapLinearProbingSegment entry : segments )
             entry.cleanUp();
+    }
+
+    @Override
+    public int evictPercentage(final int percentage) {
+        int evictedObjects = 0;
+        for ( OffHeapLinearProbingSegment entry : segments )
+            evictedObjects += entry.evictPercentage( percentage );
+        return evictedObjects;
+    }
+
+    @Override
+    public int evictElements(final int elements) {
+        int evictedObjects = 0;
+        for ( OffHeapLinearProbingSegment entry : segments )
+            evictedObjects += entry.evictElements( elements );
+        return evictedObjects;
     }
 
     @Override

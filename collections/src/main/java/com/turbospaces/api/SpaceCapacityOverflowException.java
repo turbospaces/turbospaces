@@ -15,17 +15,15 @@
  */
 package com.turbospaces.api;
 
-import org.springframework.dao.DataAccessException;
+import org.springframework.core.NestedRuntimeException;
 
 /**
  * signals that cache exceeded it's max capacity and it is not possible to add more elements.
- * sometimes you would like to restrict how many entities can be added to the space and you can do this by setting
- * {@link SpaceConfiguration#setCapacityRestriction(CapacityRestriction)} bean.
  * 
- * @see SpaceConfiguration#setCapacityRestriction(CapacityRestriction)
+ * @see CacheEvictionPolicy
  * @since 0.1
  */
-public class SpaceCapacityOverflowException extends DataAccessException {
+public class SpaceCapacityOverflowException extends NestedRuntimeException {
     private static final long serialVersionUID = 7570197171497419919L;
 
     private final long maxElements;

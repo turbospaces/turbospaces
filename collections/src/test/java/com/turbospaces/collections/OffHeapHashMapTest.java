@@ -22,6 +22,7 @@ import org.springframework.beans.factory.InitializingBean;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
@@ -57,7 +58,8 @@ public class OffHeapHashMapTest {
         objectBuffer = new ObjectBuffer( decoratedKryo );
         propertySerializer = new PropertiesSerializer( decoratedKryo, bo );
 
-        return Arrays.asList( new Object[][] { { new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor() ) },
+        return Arrays.asList( new Object[][] {
+                { new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.REJECT ) },
                 { new OffHeapLinearProbingSet( bo.getCapacityRestriction(), propertySerializer, MoreExecutors.sameThreadExecutor() ) } } );
     }
 

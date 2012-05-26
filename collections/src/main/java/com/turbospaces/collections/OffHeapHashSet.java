@@ -41,7 +41,7 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * @since 0.1
  */
 @SuppressWarnings("restriction")
-public interface OffHeapHashSet {
+public interface OffHeapHashSet extends EvictableCache {
     /**
      * check whether particular value (associated with given key) is present in this collection.</p>
      * 

@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.esotericsoftware.kryo.serialize.FieldSerializer;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.AbstractCache.SimpleStatsCounter;
 import com.google.common.cache.Cache;
@@ -45,8 +46,8 @@ import com.turbospaces.serialization.MatchingSerializer;
  * @param <V>
  *            values type
  */
-public class GuavaOffHeapCacheBuilder<K, V> {
-    private final CapacityRestriction capacityRestriction = new CapacityRestriction();
+public final class GuavaOffHeapCacheBuilder<K, V> {
+    private CapacityRestriction capacityRestriction = new CapacityRestriction();
     private ExecutorService executorService;
     private DecoratedKryo kryo;
     private int ttl = Integer.MAX_VALUE;
@@ -137,6 +138,17 @@ public class GuavaOffHeapCacheBuilder<K, V> {
     }
 
     /**
+     * If you don't have enough memory to cache everything, specify the capacity restriction configuration(maxElements
+     * in cache, maxMemory, eviction policy).
+     * 
+     * @param capacityRestriction
+     *            new capacity restrictions configuration
+     */
+    public void setCapacityRestriction(final CapacityRestriction capacityRestriction) {
+        this.capacityRestriction = Preconditions.checkNotNull( capacityRestriction ).clone();
+    }
+
+    /**
      * Builds new off-heap linear probing set.
      * 
      * <p>
@@ -146,9 +158,9 @@ public class GuavaOffHeapCacheBuilder<K, V> {
      * @param clazz
      *            the class of value's type
      * 
-     * @return new off-heap linear probing set having the requested features
+     * @return new off-heap linear probing cache having the requested features
      */
-    public Cache<K, V> build(final Class<V> clazz) {
+    public GuavaOffHeapCache<K, V> build(final Class<V> clazz) {
         if ( executorService == null )
             executorService = MoreExecutors.sameThreadExecutor();
         if ( kryo == null )

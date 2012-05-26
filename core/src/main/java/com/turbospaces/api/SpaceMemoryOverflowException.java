@@ -17,7 +17,7 @@ package com.turbospaces.api;
 
 import java.util.Arrays;
 
-import org.springframework.dao.DataAccessException;
+import org.springframework.core.NestedRuntimeException;
 
 /**
  * signals that cache memory exceeded it's max capacity and it is not possible to add more elements.
@@ -28,7 +28,7 @@ import org.springframework.dao.DataAccessException;
  * @see SpaceConfiguration#setCapacityRestriction(CapacityRestriction)
  * @since 0.1
  */
-public class SpaceMemoryOverflowException extends DataAccessException {
+public class SpaceMemoryOverflowException extends NestedRuntimeException {
     private static final long serialVersionUID = -4537158624229189977L;
 
     private final long bytes;
