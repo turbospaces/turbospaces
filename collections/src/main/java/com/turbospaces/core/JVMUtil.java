@@ -24,12 +24,10 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import sun.misc.Unsafe;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -47,11 +45,9 @@ import com.turbospaces.pool.SimpleObjectPool;
  */
 @SuppressWarnings("restriction")
 public class JVMUtil {
-    private static final Logger LOGGER = LoggerFactory.getLogger( JVMUtil.class );
     private static final Unsafe UNSAFE;
 
     static {
-        LOGGER.trace( "initializing {}", JVMUtil.class.toString() );
         UNSAFE = AccessController.doPrivileged( new PrivilegedAction<Unsafe>() {
             @Override
             public Unsafe run() {
@@ -62,7 +58,7 @@ public class JVMUtil {
                     unsafe = (Unsafe) theUnsafeInstance.get( Unsafe.class );
                 }
                 catch ( Exception e ) {
-                    LOGGER.error( e.getMessage(), e );
+                    Log.error( e.getMessage(), e );
                     Throwables.propagate( e );
                 }
                 return unsafe;
@@ -247,7 +243,7 @@ public class JVMUtil {
                     runnable.run();
                 }
                 catch ( Exception e ) {
-                    LOGGER.error( e.getMessage(), e );
+                    Log.error( e.getMessage(), e );
                     ex.set( e );
                 }
             }
@@ -293,7 +289,7 @@ public class JVMUtil {
                                 task.apply( l );
                             }
                             catch ( Throwable e ) {
-                                LOGGER.error( e.getMessage(), e );
+                                Log.error( e.getMessage(), e );
                                 errors.add( e );
                                 Throwables.propagate( e );
                             }
@@ -345,11 +341,13 @@ public class JVMUtil {
      */
     public static int murmurRehash(final int hash) {
         int k = hash;
+
         k ^= k >>> 16;
         k *= 0x85ebca6b;
         k ^= k >>> 13;
         k *= 0xc2b2ae35;
         k ^= k >>> 16;
+
         return k;
     }
 

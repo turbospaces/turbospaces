@@ -25,10 +25,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.ObjectUtils;
 
+import com.esotericsoftware.minlog.Log;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -70,7 +69,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
     private final CacheEvictionPolicy evictionPolicy;
     private final ExecutorService executorService;
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final MatchingSerializer<?> serializer;
     private SpaceExpirationListener[] expirationListeners;
     private final Random random = new Random();
@@ -114,11 +112,11 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                                final EvictionEntry o2) {
                 for ( ;; )
                     if ( evictionPolicy == CacheEvictionPolicy.LRU )
-                        return ( o1.lastAccessTime < o2.lastAccessTime ? -1 : ( o1.lastAccessTime == o2.lastAccessTime ? 0 : 1 ) );
+                        return o1.lastAccessTime < o2.lastAccessTime ? -1 : o1.lastAccessTime == o2.lastAccessTime ? 0 : 1;
                     else if ( evictionPolicy == CacheEvictionPolicy.FIFO )
-                        return ( o1.creationTimestamp < o2.creationTimestamp ? -1 : ( o1.creationTimestamp == o2.creationTimestamp ? 0 : 1 ) );
+                        return o1.creationTimestamp < o2.creationTimestamp ? 1 : o1.creationTimestamp == o2.creationTimestamp ? 0 : -1;
                     else if ( evictionPolicy == CacheEvictionPolicy.LFU )
-                        return ( o1.accessTimes < o2.accessTimes ? -1 : ( o1.accessTimes == o2.accessTimes ? 0 : 1 ) );
+                        return o1.accessTimes < o2.accessTimes ? -1 : o1.accessTimes == o2.accessTimes ? 0 : 1;
             }
         } );
     }
@@ -352,7 +350,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                                 expirationListener.handleNotification( expiredEntry.buffer, expiredEntry.id, serializer.getType(), expiredEntry.ttl );
                         }
                         catch ( Exception e ) {
-                            logger.error( "unable to properly notify expiration listener", e );
+                            Log.error( "unable to properly notify expiration listener", e );
                         }
                 }
             } );
@@ -449,15 +447,13 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             }
 
             // now if there are any expired entries, remove them
-            if ( expiredEntries != null ) {
-                logger.trace( "detected {} items of {} for removal due to ttl expiration", expiredEntries.size(), n );
+            if ( expiredEntries != null )
                 for ( ExpiredEntry entry : expiredEntries )
                     // potentially another thread removed entry? check if bytesOccupied > 0
                     if ( remove( entry.id ) > 0 ) {
                         notifyExpired( entry );
-                        logger.trace( "automatically removed expired entry with key {}", entry.id );
+                        Log.trace( "automatically removed expired entry with key = " + entry.id );
                     }
-            }
         }
         finally {
             lock.unlock();
@@ -469,7 +465,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         final Lock lock = writeLock();
         lock.lock();
         try {
-            return evictElements( ( n * percentage ) / 100 );
+            return evictElements( n * percentage / 100 );
         }
         finally {
             lock.unlock();
@@ -568,7 +564,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             if ( address != 0 ) {
                 long lastAccessTime = ByteArrayPointer.getLastAccessTime( address );
                 long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
-                long accessTimes = 0;
+                long accessTimes = 0; // TODO: access time
                 byte[] serializedData = ByteArrayPointer.getEntityState( address );
                 Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
                 evictionCandidates.add( new EvictionEntry( id, lastAccessTime, accessTimes, creationTimestamp ) );

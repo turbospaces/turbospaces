@@ -13,15 +13,42 @@
         <timestamp>${maven.build.timestamp}</timestamp>
     </properties>
     <dependencies>
+    <dependency>
+            <artifactId>slf4j-api</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j-revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j-revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>${slf4j-revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-revision}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-revision}</version>
+            <scope>provided</scope>
+        </dependency>        
         <dependency>
             <groupId>com.turbospaces</groupId>
             <artifactId>turbospaces-collections</artifactId>
             <version>${project.version}</version>
-        </dependency>      
+        </dependency>
         <dependency>
             <groupId>cglib</groupId>
             <artifactId>cglib</artifactId>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-asm</artifactId>
@@ -33,7 +60,7 @@
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-commons-core</artifactId>
-        </dependency>  
+        </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
@@ -53,7 +80,7 @@
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-mongodb</artifactId>
@@ -71,14 +98,14 @@
             <artifactId>spring-test</artifactId>
             <version>${spring-revision}</version>
             <scope>test</scope>
-        </dependency>    
+        </dependency>
         <dependency>
             <groupId>com.turbospaces</groupId>
             <artifactId>turbospaces-collections</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
-        </dependency>   
+        </dependency>
     </dependencies>
     <build>
         <plugins>

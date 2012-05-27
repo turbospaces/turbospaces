@@ -25,9 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -44,7 +42,6 @@ import com.turbospaces.pool.SimpleObjectPool;
  */
 @SuppressWarnings({ "javadoc" })
 public class PerformanceMonitor<V> implements Runnable {
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
 
     private int threadsCount;
     private int numberOfIterations;
@@ -121,12 +118,12 @@ public class PerformanceMonitor<V> implements Runnable {
         Preconditions.checkArgument( numberOfIterations > 0, "numberOfIteration can't be negative" );
         Preconditions.checkArgument( threadsCount > 0, "threadsCount can't be negative" );
 
-        logger.info( " Starting pefrormance test run... " );
-        logger.info( " Threads Count     : {}", threadsCount );
-        logger.info( " Iterations Count  : {}", numberOfIterations );
-        logger.info( " Get  Percentage   : {}", getPercentage );
-        logger.info( " Put  Percentage   : {}", putPercentage );
-        logger.info( " Take Percentage   : {}", putPercentage );
+        Log.info( " Starting pefrormance test run... " );
+        Log.info( " Threads Count     : " + threadsCount );
+        Log.info( " Iterations Count  : " + numberOfIterations );
+        Log.info( " Get  Percentage   : " + getPercentage );
+        Log.info( " Put  Percentage   : " + putPercentage );
+        Log.info( " Take Percentage   : " + putPercentage );
 
         final AtomicBoolean completitionSemapshore = new AtomicBoolean( false );
         final AtomicLong readsHit = new AtomicLong();
@@ -149,8 +146,14 @@ public class PerformanceMonitor<V> implements Runnable {
                     Uninterruptibles.sleepUninterruptibly( 1, TimeUnit.SECONDS );
 
                     long total = readsHit.get() + readsMiss.get() + writes.get() + takesHit.get() + takesMiss.get();
-                    logger.info( "TPS = {} [readsHit={}, readsMiss={}, writes={}, takesHit={}, takesMiss={}]", new Object[] { total, readsHit.get(),
-                            readsMiss.get(), writes.get(), takesHit.get(), takesMiss.get() } );
+                    Log.info( String.format(
+                            "TPS = %s [readsHit=%s, readsMiss=%s, writes=%s, takesHit=%s, takesMiss=%s]",
+                            total,
+                            readsHit.get(),
+                            readsMiss.get(),
+                            writes.get(),
+                            takesHit.get(),
+                            takesMiss.get() ) );
                     readsHit.set( 0 );
                     readsMiss.set( 0 );
                     takesHit.set( 0 );
@@ -196,7 +199,7 @@ public class PerformanceMonitor<V> implements Runnable {
             Preconditions.checkState( exceptions.isEmpty(), "Errors = " + exceptions );
         }
         catch ( Exception e ) {
-            logger.error( e.getMessage(), e );
+            Log.error( e.getMessage(), e );
             Throwables.propagate( e );
         }
         finally {

@@ -19,10 +19,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.CacheStats;
@@ -49,7 +47,6 @@ import com.turbospaces.serialization.DecoratedKryo;
  *            value type
  */
 public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements EvictableCache {
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
     private final OffHeapHashSet offHeapHashSet;
     private final ObjectPool<ObjectBuffer> objectsPool;
     private final DecoratedKryo kryo;
@@ -107,7 +104,7 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
                     }
                 }
                 catch ( Exception e ) {
-                    logger.error( e.getMessage(), e );
+                    Log.error( e.getMessage(), e );
                     // record exception
                     if ( nano != 0 )
                         statsCounter.recordLoadException( System.nanoTime() - nano );

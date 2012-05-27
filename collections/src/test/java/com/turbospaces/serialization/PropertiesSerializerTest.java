@@ -20,7 +20,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -29,10 +28,9 @@ import junit.framework.Assert;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.minlog.Log;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
@@ -40,7 +38,6 @@ import com.turbospaces.model.TestEntity1;
 
 @SuppressWarnings("javadoc")
 public class PropertiesSerializerTest {
-    Logger logger = LoggerFactory.getLogger( getClass() );
     DecoratedKryo kryo;
     TestEntity1 entity1;
     BO bo;
@@ -63,8 +60,7 @@ public class PropertiesSerializerTest {
     @Test
     public void canSerializeEntity() {
         ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
-        byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-        logger.info( "wrote {}.({} bytes) to {}", new Object[] { entity1, data.length, Arrays.toString( data ) } );
+        objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
     }
 
     @Test
@@ -309,7 +305,7 @@ public class PropertiesSerializerTest {
         } );
         Assert.assertTrue( errors.isEmpty() );
 
-        logger.info( "tps over bytes {}", ITERATIONS / ( System.currentTimeMillis() - millis ) * 1000 );
+        Log.info( "tps over bytes = " + ITERATIONS / ( System.currentTimeMillis() - millis ) * 1000 );
     }
 
     @Test
@@ -334,7 +330,7 @@ public class PropertiesSerializerTest {
         } );
         Assert.assertTrue( errors.isEmpty() );
 
-        logger.info( "tps over bytes by id {}", ITERATIONS / ( System.currentTimeMillis() - millis ) * 1000 );
+        Log.info( "tps over bytes by id = " + ITERATIONS / ( System.currentTimeMillis() - millis ) * 1000 );
     }
 
     private static final int THREADS_COUNT = 50;

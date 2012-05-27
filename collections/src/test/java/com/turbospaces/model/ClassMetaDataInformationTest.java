@@ -9,8 +9,6 @@ import java.util.Collections;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Routing;
 import org.springframework.data.annotation.Version;
@@ -20,11 +18,11 @@ import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.data.util.TypeInformation;
 
+import com.esotericsoftware.minlog.Log;
 import com.turbospaces.serialization.DecoratedKryo;
 
 @SuppressWarnings({ "javadoc", "rawtypes" })
 public class ClassMetaDataInformationTest {
-    Logger logger = LoggerFactory.getLogger( getClass() );
     BO bo;
     DecoratedKryo kryo;
 
@@ -59,17 +57,17 @@ public class ClassMetaDataInformationTest {
         assertThat( bo.getPersistentProperty( "s3" ), is( notNullValue() ) );
         assertThat( bo.getPersistentProperty( "s4" ), is( notNullValue() ) );
 
-        logger.info( "Entity = {}", name );
-        logger.info( "Type = {}", type );
-        logger.info( "TypeInformation = {}", information );
-        logger.info( "IdProperty= {}", idProperty.getName() );
-        logger.info( "VersionProperty= {}", versionProperty.getName() );
-        logger.info( "RoutingProperty= {}", routingProperty.getName() );
+        Log.info( "Entity = " + name );
+        Log.info( "Type = " + type );
+        Log.info( "TypeInformation = " + information );
+        Log.info( "IdProperty= " + idProperty.getName() );
+        Log.info( "VersionProperty= " + versionProperty.getName() );
+        Log.info( "RoutingProperty= " + routingProperty.getName() );
 
         bo.getOriginalPersistentEntity().doWithAssociations( new AssociationHandler() {
             @Override
             public void doWithAssociation(final Association association) {
-                logger.info( "Association discovered = {}", association.toString() );
+                Log.info( "Association discovered =" + association.toString() );
             }
         } );
     }

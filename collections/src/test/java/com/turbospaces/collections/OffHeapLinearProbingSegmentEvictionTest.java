@@ -102,10 +102,73 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
             segment.put( keys[i], p );
         }
-        Thread.sleep( 1 );
+        Thread.sleep( 2 );
         for ( int i = 0; i < keys.length / 2; i++ )
             assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
         Thread.sleep( 1 );
+        segment.evictPercentage( 50 );
+        for ( int i = 0; i < keys.length / 2; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
+        for ( int i = keys.length / 2; i < keys.length; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( nullValue() ) );
+    }
+
+    @Test
+    public void testLruEviction2()
+                                  throws InterruptedException {
+        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
+
+        String[] keys = new String[400];
+        for ( int i = 0; i < keys.length; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            keys[i] = entity1.getUniqueIdentifier();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
+            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            segment.put( keys[i], p );
+        }
+        Thread.sleep( 1 );
+        for ( int i = 0; i < keys.length / 4; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
+
+        Thread.sleep( 2 );
+        segment.evictPercentage( 75 );
+
+        for ( int i = 0; i < keys.length / 4; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
+
+        for ( int i = keys.length / 4; i < keys.length; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( nullValue() ) );
+    }
+
+    @Test
+    public void testFifoEviction1()
+                                   throws InterruptedException {
+        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.FIFO );
+
+        String[] keys = new String[100];
+        for ( int i = 0; i < keys.length / 2; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            keys[i] = entity1.getUniqueIdentifier();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
+            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            segment.put( keys[i], p );
+        }
+        Thread.sleep( 10 );
+
+        for ( int i = keys.length / 2; i < keys.length; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            keys[i] = entity1.getUniqueIdentifier();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
+            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            segment.put( keys[i], p );
+        }
+
         segment.evictPercentage( 50 );
         for ( int i = 0; i < keys.length / 2; i++ )
             assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );

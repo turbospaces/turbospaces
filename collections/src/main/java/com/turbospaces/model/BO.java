@@ -32,8 +32,6 @@ import net.sf.cglib.beans.BulkBean;
 import net.sf.cglib.reflect.FastClass;
 import net.sf.cglib.reflect.FastConstructor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.Routing;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mapping.PersistentEntity;
@@ -43,6 +41,7 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.data.mapping.model.BeanWrapper;
 
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -59,7 +58,6 @@ import com.turbospaces.serialization.SingleDimensionArraySerializer;
 @ThreadSafe
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public final class BO {
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
 
     private final BasicPersistentEntity delegate;
     private PersistentProperty optimisticLockVersionProperty, routingProperty;
@@ -143,10 +141,10 @@ public final class BO {
                         setters.toArray( new String[setters.size()] ),
                         types.toArray( new Class[types.size()] ) );
             else
-                logger.warn(
-                        "PropetiesSerializer-{} unable to use getters-setters access optimization. Suspected/Corrupted properties = {}",
+                Log.warn( String.format(
+                        "PropetiesSerializer-%s unable to use getters-setters access optimization. Suspected/Corrupted properties = %",
                         delegate.getType().getSimpleName(),
-                        getBrokenProperties() );
+                        getBrokenProperties() ) );
 
             boolean canOptimizeIdProperty = hasReadWriteMethods( delegate.getIdProperty() );
             boolean canOptimizeVersionProperty = hasReadWriteMethods( getOptimisticLockVersionProperty() );
@@ -260,7 +258,7 @@ public final class BO {
                 return fastConstructor.newInstance();
             }
             catch ( InvocationTargetException e ) {
-                logger.error( e.getMessage(), e );
+                Log.error( e.getMessage(), e );
                 Throwables.propagate( e );
             }
     }

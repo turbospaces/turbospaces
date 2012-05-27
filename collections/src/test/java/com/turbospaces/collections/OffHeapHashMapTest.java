@@ -15,11 +15,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
@@ -36,7 +35,6 @@ import com.turbospaces.serialization.PropertiesSerializer;
 @SuppressWarnings({ "javadoc" })
 @RunWith(Parameterized.class)
 public class OffHeapHashMapTest {
-    static Logger LOGGER = LoggerFactory.getLogger( OffHeapHashMapTest.class );
     static ObjectBuffer objectBuffer;
     static BO bo;
     static DecoratedKryo decoratedKryo;
@@ -78,7 +76,7 @@ public class OffHeapHashMapTest {
                 Assert.assertTrue( persistentClass == TestEntity1.class );
                 Assert.assertTrue( originalTimeToLive > 0 );
 
-                LOGGER.info( "{} has been expired, {}-{}", new Object[] { entity, persistentClass.getSimpleName(), originalTimeToLive } );
+                Log.info( String.format( "%s has been expired, %-%s", entity, persistentClass.getSimpleName(), originalTimeToLive ) );
             }
         } );
     }
