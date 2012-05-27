@@ -16,12 +16,9 @@
 package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
-import java.util.Iterator;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Random;
-import java.util.Set;
-import java.util.SortedMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -36,7 +33,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.JVMUtil;
@@ -77,6 +74,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private final MatchingSerializer<?> serializer;
     private SpaceExpirationListener[] expirationListeners;
     private final Random random = new Random();
+    private Ordering<EvictionEntry> evictionComparator;
 
     private int n;
     private int m;
@@ -109,6 +107,20 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
         this.m = initialCapacity;
         this.addresses = new long[m];
+
+        evictionComparator = Ordering.from( new Comparator<EvictionEntry>() {
+            @Override
+            public int compare(final EvictionEntry o1,
+                               final EvictionEntry o2) {
+                for ( ;; )
+                    if ( evictionPolicy == CacheEvictionPolicy.LRU )
+                        return ( o1.lastAccessTime < o2.lastAccessTime ? -1 : ( o1.lastAccessTime == o2.lastAccessTime ? 0 : 1 ) );
+                    else if ( evictionPolicy == CacheEvictionPolicy.FIFO )
+                        return ( o1.creationTimestamp < o2.creationTimestamp ? -1 : ( o1.creationTimestamp == o2.creationTimestamp ? 0 : 1 ) );
+                    else if ( evictionPolicy == CacheEvictionPolicy.LFU )
+                        return ( o1.accessTimes < o2.accessTimes ? -1 : ( o1.accessTimes == o2.accessTimes ? 0 : 1 ) );
+            }
+        } );
     }
 
     @Override
@@ -532,32 +544,39 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         }
     }
 
+    private static final class EvictionEntry {
+        private final Object key;
+        private final long lastAccessTime;
+        private final long accessTimes;
+        private final long creationTimestamp;
+
+        private EvictionEntry(final Object key, final long lastAccessTime, final long accessTimes, final long creationTimestamp) {
+            super();
+            this.key = key;
+            this.lastAccessTime = lastAccessTime;
+            this.accessTimes = accessTimes;
+            this.creationTimestamp = creationTimestamp;
+        }
+    }
+
     private int evictLruFifoLfu(final int elements,
                                 final int evictedNow) {
         int evicted = evictedNow;
-        SortedMap<Long, Object> accessTimes = Maps.newTreeMap();
+        List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
         for ( int i = 0; i < m; i++ ) {
             long address = addresses[i];
             if ( address != 0 ) {
-                long t = 0;
-                if ( evictionPolicy == CacheEvictionPolicy.LRU )
-                    t = ByteArrayPointer.getLastAccessTime( address );
-                else if ( evictionPolicy == CacheEvictionPolicy.FIFO )
-                    t = ByteArrayPointer.getCreationTimestamp( address );
+                long lastAccessTime = ByteArrayPointer.getLastAccessTime( address );
+                long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
+                long accessTimes = 0;
                 byte[] serializedData = ByteArrayPointer.getEntityState( address );
-                accessTimes.put( Long.valueOf( t ), serializer.readID( ByteBuffer.wrap( serializedData ) ) );
+                Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
+                evictionCandidates.add( new EvictionEntry( id, lastAccessTime, accessTimes, creationTimestamp ) );
             }
         }
-        Set<Entry<Long, Object>> entrySet = accessTimes.entrySet();
-        Iterator<Entry<Long, Object>> iterator = entrySet.iterator();
-        while ( evicted < elements && n > 0 ) {
-            Entry<Long, Object> entry = iterator.next();
-            Long id = entry.getKey();
-            iterator.remove();
-            int bytes = remove( id );
-            assert bytes > 0;
-            evicted++;
-        }
+        List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
+        for ( EvictionEntry evictionEntry : greatestOf )
+            remove( evictionEntry.key );
         return evicted;
     }
 

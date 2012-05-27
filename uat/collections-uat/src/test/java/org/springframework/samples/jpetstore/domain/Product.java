@@ -1,35 +1,53 @@
 package org.springframework.samples.jpetstore.domain;
 
-import java.io.Serializable;
+@SuppressWarnings("javadoc")
+public class Product {
 
+    /* Private Fields */
 
-public class Product implements Serializable {
+    private String productId;
+    private String categoryId;
+    private String name;
+    private String description;
 
-  /* Private Fields */
+    /* JavaBeans Properties */
 
-  private String productId;
-  private String categoryId;
-  private String name;
-  private String description;
+    public String getProductId() {
+        return productId;
+    }
 
-  /* JavaBeans Properties */
+    public void setProductId(final String productId) {
+        this.productId = productId.trim();
+    }
 
-  public String getProductId() { return productId; }
-  public void setProductId(String productId) { this.productId = productId.trim(); }
+    public String getCategoryId() {
+        return categoryId;
+    }
 
-  public String getCategoryId() { return categoryId; }
-  public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public void setCategoryId(final String categoryId) {
+        this.categoryId = categoryId;
+    }
 
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+    public String getName() {
+        return name;
+    }
 
-  public String getDescription() { return description; }
-  public void setDescription(String description) { this.description = description; }
+    public void setName(final String name) {
+        this.name = name;
+    }
 
-  /* Public Methods*/
+    public String getDescription() {
+        return description;
+    }
 
-  public String toString() {
-    return getName();
-  }
+    public void setDescription(final String description) {
+        this.description = description;
+    }
 
+    /* Public Methods */
+
+    @Override
+    public String toString() {
+        return getName();
+    }
 }

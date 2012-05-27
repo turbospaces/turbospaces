@@ -26,6 +26,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import com.google.common.base.Throwables;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.logging.JGroupsCustomLoggerFactory;
 
@@ -48,6 +49,7 @@ public final class EmbeddedJSpaceRunner {
      */
     public static void main(final String... args)
                                                  throws Exception {
+        JVMUtil.gcOnExit();
         String appContextPath = args[0];
         if ( System.getProperty( Global.IPv4 ) == null && System.getProperty( Global.IPv6 ) == null )
             System.setProperty( Global.IPv4, Boolean.TRUE.toString() );

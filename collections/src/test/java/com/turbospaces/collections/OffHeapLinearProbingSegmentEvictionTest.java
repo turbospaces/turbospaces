@@ -2,6 +2,8 @@ package com.turbospaces.collections;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 
 import org.junit.After;
 import org.junit.Before;
@@ -86,7 +88,28 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     }
 
     @Test
-    public void testLruEviction() {
+    public void testLruEviction1()
+                                  throws InterruptedException {
+        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
 
+        String[] keys = new String[100];
+        for ( int i = 0; i < keys.length; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            keys[i] = entity1.getUniqueIdentifier();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
+            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            segment.put( keys[i], p );
+        }
+        Thread.sleep( 1 );
+        for ( int i = 0; i < keys.length / 2; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
+        Thread.sleep( 1 );
+        segment.evictPercentage( 50 );
+        for ( int i = 0; i < keys.length / 2; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
+        for ( int i = keys.length / 2; i < keys.length; i++ )
+            assertThat( segment.getAsPointer( keys[i] ), is( nullValue() ) );
     }
 }
