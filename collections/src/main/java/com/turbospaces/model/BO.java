@@ -142,7 +142,7 @@ public final class BO {
                         types.toArray( new Class[types.size()] ) );
             else
                 Log.warn( String.format(
-                        "PropetiesSerializer-%s unable to use getters-setters access optimization. Suspected/Corrupted properties = %",
+                        "PropetiesSerializer-%s unable to use getters-setters access optimization. Suspected/Corrupted properties = %s",
                         delegate.getType().getSimpleName(),
                         getBrokenProperties() ) );
 
