@@ -142,9 +142,9 @@ public abstract class SpaceUtility {
     @SuppressWarnings("rawtypes")
     public static void registerSpaceClasses(final AbstractSpaceConfiguration configuration,
                                             final DecoratedKryo kryo)
-                                                                          throws ClassNotFoundException,
-                                                                          SecurityException,
-                                                                          NoSuchMethodException {
+                                                                     throws ClassNotFoundException,
+                                                                     SecurityException,
+                                                                     NoSuchMethodException {
         kryo.register( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
         kryo.register( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
 
@@ -322,10 +322,12 @@ public abstract class SpaceUtility {
     public static KeyLocker parallelizedKeyLocker() {
         KeyLocker locker = new KeyLocker() {
             private final KeyLocker[] segments = new KeyLocker[1 << 8];
+            private int mask;
 
             {
                 for ( int i = 0; i < segments.length; i++ )
                     segments[i] = new TransactionScopeKeyLocker();
+                mask = segments.length - 1;
             }
 
             @Override
@@ -343,7 +345,7 @@ public abstract class SpaceUtility {
             }
 
             private KeyLocker segmentFor(final Object key) {
-                return segments[( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
+                return segments[( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) & mask];
             }
         };
         return locker;

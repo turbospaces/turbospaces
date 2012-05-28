@@ -42,6 +42,7 @@ import com.turbospaces.serialization.MatchingSerializer;
  */
 public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     private final OffHeapLinearProbingSegment[] segments;
+    private final int size, mask;
 
     /**
      * create new off-heap linear set for the given {@link BO} class.
@@ -66,9 +67,11 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
                             final MatchingSerializer<?> serializer,
                             final ExecutorService executorService,
                             final CacheEvictionPolicy cacheEvictionPolicy) {
-        segments = new OffHeapLinearProbingSegment[initialSegments];
+        this.segments = new OffHeapLinearProbingSegment[initialSegments];
         for ( int i = 0; i < initialSegments; i++ )
             segments[i] = new OffHeapLinearProbingSegment( serializer, executorService, cacheEvictionPolicy );
+        this.size = segments.length;
+        this.mask = this.size - 1;
     }
 
     @Override
@@ -170,6 +173,6 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     }
 
     private OffHeapLinearProbingSegment segmentFor(final Object key) {
-        return segments[( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % segments.length];
+        return segments[JVMUtil.murmurRehash( key.hashCode() ) & Integer.MAX_VALUE & mask];
     }
 }

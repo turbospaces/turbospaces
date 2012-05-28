@@ -74,6 +74,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
     private int n;
     private int m;
+    private int mask;
     private long addresses[];
 
     /**
@@ -102,6 +103,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         this.executorService = Preconditions.checkNotNull( executorService );
 
         this.m = initialCapacity;
+        this.mask = initialCapacity - 1;
         this.addresses = new long[m];
 
         evictionComparator = Ordering.from( new Comparator<EvictionEntry>() {
@@ -195,7 +197,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             int index = hash2index( key );
 
             // use linear probing iteration starting at hash-index until not-zero array's element
-            for ( int i = index; addresses[i] != 0; i = ( i + 1 ) % m ) {
+            for ( int i = index; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
                 long address = addresses[i];
                 byte[] serializedData = ByteArrayPointer.getEntityState( address );
                 buffer = ByteBuffer.wrap( serializedData );
@@ -242,7 +244,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
             int i;
             // use linear probing iteration starting at hash-index until not-zero array's element
-            for ( i = hash2index( key ); addresses[i] != 0; i = ( i + 1 ) % m ) {
+            for ( i = hash2index( key ); addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
                 byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
                 ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
@@ -279,7 +281,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         try {
             // try to find entry with the key
             int i = hash2index( key );
-            for ( ; addresses[i] != 0; i = ( i + 1 ) % m ) {
+            for ( ; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
                 byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
                 ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // if the key equals - release memory
@@ -300,7 +302,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
             // for each key that was inserted later we need to re-insert it back just
             // because that might prematurely terminate the search for a key that was inserted into the table later
-            i = ( i + 1 ) % m;
+            i = ( ( i + 1 ) & mask );
             while ( addresses[i] != 0 ) {
                 long addressToRedo = addresses[i];
                 addresses[i] = 0;
@@ -310,7 +312,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 // and simply put it back
                 Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addressToRedo ) ) );
                 put( id, addressToRedo, null );
-                i = ( i + 1 ) % m;
+                i = ( ( i + 1 ) & mask );
             }
             // decrement size
             n--;
@@ -377,6 +379,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         }
         addresses = temp.addresses;
         m = temp.m;
+        mask = temp.mask;
         // re-assign number of items because potentially we already skipped expired entries, but didn't decrement n.
         n = temp.n;
     }
@@ -415,6 +418,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             }
             this.addresses = new long[DEFAULT_SEGMENT_CAPACITY];
             this.m = DEFAULT_SEGMENT_CAPACITY;
+            this.mask = DEFAULT_SEGMENT_CAPACITY - 1;
             this.n = 0;
         }
         finally {
@@ -571,6 +575,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     }
 
     private int hash2index(final Object key) {
-        return ( JVMUtil.murmurRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
+        return ( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) & mask;
     }
 }
