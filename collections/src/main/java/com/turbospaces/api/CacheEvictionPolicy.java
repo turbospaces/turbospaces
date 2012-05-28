@@ -3,7 +3,8 @@ package com.turbospaces.api;
 /**
  * when the space store exceeds the maximum memory/capacity you may want to evict entries from cache or start rejecting
  * puts and raise {@link SpaceCapacityOverflowException} errors.
- * .
+ * 
+ * LFU eviction policy is not supported at the moment.
  * 
  * @since 0.1
  */
@@ -20,12 +21,6 @@ public enum CacheEvictionPolicy {
     LRU,
 
     /**
-     * Least Frequently Used. </p>
-     * Evict entries according to hits count.
-     */
-    LFU,
-
-    /**
      * First In First Out. </p>
      * Evict entries according to "first in first out" principle.
      */
@@ -38,9 +33,9 @@ public enum CacheEvictionPolicy {
     RANDOM;
 
     /**
-     * @return if this is {@link #LFU} or {@link #LRU} or {@link #FIFO} or {@link #RANDOM} eviction policy.
+     * @return if this is {@link #LRU} or {@link #FIFO} or {@link #RANDOM} eviction policy.
      */
     public boolean isEviction() {
-        return this == LRU || this == LFU || this == FIFO || this == RANDOM;
+        return this == LRU || this == FIFO || this == RANDOM;
     }
 }

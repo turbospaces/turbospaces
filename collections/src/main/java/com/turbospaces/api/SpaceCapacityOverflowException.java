@@ -15,7 +15,6 @@
  */
 package com.turbospaces.api;
 
-import org.springframework.core.NestedRuntimeException;
 
 /**
  * signals that cache exceeded it's max capacity and it is not possible to add more elements.
@@ -23,7 +22,7 @@ import org.springframework.core.NestedRuntimeException;
  * @see CacheEvictionPolicy
  * @since 0.1
  */
-public class SpaceCapacityOverflowException extends NestedRuntimeException {
+public class SpaceCapacityOverflowException extends RuntimeException {
     private static final long serialVersionUID = 7570197171497419919L;
 
     private final long maxElements;

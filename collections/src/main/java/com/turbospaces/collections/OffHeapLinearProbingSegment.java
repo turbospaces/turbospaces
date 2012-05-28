@@ -25,8 +25,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import org.springframework.util.ObjectUtils;
-
 import com.esotericsoftware.minlog.Log;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
@@ -115,8 +113,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                         return o1.lastAccessTime < o2.lastAccessTime ? -1 : o1.lastAccessTime == o2.lastAccessTime ? 0 : 1;
                     else if ( evictionPolicy == CacheEvictionPolicy.FIFO )
                         return o1.creationTimestamp < o2.creationTimestamp ? 1 : o1.creationTimestamp == o2.creationTimestamp ? 0 : -1;
-                    else if ( evictionPolicy == CacheEvictionPolicy.LFU )
-                        return o1.accessTimes < o2.accessTimes ? -1 : o1.accessTimes == o2.accessTimes ? 0 : 1;
             }
         } );
     }
@@ -504,10 +500,6 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                     evicted = evictLruFifoLfu( elements, evicted );
                     break;
                 }
-                case LFU: {
-                    evicted = evictLruFifoLfu( elements, evicted );
-                    break;
-                }
                 case FIFO: {
                     evicted = evictLruFifoLfu( elements, evicted );
                     break;
@@ -543,14 +535,12 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private static final class EvictionEntry {
         private final Object key;
         private final long lastAccessTime;
-        private final long accessTimes;
         private final long creationTimestamp;
 
-        private EvictionEntry(final Object key, final long lastAccessTime, final long accessTimes, final long creationTimestamp) {
+        private EvictionEntry(final Object key, final long lastAccessTime, final long creationTimestamp) {
             super();
             this.key = key;
             this.lastAccessTime = lastAccessTime;
-            this.accessTimes = accessTimes;
             this.creationTimestamp = creationTimestamp;
         }
     }
@@ -564,10 +554,9 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             if ( address != 0 ) {
                 long lastAccessTime = ByteArrayPointer.getLastAccessTime( address );
                 long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
-                long accessTimes = 0; // TODO: access time
                 byte[] serializedData = ByteArrayPointer.getEntityState( address );
                 Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
-                evictionCandidates.add( new EvictionEntry( id, lastAccessTime, accessTimes, creationTimestamp ) );
+                evictionCandidates.add( new EvictionEntry( id, lastAccessTime, creationTimestamp ) );
             }
         }
         List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
@@ -578,7 +567,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
     private boolean keyEquals(final Object key,
                               final ByteBuffer buffer) {
-        return ObjectUtils.nullSafeEquals( key, serializer.readID( buffer ) );
+        return JVMUtil.equals( key, serializer.readID( buffer ) );
     }
 
     private int hash2index(final Object key) {

@@ -17,12 +17,11 @@ package com.turbospaces.serialization;
 
 import java.nio.ByteBuffer;
 
-import org.springframework.util.ObjectUtils;
-
 import com.esotericsoftware.kryo.Kryo.RegisteredClass;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Preconditions;
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 
 /**
@@ -84,7 +83,7 @@ public abstract class MatchingSerializer<V> extends SimpleSerializer<V> {
             Object value = readPropertyValue( cachedProperty, buffer );
             values[i] = value;
 
-            if ( templateValue != null && !ObjectUtils.nullSafeEquals( templateValue, value ) ) {
+            if ( templateValue != null && !JVMUtil.equals( templateValue, value ) ) {
                 matches = false;
                 break;
             }

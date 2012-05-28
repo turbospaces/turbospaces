@@ -76,7 +76,7 @@ public class OffHeapHashMapTest {
                 Assert.assertTrue( persistentClass == TestEntity1.class );
                 Assert.assertTrue( originalTimeToLive > 0 );
 
-                Log.info( String.format( "%s has been expired, %-%s", entity, persistentClass.getSimpleName(), originalTimeToLive ) );
+                Log.info( String.format( "%s has been expired, %s-%s", entity, persistentClass.getSimpleName(), originalTimeToLive ) );
             }
         } );
     }

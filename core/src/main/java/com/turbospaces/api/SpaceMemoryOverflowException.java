@@ -17,8 +17,6 @@ package com.turbospaces.api;
 
 import java.util.Arrays;
 
-import org.springframework.core.NestedRuntimeException;
-
 /**
  * signals that cache memory exceeded it's max capacity and it is not possible to add more elements.
  * typically you would like to restrict max off-heap memory buffer because uncontrolled growth can lead to
@@ -28,7 +26,7 @@ import org.springframework.core.NestedRuntimeException;
  * @see SpaceConfiguration#setCapacityRestriction(CapacityRestriction)
  * @since 0.1
  */
-public class SpaceMemoryOverflowException extends NestedRuntimeException {
+public class SpaceMemoryOverflowException extends RuntimeException {
     private static final long serialVersionUID = -4537158624229189977L;
 
     private final long bytes;

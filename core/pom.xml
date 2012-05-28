@@ -13,7 +13,7 @@
         <timestamp>${maven.build.timestamp}</timestamp>
     </properties>
     <dependencies>
-    <dependency>
+        <dependency>
             <artifactId>slf4j-api</artifactId>
             <groupId>org.slf4j</groupId>
             <version>${slf4j-revision}</version>
@@ -39,7 +39,7 @@
             <artifactId>logback-classic</artifactId>
             <version>${logback-revision}</version>
             <scope>provided</scope>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>com.turbospaces</groupId>
             <artifactId>turbospaces-collections</artifactId>
@@ -48,6 +48,10 @@
         <dependency>
             <groupId>cglib</groupId>
             <artifactId>cglib</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
