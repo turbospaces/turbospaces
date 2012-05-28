@@ -56,8 +56,13 @@ public final class CacheStatisticsCounter extends SimpleStatsCounter {
                 .add( "putsCount", putsCount.get() )
                 .add( "takesCount", takesCount.get() )
                 .add( "exclusiveReadsCount", exclusiveReadsCount.get() )
-                .toString()
-                + snapshot.toString();
+                .add( "hitsCount", snapshot.hitCount() )
+                .add( "missCount", snapshot.missCount() )
+                .add( "loadSuccessCount", snapshot.loadSuccessCount() )
+                .add( "loadExceptionCount", snapshot.loadExceptionCount() )
+                .add( "loadSuccessRate", snapshot.loadExceptionRate() )
+                .add( "loadExceptionRate", snapshot.loadExceptionRate() )
+                .toString();
     }
 
     public CompleteCacheStats snapshotCompleteCacheStats() {
