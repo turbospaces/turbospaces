@@ -54,10 +54,17 @@ public class BasicGuavaCacheTest {
                     }
                 } )
                 .build( Account.class );
-        for ( int i = 0; i < 1345; i++ ) {
+        Account[] entities = new Account[1345];
+        for ( int i = 0; i < entities.length; i++ ) {
             Account account = objectFactory.newInstance();
+            entities[i] = account;
             cache.put( account.getUsername(), account );
         }
         Thread.sleep( 2 );
+        for ( int i = 0; i < entities.length; i++ )
+            Assert.assertTrue( cache.getIfPresent( entities[i].getUsername() ) == null );
+
+        Assert.assertEquals( cache.size(), 0 );
+        Assert.assertEquals( expired.get(), entities.length );
     }
 }
