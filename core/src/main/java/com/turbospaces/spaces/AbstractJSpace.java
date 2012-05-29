@@ -168,17 +168,15 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
             txModification = (TransactionModificationContext) th.getModificationContext();
         }
         else
-            txModification = TransactionModificationContext.borrowObject();
+            txModification = new TransactionModificationContext();
 
         try {
             return fetch0( txModification, entry, txTimeout, maxResults, modifiers );
         }
         finally {
-            if ( th == null ) {
+            if ( th == null )
                 if ( txModification.isDirty() )
                     txModification.flush( buffer, notificationContext );
-                TransactionModificationContext.recycle( txModification );
-            }
         }
     }
 
@@ -201,17 +199,15 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
             txModification = (TransactionModificationContext) th.getModificationContext();
         }
         else
-            txModification = TransactionModificationContext.borrowObject();
+            txModification = new TransactionModificationContext();
 
         try {
             write0( txModification, entry, serializedEntry, timeToLive, txTimeout, modifier );
         }
         finally {
-            if ( th == null ) {
+            if ( th == null )
                 if ( txModification.isDirty() )
                     txModification.flush( buffer, notificationContext );
-                TransactionModificationContext.recycle( txModification );
-            }
         }
     }
 

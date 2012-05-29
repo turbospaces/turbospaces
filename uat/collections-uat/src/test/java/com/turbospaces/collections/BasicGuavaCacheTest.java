@@ -12,7 +12,7 @@ import org.springframework.samples.jpetstore.domain.Account;
 import com.google.common.cache.Cache;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.SpaceExpirationListener;
-import com.turbospaces.pool.ObjectFactory;
+import com.turbospaces.core.ObjectFactory;
 
 @SuppressWarnings("javadoc")
 public class BasicGuavaCacheTest {

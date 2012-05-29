@@ -13,17 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.turbospaces.pool;
+package com.turbospaces.core;
 
 /**
- * Identifies that the object is mutable and can be re-used many times. After {@link #reset()} method is called,
- * the object can be considered as new.
+ * object factory responsible for creating new objects and recycling.
+ * 
+ * @param <T>
+ *            type of produced objects
  * 
  * @since 0.1
  */
-public interface Reusable {
+public interface ObjectFactory<T> {
+
     /**
-     * reset the state of the entity - rollback to new state.
+     * create new instance of object via <code>new</code> keyword.
+     * 
+     * @param args
+     * @return new instance of the object using new keyword.
      */
-    void reset();
+    T newInstance();
+
+    /**
+     * invalidate(recycle) the state of the object, restore to the initial state(clean bean properties, etc).
+     * 
+     * @param obj
+     */
+    void invalidate(T obj);
 }

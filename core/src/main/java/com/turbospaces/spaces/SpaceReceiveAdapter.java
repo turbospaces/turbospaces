@@ -54,14 +54,12 @@ import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceOperation;
-import com.turbospaces.core.JVMUtil;
 import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
 import com.turbospaces.network.MethodCall.FetchMethodCall;
 import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
-import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.spaces.tx.SpaceTransactionHolder;
 import com.turbospaces.spaces.tx.TransactionModificationContext;
 
@@ -74,7 +72,6 @@ import com.turbospaces.spaces.tx.TransactionModificationContext;
 class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, DisposableBean {
     private final Logger logger = LoggerFactory.getLogger( getClass() );
 
-    private final ObjectPool<ObjectBuffer> objectBufferPool;
     private final ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>> durableTransactions;
     private final AbstractJSpace jSpace;
     private ScheduledFuture<?> cleaupFuture;
@@ -82,7 +79,6 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
 
     SpaceReceiveAdapter(final AbstractJSpace jSpace) {
         this.jSpace = jSpace;
-        this.objectBufferPool = JVMUtil.newObjectBufferPool();
         this.durableTransactions = new ConcurrentHashMap<Address, Cache<Long, SpaceTransactionHolder>>();
     }
 
@@ -112,199 +108,187 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
     @Override
     public void receive(final Message msg) {
         final byte[] data = msg.getBuffer();
-        final ObjectBuffer objectBuffer = objectBufferPool.borrowObject();
+        final ObjectBuffer objectBuffer = new ObjectBuffer( jSpace.getSpaceConfiguration().getKryo() );
         final Address nodeRaised = msg.getSrc();
-        objectBuffer.setKryo( jSpace.getSpaceConfiguration().getKryo() );
 
-        try {
-            final MethodCall methodCall = (MethodCall) objectBuffer.readClassAndObject( data );
-            final short id = methodCall.getMethodId();
+        final MethodCall methodCall = (MethodCall) objectBuffer.readClassAndObject( data );
+        final short id = methodCall.getMethodId();
 
-            SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[methodCall.getMethodId()];
-            logger.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
+        SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[methodCall.getMethodId()];
+        logger.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
 
-            if ( id == SpaceMethodsMapping.BEGIN_TRANSACTION.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        /**
-                         * 1. read transaction timeout
-                         * 2. create local durable transaction for remote client and assign id
-                         * 3. propagate remote transaction timeout and apply to local transaction
-                         * 4. send transaction id back to client
-                         */
-                        BeginTransactionMethodCall beginTransactionMethodCall = (BeginTransactionMethodCall) methodCall;
-                        long transactionTimeout = beginTransactionMethodCall.getTransactionTimeout();
-                        SpaceTransactionHolder spaceTransactionHolder = new SpaceTransactionHolder();
-                        spaceTransactionHolder.setSynchronizedWithTransaction( true );
-                        spaceTransactionHolder.setTimeoutInMillis( transactionTimeout );
-                        TransactionModificationContext mc = TransactionModificationContext.borrowObject();
-                        mc.setProxyMode( true );
-                        spaceTransactionHolder.setModificationContext( mc );
-                        modificationContextFor( nodeRaised ).put( mc.getTransactionId(), spaceTransactionHolder );
-                        methodCall.setResponseBody( objectBuffer.writeObjectData( mc.getTransactionId() ) );
+        if ( id == SpaceMethodsMapping.BEGIN_TRANSACTION.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    /**
+                     * 1. read transaction timeout
+                     * 2. create local durable transaction for remote client and assign id
+                     * 3. propagate remote transaction timeout and apply to local transaction
+                     * 4. send transaction id back to client
+                     */
+                    BeginTransactionMethodCall beginTransactionMethodCall = (BeginTransactionMethodCall) methodCall;
+                    long transactionTimeout = beginTransactionMethodCall.getTransactionTimeout();
+                    SpaceTransactionHolder spaceTransactionHolder = new SpaceTransactionHolder();
+                    spaceTransactionHolder.setSynchronizedWithTransaction( true );
+                    spaceTransactionHolder.setTimeoutInMillis( transactionTimeout );
+                    TransactionModificationContext mc = new TransactionModificationContext();
+                    mc.setProxyMode( true );
+                    spaceTransactionHolder.setModificationContext( mc );
+                    modificationContextFor( nodeRaised ).put( mc.getTransactionId(), spaceTransactionHolder );
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( mc.getTransactionId() ) );
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.COMMIT_TRANSACTION.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
+                    try {
+                        SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
+                        Preconditions.checkState(
+                                th != null,
+                                "unable to find transaction with id = %s for commit",
+                                commitMethodCall.getTransactionId() );
+                        jSpace.syncTx( th.getModificationContext(), true );
                     }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.COMMIT_TRANSACTION.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
-                        try {
-                            SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
-                            Preconditions.checkState(
-                                    th != null,
-                                    "unable to find transaction with id = %s for commit",
-                                    commitMethodCall.getTransactionId() );
-                            jSpace.syncTx( th.getModificationContext(), true );
-                        }
-                        finally {
-                            durableTransactions.remove( commitMethodCall.getTransactionId() );
-                        }
+                    finally {
+                        durableTransactions.remove( commitMethodCall.getTransactionId() );
                     }
-                },
-                        nodeRaised,
-                        objectBuffer );
-            else if ( id == SpaceMethodsMapping.ROLLBACK_TRANSACTION.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
-                        try {
-                            SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
-                            Preconditions.checkState(
-                                    th != null,
-                                    "unable to find transaction with id = %s for rollback",
-                                    commitMethodCall.getTransactionId() );
-                            jSpace.syncTx( th.getModificationContext(), false );
-                        }
-                        finally {
-                            durableTransactions.remove( commitMethodCall.getTransactionId() );
-                        }
+                }
+            },
+                    nodeRaised,
+                    objectBuffer );
+        else if ( id == SpaceMethodsMapping.ROLLBACK_TRANSACTION.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    CommitRollbackMethodCall commitMethodCall = (CommitRollbackMethodCall) methodCall;
+                    try {
+                        SpaceTransactionHolder th = modificationContextFor( nodeRaised ).getIfPresent( commitMethodCall.getTransactionId() );
+                        Preconditions.checkState(
+                                th != null,
+                                "unable to find transaction with id = %s for rollback",
+                                commitMethodCall.getTransactionId() );
+                        jSpace.syncTx( th.getModificationContext(), false );
                     }
-                },
-                        nodeRaised,
-                        objectBuffer );
-            else if ( id == SpaceMethodsMapping.WRITE.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        WriteMethodCall writeMethodCall = (WriteMethodCall) methodCall;
-                        byte[] entityAndClassData = writeMethodCall.getEntity();
-                        ByteBuffer byteBuffer = ByteBuffer.wrap( entityAndClassData );
-
-                        int modifiers = writeMethodCall.getModifiers();
-                        int timeout = writeMethodCall.getTimeout();
-                        int timeToLive = writeMethodCall.getTimeToLive();
-
-                        /**
-                         * 1. read registered class (without actual data)
-                         * 2. get the actual type of the remote entry
-                         * 3. copy serialized entry state from the byte buffer, omit redundant serialization later
-                         * 4. find appropriate transaction modification context if any
-                         * 5. call write method itself
-                         */
-                        RegisteredClass entryClass = jSpace.getSpaceConfiguration().getKryo().readClass( byteBuffer );
-                        Class<?> entryType = entryClass.getType();
-                        byte[] entityData = Arrays.copyOfRange( byteBuffer.array(), byteBuffer.position(), byteBuffer.capacity() );
-                        Object entry = jSpace.getSpaceConfiguration().getKryo().readObjectData( byteBuffer, entryType );
-
-                        SpaceTransactionHolder holder = null;
-                        if ( writeMethodCall.getTransactionId() != 0 )
-                            holder = modificationContextFor( nodeRaised ).getIfPresent( writeMethodCall.getTransactionId() );
-
-                        jSpace.write( holder, entry, entityData, timeToLive, timeout, modifiers );
-                        writeMethodCall.reset();
+                    finally {
+                        durableTransactions.remove( commitMethodCall.getTransactionId() );
                     }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.FETCH.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        FetchMethodCall fetchMethodCall = (FetchMethodCall) methodCall;
-                        byte[] entityData = fetchMethodCall.getEntity();
+                }
+            },
+                    nodeRaised,
+                    objectBuffer );
+        else if ( id == SpaceMethodsMapping.WRITE.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    WriteMethodCall writeMethodCall = (WriteMethodCall) methodCall;
+                    byte[] entityAndClassData = writeMethodCall.getEntity();
+                    ByteBuffer byteBuffer = ByteBuffer.wrap( entityAndClassData );
 
-                        int originalModifiers = fetchMethodCall.getModifiers();
-                        int timeout = fetchMethodCall.getTimeout();
-                        int maxResults = fetchMethodCall.getMaxResults();
-                        Object template = objectBuffer.readClassAndObject( entityData );
-                        int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
+                    int modifiers = writeMethodCall.getModifiers();
+                    int timeout = writeMethodCall.getTimeout();
+                    int timeToLive = writeMethodCall.getTimeToLive();
 
-                        SpaceTransactionHolder holder = null;
-                        if ( fetchMethodCall.getTransactionId() != 0 )
-                            holder = modificationContextFor( nodeRaised ).getIfPresent( fetchMethodCall.getTransactionId() );
+                    /**
+                     * 1. read registered class (without actual data)
+                     * 2. get the actual type of the remote entry
+                     * 3. copy serialized entry state from the byte buffer, omit redundant serialization later
+                     * 4. find appropriate transaction modification context if any
+                     * 5. call write method itself
+                     */
+                    RegisteredClass entryClass = jSpace.getSpaceConfiguration().getKryo().readClass( byteBuffer );
+                    Class<?> entryType = entryClass.getType();
+                    byte[] entityData = Arrays.copyOfRange( byteBuffer.array(), byteBuffer.position(), byteBuffer.capacity() );
+                    Object entry = jSpace.getSpaceConfiguration().getKryo().readObjectData( byteBuffer, entryType );
 
-                        ByteBuffer[] buffers = (ByteBuffer[]) jSpace.fetch( holder, template, timeout, maxResults, modifiers );
-                        if ( buffers != null ) {
-                            byte[][] response = new byte[buffers.length][];
-                            for ( int i = 0; i < buffers.length; i++ ) {
-                                ByteBuffer buffer = buffers[i];
-                                response[i] = buffer.array();
-                            }
-                            fetchMethodCall.setResponseBody( objectBuffer.writeObjectData( response ) );
+                    SpaceTransactionHolder holder = null;
+                    if ( writeMethodCall.getTransactionId() != 0 )
+                        holder = modificationContextFor( nodeRaised ).getIfPresent( writeMethodCall.getTransactionId() );
+
+                    jSpace.write( holder, entry, entityData, timeToLive, timeout, modifiers );
+                    writeMethodCall.reset();
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.FETCH.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    FetchMethodCall fetchMethodCall = (FetchMethodCall) methodCall;
+                    byte[] entityData = fetchMethodCall.getEntity();
+
+                    int originalModifiers = fetchMethodCall.getModifiers();
+                    int timeout = fetchMethodCall.getTimeout();
+                    int maxResults = fetchMethodCall.getMaxResults();
+                    Object template = objectBuffer.readClassAndObject( entityData );
+                    int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
+
+                    SpaceTransactionHolder holder = null;
+                    if ( fetchMethodCall.getTransactionId() != 0 )
+                        holder = modificationContextFor( nodeRaised ).getIfPresent( fetchMethodCall.getTransactionId() );
+
+                    ByteBuffer[] buffers = (ByteBuffer[]) jSpace.fetch( holder, template, timeout, maxResults, modifiers );
+                    if ( buffers != null ) {
+                        byte[][] response = new byte[buffers.length][];
+                        for ( int i = 0; i < buffers.length; i++ ) {
+                            ByteBuffer buffer = buffers[i];
+                            response[i] = buffer.array();
                         }
-                        fetchMethodCall.reset();
+                        fetchMethodCall.setResponseBody( objectBuffer.writeObjectData( response ) );
                     }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.NOTIFY.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        NotifyListenerMethodCall registerMethodCall = (NotifyListenerMethodCall) methodCall;
-                        byte[] entityData = registerMethodCall.getEntity();
+                    fetchMethodCall.reset();
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.NOTIFY.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    NotifyListenerMethodCall registerMethodCall = (NotifyListenerMethodCall) methodCall;
+                    byte[] entityData = registerMethodCall.getEntity();
 
-                        int originalModifiers = registerMethodCall.getModifiers();
-                        Object template = objectBuffer.readClassAndObject( entityData );
-                        int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
-                        jSpace.notify( template, new SpaceNotificationListener() {
+                    int originalModifiers = registerMethodCall.getModifiers();
+                    Object template = objectBuffer.readClassAndObject( entityData );
+                    int modifiers = originalModifiers | JSpace.RETURN_AS_BYTES;
+                    jSpace.notify( template, new SpaceNotificationListener() {
 
-                            @Override
-                            public void handleNotification(final Object entity,
-                                                           final SpaceOperation operation) {
-                                ObjectBuffer innerObjectBuffer = objectBufferPool.borrowObject();
-                                innerObjectBuffer.setKryo( jSpace.getSpaceConfiguration().getKryo() );
-                                try {
-                                    sendResponseBackAfterExecution( methodCall, new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            NotifyListenerMethodCall methodCall = new NotifyListenerMethodCall();
-                                            methodCall.setEntity( ( (ByteBuffer) entity ).array() );
-                                            methodCall.setOperation( operation );
-                                        }
-                                    }, nodeRaised, innerObjectBuffer );
+                        @Override
+                        public void handleNotification(final Object entity,
+                                                       final SpaceOperation operation) {
+                            ObjectBuffer innerObjectBuffer = new ObjectBuffer( jSpace.getSpaceConfiguration().getKryo() );
+                            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                                @Override
+                                public void run() {
+                                    NotifyListenerMethodCall methodCall = new NotifyListenerMethodCall();
+                                    methodCall.setEntity( ( (ByteBuffer) entity ).array() );
+                                    methodCall.setOperation( operation );
                                 }
-                                finally {
-                                    objectBufferPool.returnObject( innerObjectBuffer );
-                                }
-                            }
-                        }, modifiers );
-                    }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.SIZE.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.size() ) );
-                    }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.MB_USED.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.mbUsed() ) );
-                    }
-                }, nodeRaised, objectBuffer );
-            else if ( id == SpaceMethodsMapping.SPACE_TOPOLOGY.ordinal() )
-                sendResponseBackAfterExecution( methodCall, new Runnable() {
-                    @Override
-                    public void run() {
-                        methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.getSpaceConfiguration().getTopology() ) );
-                    }
-                }, nodeRaised, objectBuffer );
-        }
-        finally {
-            objectBufferPool.returnObject( objectBuffer );
-        }
+                            }, nodeRaised, innerObjectBuffer );
+                        }
+                    }, modifiers );
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.SIZE.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.size() ) );
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.MB_USED.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.mbUsed() ) );
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.SPACE_TOPOLOGY.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.getSpaceConfiguration().getTopology() ) );
+                }
+            }, nodeRaised, objectBuffer );
     }
 
     private void sendResponseBackAfterExecution(final MethodCall methodCall,

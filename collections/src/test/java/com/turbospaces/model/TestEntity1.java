@@ -202,9 +202,49 @@ public class TestEntity1 implements InitializingBean, Cloneable {
     }
 
     @Override
-    public TestEntity1 clone()
-                              throws CloneNotSupportedException {
-        return (TestEntity1) super.clone();
+    public TestEntity1 clone() {
+        TestEntity1 e1 = new TestEntity1();
+        e1.s1 = s1;
+        e1.s2 = s2;
+        e1.s3 = s3;
+        e1.s4 = s4;
+
+        e1.l1 = l1;
+        e1.l2 = l2;
+        e1.l3 = l4;
+        e1.l4 = l4;
+
+        e1.dt1 = dt1;
+        e1.dt2 = dt2;
+        e1.dt3 = dt3;
+        e1.dt4 = dt4;
+
+        e1.d1 = d1;
+        e1.d2 = d2;
+        e1.d3 = d3;
+        e1.d4 = d4;
+
+        e1.f1 = f1;
+        e1.f2 = f2;
+        e1.f3 = f3;
+        e1.f4 = f4;
+
+        e1.fi1 = fi1;
+        e1.fi2 = fi2;
+        e1.fin1 = fin1;
+        e1.fin2 = fin2;
+        e1.uniqueIdentifier = uniqueIdentifier;
+        e1.optimisticLockVersion = optimisticLockVersion;
+        e1.routing = routing;
+
+        e1.data1 = data1;
+        e1.data2 = data2;
+
+        e1.mode = mode;
+        e1.roundingModes = roundingModes;
+        e1.autowire = autowire;
+        e1.longs = longs;
+        return e1;
     }
 
     public void assertMatch(final TestEntity1 data2) {

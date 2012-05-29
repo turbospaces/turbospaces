@@ -15,7 +15,6 @@ import org.junit.Test;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
-import com.turbospaces.pool.ObjectPool;
 
 @SuppressWarnings("javadoc")
 public class JVMUtilTest {
@@ -66,10 +65,8 @@ public class JVMUtilTest {
         JVMUtil.runAndGetExecutionException( new Runnable() {
             @Override
             public void run() {
-                ObjectPool<ObjectBuffer> objectPool = JVMUtil.newObjectBufferPool();
-                ObjectBuffer borrowObject = objectPool.borrowObject();
+                ObjectBuffer borrowObject = new ObjectBuffer( new Kryo() );
                 borrowObject.setKryo( new Kryo() );
-                objectPool.returnObject( borrowObject );
             }
         } );
     }

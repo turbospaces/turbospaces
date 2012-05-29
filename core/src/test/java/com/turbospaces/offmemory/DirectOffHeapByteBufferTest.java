@@ -81,7 +81,7 @@ public class DirectOffHeapByteBufferTest {
     @Test
     public void canGetSpaceOverflowException()
                                               throws Exception {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         buffer.destroy();
         configuration = new SpaceConfiguration();
         MongoMappingContext mappingContext = new MongoMappingContext();
@@ -130,7 +130,7 @@ public class DirectOffHeapByteBufferTest {
     @Test
     public void bahaveCorrectly()
                                  throws InterruptedException {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity = new TestEntity1();
         entity.afterPropertiesSet();
 
@@ -186,7 +186,7 @@ public class DirectOffHeapByteBufferTest {
     public void canAdd3EntitiesAndFindByItself()
                                                 throws CloneNotSupportedException,
                                                 InterruptedException {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();
         TestEntity1 entity3 = new TestEntity1();
@@ -245,7 +245,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test(expected = DuplicateKeyException.class)
     public void canGetDuplicateExceptionInContextOfSingleTransaction() {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
 
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();
@@ -271,11 +271,11 @@ public class DirectOffHeapByteBufferTest {
     @Test(expected = CannotAcquireLockException.class)
     public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForWrite()
                                                                                         throws Exception {
-        TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext1 = new TransactionModificationContext();
         TestEntity1 entity1 = new TestEntity1();
 
         final TestEntity1 entity2 = new TestEntity1();
-        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext2 = new TransactionModificationContext();
 
         entity1.afterPropertiesSet();
         entity2.afterPropertiesSet();
@@ -307,7 +307,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test(expected = DuplicateKeyException.class)
     public void canGetDuplicateExceptionWithWriteOnlyModifier() {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();
         entity1.afterPropertiesSet();
@@ -336,7 +336,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test(expected = DataRetrievalFailureException.class)
     public void canGetObjectRetrieveExceptionWithUpdateOnlyModifier() {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity = new TestEntity1();
         entity.afterPropertiesSet();
 
@@ -356,7 +356,7 @@ public class DirectOffHeapByteBufferTest {
     @Test
     public void puttingObjectByTheSameUniqueIdentifierBehavesAsOverride()
                                                                          throws CloneNotSupportedException {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity = new TestEntity1();
         entity.afterPropertiesSet();
 
@@ -397,7 +397,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test
     public void canAddEntitiesAndTakeByItself() {
-        TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();
         TestEntity1 entity3 = new TestEntity1();
@@ -459,8 +459,8 @@ public class DirectOffHeapByteBufferTest {
     @Test(expected = CannotAcquireLockException.class)
     public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForTake()
                                                                                        throws Exception {
-        final TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
-        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext1 = new TransactionModificationContext();
+        final TransactionModificationContext modificationContext2 = new TransactionModificationContext();
 
         final TestEntity1 entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
@@ -496,8 +496,8 @@ public class DirectOffHeapByteBufferTest {
     @Test(expected = CannotAcquireLockException.class)
     public void canGetAcquireWriteLockExceptionInContextOfParallelTransactionsForExclusiveRead()
                                                                                                 throws Exception {
-        final TransactionModificationContext modificationContext1 = TransactionModificationContext.borrowObject();
-        final TransactionModificationContext modificationContext2 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext1 = new TransactionModificationContext();
+        final TransactionModificationContext modificationContext2 = new TransactionModificationContext();
 
         final TestEntity1 entity1 = new TestEntity1();
         entity1.afterPropertiesSet();
@@ -538,7 +538,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test
     public void canReleaseLockForPreviouslyUnstorredId() {
-        final TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext = new TransactionModificationContext();
         final TestEntity1 entity = new TestEntity1();
         entity.afterPropertiesSet();
 
@@ -556,7 +556,7 @@ public class DirectOffHeapByteBufferTest {
     @Test
     public void evictionWorksForReadTakeEvictOperations()
                                                          throws InterruptedException {
-        final TransactionModificationContext modificationContext = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext modificationContext = new TransactionModificationContext();
         final TestEntity1 entity1 = new TestEntity1();
         final TestEntity1 entity2 = new TestEntity1();
         entity1.afterPropertiesSet();

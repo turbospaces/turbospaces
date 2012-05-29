@@ -15,7 +15,7 @@ public class TransactionModificationLockTest {
 
     @Test
     public void canReenterWriteLockInTheSameTransaction() {
-        TransactionModificationContext c = TransactionModificationContext.borrowObject();
+        TransactionModificationContext c = new TransactionModificationContext();
         TransactionModificationLock lock = new TransactionModificationLock( true );
         lock.lock( c.getTransactionId() );
         lock.lock( c.getTransactionId() );
@@ -29,8 +29,8 @@ public class TransactionModificationLockTest {
     @Test
     public void cantAcquireLockFromParallelTransaction()
                                                         throws InterruptedException {
-        TransactionModificationContext c1 = TransactionModificationContext.borrowObject();
-        TransactionModificationContext c2 = TransactionModificationContext.borrowObject();
+        TransactionModificationContext c1 = new TransactionModificationContext();
+        TransactionModificationContext c2 = new TransactionModificationContext();
         TransactionModificationLock lock = new TransactionModificationLock( true );
 
         lock.lock( c1.getTransactionId() );
@@ -47,8 +47,8 @@ public class TransactionModificationLockTest {
 
     @Test
     public void cantAcquireLockFromParallelThread() {
-        final TransactionModificationContext c1 = TransactionModificationContext.borrowObject();
-        final TransactionModificationContext c2 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext c1 = new TransactionModificationContext();
+        final TransactionModificationContext c2 = new TransactionModificationContext();
         final TransactionModificationLock lock = new TransactionModificationLock( true );
         final AtomicBoolean b = new AtomicBoolean();
         lock.lock( c1.getTransactionId() );
@@ -70,7 +70,7 @@ public class TransactionModificationLockTest {
     @Test(expected = IllegalMonitorStateException.class)
     public void canGetExceptionTryingToUnlockFromParallelThread()
                                                                  throws Exception {
-        final TransactionModificationContext c1 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext c1 = new TransactionModificationContext();
         final TransactionModificationLock lock = new TransactionModificationLock( true );
 
         throw JVMUtil.runAndGetExecutionException( new Runnable() {
@@ -85,8 +85,8 @@ public class TransactionModificationLockTest {
     @Test
     public void canAcquireLockAfterBeingLocked()
                                                 throws InterruptedException {
-        final TransactionModificationContext c1 = TransactionModificationContext.borrowObject();
-        final TransactionModificationContext c2 = TransactionModificationContext.borrowObject();
+        final TransactionModificationContext c1 = new TransactionModificationContext();
+        final TransactionModificationContext c2 = new TransactionModificationContext();
         final TransactionModificationLock lock = new TransactionModificationLock( true );
         final AtomicBoolean b = new AtomicBoolean();
         lock.lock( c1.getTransactionId() );
@@ -112,7 +112,7 @@ public class TransactionModificationLockTest {
 
     @Test
     public void canReenterInNonExclusiveMode() {
-        TransactionModificationContext c = TransactionModificationContext.borrowObject();
+        TransactionModificationContext c = new TransactionModificationContext();
         TransactionModificationLock lock = new TransactionModificationLock( false );
         lock.lock( c.getTransactionId() );
         lock.lock( c.getTransactionId() );

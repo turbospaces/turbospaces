@@ -25,10 +25,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.CacheStats;
 import com.turbospaces.core.EffectiveMemoryManager;
-import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.serialization.DecoratedKryo;
 
 /**
@@ -50,7 +48,6 @@ import com.turbospaces.serialization.DecoratedKryo;
 public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements EvictableCache {
     private final EffectiveMemoryManager memoryManager;
     private final OffHeapHashSet offHeapHashSet;
-    private final ObjectPool<ObjectBuffer> objectsPool;
     private final DecoratedKryo kryo;
     private final int ttlAfterWrite;
     private final SimpleStatsCounter statsCounter;
@@ -79,7 +76,6 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
         this.offHeapHashSet = offHeapHashSet;
         this.kryo = kryo;
         this.ttlAfterWrite = ttlAfterWrite;
-        this.objectsPool = JVMUtil.newObjectBufferPool();
         this.statsCounter = statsCounter;
     }
 
@@ -125,15 +121,9 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
     public void put(final K key,
                     final V value) {
         ExplicitCacheEntry<K, V> e = new ExplicitCacheEntry( Preconditions.checkNotNull( key ), Preconditions.checkNotNull( value ) );
-        ObjectBuffer objectBuffer = objectsPool.borrowObject();
-        objectBuffer.setKryo( kryo );
-        try {
-            ByteArrayPointer pointer = new ByteArrayPointer( memoryManager, objectBuffer.writeObjectData( e ), e, ttlAfterWrite );
-            offHeapHashSet.put( key, pointer );
-        }
-        finally {
-            objectsPool.returnObject( objectBuffer );
-        }
+        ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
+        ByteArrayPointer pointer = new ByteArrayPointer( memoryManager, objectBuffer.writeObjectData( e ), e, ttlAfterWrite );
+        offHeapHashSet.put( key, pointer );
     }
 
     @Override
@@ -184,18 +174,12 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
         V result = null;
 
         if ( dataBuffer != null ) {
-            ObjectBuffer objectBuffer = objectsPool.borrowObject();
-            objectBuffer.setKryo( kryo );
+            ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
 
-            try {
-                ExplicitCacheEntry<K, V> explicitCacheEntry = objectBuffer.readObjectData( dataBuffer.array(), ExplicitCacheEntry.class );
-                result = explicitCacheEntry.getBean();
-                if ( recordStatistics && statsCounter != null )
-                    statsCounter.recordHits( 1 );
-            }
-            finally {
-                objectsPool.returnObject( objectBuffer );
-            }
+            ExplicitCacheEntry<K, V> explicitCacheEntry = objectBuffer.readObjectData( dataBuffer.array(), ExplicitCacheEntry.class );
+            result = explicitCacheEntry.getBean();
+            if ( recordStatistics && statsCounter != null )
+                statsCounter.recordHits( 1 );
         }
         else if ( recordStatistics && statsCounter != null )
             statsCounter.recordMisses( 1 );

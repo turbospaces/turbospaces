@@ -22,16 +22,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.lmax.disruptor.util.Util;
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.SimpleObjectPool;
 
 /**
  * This is placeholder for all utility method of turbospaces-collections maven project. We prefer creation of one such
@@ -225,25 +221,6 @@ public class JVMUtil {
         h += ( h << 2 ) + ( h << 14 );
 
         return h ^ h >>> 16;
-    }
-
-    /**
-     * @return new {@link ObjectPool} pool for not-thread safe {@link ObjectBuffer} instances.
-     */
-    public static ObjectPool<ObjectBuffer> newObjectBufferPool() {
-        SimpleObjectPool<ObjectBuffer> simpleObjectPool = new SimpleObjectPool<ObjectBuffer>( new ObjectFactory<ObjectBuffer>() {
-            @Override
-            public ObjectBuffer newInstance() {
-                return new ObjectBuffer( null, 4 * 1024, 32 * 1024 );
-            }
-
-            @Override
-            public void invalidate(final ObjectBuffer obj) {
-                obj.setKryo( null );
-            }
-        } );
-        simpleObjectPool.setMaxElements( 1 << 4 );
-        return simpleObjectPool;
     }
 
     /**

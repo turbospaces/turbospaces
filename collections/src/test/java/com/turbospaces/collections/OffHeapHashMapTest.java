@@ -30,7 +30,6 @@ import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.offmemory.ByteArrayPointer;
-import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.serialization.PropertiesSerializer;
 
@@ -202,7 +201,6 @@ public class OffHeapHashMapTest {
     @Test
     public void canAddUpToNAndRemoveOneByOne() {
         final TestEntity1[] arr = new TestEntity1[OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY * 4];
-        final ObjectPool<ObjectBuffer> objectBufferPool = JVMUtil.newObjectBufferPool();
         Assert.assertTrue( JVMUtil.repeatConcurrently( Runtime.getRuntime().availableProcessors(), arr.length, new Function<Integer, Object>() {
 
             @Override
@@ -211,14 +209,12 @@ public class OffHeapHashMapTest {
                 arr[i] = new TestEntity1();
                 arr[i].afterPropertiesSet();
 
-                ObjectBuffer b = objectBufferPool.borrowObject();
-                b.setKryo( decoratedKryo );
+                ObjectBuffer b = new ObjectBuffer( decoratedKryo );
                 byte[] bytes = b.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
                 ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
 
                 heapHashMap.put( arr[i].getUniqueIdentifier(), p );
 
-                objectBufferPool.returnObject( b );
                 return null;
             }
         } ).size() == 0 );

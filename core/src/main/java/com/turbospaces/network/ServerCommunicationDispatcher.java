@@ -32,15 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.remoting.RemoteLookupFailureException;
 
-import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.core.JVMUtil;
-import com.turbospaces.pool.ObjectPool;
 
 /**
  * central point for network communication over jgroups on the server side(minimalistic version instead of jgroups's
@@ -55,7 +52,6 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
     private final Object monitor = new Object();
 
     final AbstractSpaceConfiguration configuration;
-    final ObjectPool<ObjectBuffer> objectBufferPool = JVMUtil.newObjectBufferPool();
     private volatile Address[] serverNodes = new Address[0];
     private volatile Address[] clientNodes = new Address[0];
     private final Collection<Receiver> delegates = new LinkedHashSet<Receiver>();

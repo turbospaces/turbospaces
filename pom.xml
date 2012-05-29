@@ -162,6 +162,11 @@
             <version>${hamcrest-revision}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.carrotsearch</groupId>
+            <artifactId>junit-benchmarks</artifactId>
+            <version>${junit-benchmarks-revision}</version>
+        </dependency>
     </dependencies>
     <build>
         <resources>

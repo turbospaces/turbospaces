@@ -31,11 +31,9 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.core.CacheStatisticsCounter;
 import com.turbospaces.core.CacheStatisticsCounter.CompleteCacheStats;
-import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
-import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
 import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
@@ -62,7 +60,6 @@ public class OffHeapCacheStore implements SpaceStore {
     private final IndexManager indexManager;
     private final CacheStatisticsCounter statsCounter;
     private final KeyLocker lockManager;
-    private final ObjectPool<ObjectBuffer> objectBufferPool;
     private final SpaceCapacityRestrictionHolder capacityRestriction;
 
     /**
@@ -84,7 +81,6 @@ public class OffHeapCacheStore implements SpaceStore {
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );
         this.statsCounter = new CacheStatisticsCounter();
         this.lockManager = SpaceUtility.parallelizedKeyLocker();
-        this.objectBufferPool = JVMUtil.newObjectBufferPool();
         this.bo = configuration.boFor( entityClass );
     }
 
@@ -145,8 +141,7 @@ public class OffHeapCacheStore implements SpaceStore {
                       final int timeout,
                       final int modifier) {
         Object uniqueIdentifier = entry.getId();
-        ObjectBuffer objectBuffer = objectBufferPool.borrowObject();
-        objectBuffer.setKryo( configuration.getKryo() );
+        ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
 
         boolean isWriteOnly = SpaceModifiers.isWriteOnly( modifier );
         boolean isUpdateOnly = SpaceModifiers.isUpdateOnly( modifier );
@@ -179,8 +174,6 @@ public class OffHeapCacheStore implements SpaceStore {
                 p,
                 bo,
                 configuration ) );
-
-        objectBufferPool.returnObject( objectBuffer );
     }
 
     @Override

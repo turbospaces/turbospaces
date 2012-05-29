@@ -64,7 +64,7 @@ public class SpaceTransactionManager extends AbstractPlatformTransactionManager 
     protected void doBegin(final Object transaction,
                            final TransactionDefinition definition) {
         SpaceTransactionObject txObject = (SpaceTransactionObject) transaction;
-        Object mc = proxyMode ? TransactionModificationContextProxy.borrowObject() : TransactionModificationContext.borrowObject();
+        Object mc = proxyMode ? new TransactionModificationContextProxy() : new TransactionModificationContext();
         SpaceTransactionHolder transactionHolder = new SpaceTransactionHolder();
         transactionHolder.setModificationContext( mc );
         txObject.setSpaceTransactionHolder( transactionHolder );
@@ -154,27 +154,19 @@ public class SpaceTransactionManager extends AbstractPlatformTransactionManager 
     private void sync(final DefaultTransactionStatus status,
                       final boolean commit) {
         Object modificationContext = null;
-        try {
-            SpaceTransactionObject txObject = (SpaceTransactionObject) status.getTransaction();
-            txObject.flush();
-            SpaceTransactionHolder transactionHolder = txObject.getSpaceTransactionHolder();
-            modificationContext = transactionHolder.getModificationContext();
-            if ( !proxyMode ) {
-                TransactionModificationContext c = (TransactionModificationContext) modificationContext;
-                if ( c.isDirty() )
-                    getResourceFactory().syncTx( c, commit );
-            }
-            else {
-                TransactionModificationContextProxy c = (TransactionModificationContextProxy) modificationContext;
-                if ( c.isDirty() )
-                    getResourceFactory().syncTx( c, commit );
-            }
+        SpaceTransactionObject txObject = (SpaceTransactionObject) status.getTransaction();
+        txObject.flush();
+        SpaceTransactionHolder transactionHolder = txObject.getSpaceTransactionHolder();
+        modificationContext = transactionHolder.getModificationContext();
+        if ( !proxyMode ) {
+            TransactionModificationContext c = (TransactionModificationContext) modificationContext;
+            if ( c.isDirty() )
+                getResourceFactory().syncTx( c, commit );
         }
-        finally {
-            if ( proxyMode )
-                TransactionModificationContextProxy.recycle( (TransactionModificationContextProxy) modificationContext );
-            else
-                TransactionModificationContext.recycle( (TransactionModificationContext) modificationContext );
+        else {
+            TransactionModificationContextProxy c = (TransactionModificationContextProxy) modificationContext;
+            if ( c.isDirty() )
+                getResourceFactory().syncTx( c, commit );
         }
     }
 }

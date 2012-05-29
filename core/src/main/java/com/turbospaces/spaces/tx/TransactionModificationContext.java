@@ -34,10 +34,6 @@ import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.offmemory.IndexManager;
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.Reusable;
-import com.turbospaces.pool.SimpleObjectPool;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.NotificationContext;
 import com.turbospaces.spaces.SpaceModifiers;
@@ -54,43 +50,9 @@ import com.turbospaces.spaces.SpaceStore;
  * 
  * @since 0.1
  */
-public final class TransactionModificationContext implements Reusable {
+public final class TransactionModificationContext {
     private static final Logger LOGGER = LoggerFactory.getLogger( TransactionModificationContext.class );
-    private static final ObjectPool<TransactionModificationContext> OBJECT_POOL;
     private static final AtomicLong IDS = new AtomicLong();
-
-    static {
-        OBJECT_POOL = new SimpleObjectPool<TransactionModificationContext>( new ObjectFactory<TransactionModificationContext>() {
-            @Override
-            public TransactionModificationContext newInstance() {
-                return new TransactionModificationContext();
-            }
-
-            @Override
-            public void invalidate(final TransactionModificationContext tx) {
-                tx.clear();
-                tx.transactionId = 0;
-                tx.proxyMode = false;
-            }
-        } );
-    }
-
-    /**
-     * @return pool instance
-     */
-    public static TransactionModificationContext borrowObject() {
-        return OBJECT_POOL.borrowObject();
-    }
-
-    /**
-     * return object to pool
-     * 
-     * @param context
-     *            transaction modification context that no longer needed
-     */
-    public static void recycle(final TransactionModificationContext context) {
-        OBJECT_POOL.returnObject( context );
-    }
 
     /**
      * map of added/modified space entries
@@ -117,7 +79,7 @@ public final class TransactionModificationContext implements Reusable {
     /**
      * unique identifier of transaction
      */
-    private long transactionId;
+    private final long transactionId;
     /**
      * indicates that this transaction modification created for remote client(those behaves as proxy)
      */
@@ -126,12 +88,7 @@ public final class TransactionModificationContext implements Reusable {
     /**
      * create new transaction modification context and assign auto-generated ID.
      */
-    private TransactionModificationContext() {
-        reset();
-    }
-
-    @Override
-    public void reset() {
+    public TransactionModificationContext() {
         this.transactionId = IDS.incrementAndGet();
     }
 

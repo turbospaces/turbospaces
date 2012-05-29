@@ -20,10 +20,6 @@ import java.util.Map;
 
 import org.jgroups.Address;
 
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.SimpleObjectPool;
-
 /**
  * remote transaction modification context proxy - the actual modification context is held on server and the role of
  * this class is just mirror between server and client.
@@ -31,45 +27,10 @@ import com.turbospaces.pool.SimpleObjectPool;
  * @since 0.1
  */
 public final class TransactionModificationContextProxy {
-    private static final ObjectPool<TransactionModificationContextProxy> OBJECT_POOL;
-
-    static {
-        OBJECT_POOL = new SimpleObjectPool<TransactionModificationContextProxy>( new ObjectFactory<TransactionModificationContextProxy>() {
-            @Override
-            public TransactionModificationContextProxy newInstance() {
-                return new TransactionModificationContextProxy();
-            }
-
-            @Override
-            public void invalidate(final TransactionModificationContextProxy tx) {
-                tx.transactionIds.clear();
-            }
-        } );
-    }
-
     /**
      * the list of remote transaction id-s for each server(for both partitioned and replicated jspace).
      */
     private final Map<Address, Long> transactionIds = new HashMap<Address, Long>();
-
-    private TransactionModificationContextProxy() {}
-
-    /**
-     * @return pool instance
-     */
-    public static TransactionModificationContextProxy borrowObject() {
-        return OBJECT_POOL.borrowObject();
-    }
-
-    /**
-     * return object to pool
-     * 
-     * @param context
-     *            modication context
-     */
-    public static void recycle(final TransactionModificationContextProxy context) {
-        OBJECT_POOL.returnObject( context );
-    }
 
     /**
      * assign transaction id for the remote address

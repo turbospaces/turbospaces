@@ -7,8 +7,8 @@ import org.springframework.samples.jpetstore.domain.Account;
 
 import com.google.common.base.Function;
 import com.google.common.cache.Cache;
+import com.turbospaces.core.ObjectFactory;
 import com.turbospaces.core.PerformanceMonitor;
-import com.turbospaces.pool.ObjectFactory;
 
 @SuppressWarnings("javadoc")
 public class PetStoreModelProvider {
@@ -64,8 +64,7 @@ public class PetStoreModelProvider {
         };
     }
 
-    public PerformanceMonitor<Account> guavaMonitor(final Cache<String, Account> cache,
-                                                    final boolean returnToPool) {
+    public PerformanceMonitor<Account> guavaMonitor(final Cache<String, Account> cache) {
         return new PerformanceMonitor<Account>( new Function<Map.Entry<String, Account>, Account>() {
             @Override
             public Account apply(final Entry<String, Account> input) {
@@ -85,6 +84,6 @@ public class PetStoreModelProvider {
                 cache.invalidate( input );
                 return null;
             }
-        }, newAccountsObjectFactory(), returnToPool ).withNumberOfIterations( (int) 2.5 * 1000000 );
+        }, newAccountsObjectFactory() ).withNumberOfIterations( (int) 2.5 * 1000000 );
     }
 }

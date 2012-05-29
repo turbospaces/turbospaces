@@ -10,14 +10,7 @@
     <artifactId>turbospaces-uat</artifactId>
     <name>${project.artifactId}</name>
     <packaging>pom</packaging>
-    <description>User Acceptance tests for turbospaces modules</description>
-    <dependencies>
-        <dependency>
-            <groupId>com.carrotsearch</groupId>
-            <artifactId>junit-benchmarks</artifactId>
-            <version>${junit-benchmarks-revision}</version>
-        </dependency>
-    </dependencies>
+    <description>User Acceptance tests for turbospaces modules</description>    
     <modules>
         <module>collections-uat</module>
     </modules>

@@ -121,19 +121,13 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
 
     @Override
     public void receive(final Message msg) {
-        ObjectBuffer objectBuffer = objectBufferPool.borrowObject();
-        objectBuffer.setKryo( kryo );
+        ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
 
-        try {
-            final byte[] data = msg.getBuffer();
-            final MethodCall response = (MethodCall) objectBuffer.readClassAndObject( data );
-            long correlationId = response.getCorrelationId();
+        final byte[] data = msg.getBuffer();
+        final MethodCall response = (MethodCall) objectBuffer.readClassAndObject( data );
+        long correlationId = response.getCorrelationId();
 
-            requestResponseCorrelator.put( correlationId, response );
-        }
-        finally {
-            objectBufferPool.returnObject( objectBuffer );
-        }
+        requestResponseCorrelator.put( correlationId, response );
     }
 
     /**

@@ -20,7 +20,7 @@ public class GuavaCacheCombinedPerformanceTest extends AbstractBenchmark {
     public void before() {
         PetStoreModelProvider petStoreModelProvider = new PetStoreModelProvider();
         cache = CacheBuilder.newBuilder().build();
-        performanceMonitor = petStoreModelProvider.guavaMonitor( cache, false );
+        performanceMonitor = petStoreModelProvider.guavaMonitor( cache );
     }
 
     @After

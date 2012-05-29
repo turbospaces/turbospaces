@@ -30,9 +30,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.turbospaces.pool.ObjectFactory;
-import com.turbospaces.pool.ObjectPool;
-import com.turbospaces.pool.SimpleObjectPool;
 
 /**
  * utility class for performance results measurement. allows to set overall number of iteration, number of concurrent
@@ -48,8 +45,7 @@ public final class PerformanceMonitor<V> implements Runnable {
     private int putPercentage, getPercentage;
     private final Function<Map.Entry<String, V>, V> putFunction;
     private final Function<String, V> getFunction, removeFunction;
-    private final ObjectPool<V> objectPool;
-    private final boolean returnObjects2Pool;
+    private final ObjectFactory<V> objectFactory;
 
     /**
      * create new performance monitor(runner) with user supplied put/get/remove callback functions.
@@ -69,11 +65,9 @@ public final class PerformanceMonitor<V> implements Runnable {
     public PerformanceMonitor(final Function<Map.Entry<String, V>, V> putFunction,
                               final Function<String, V> getFunction,
                               final Function<String, V> removeFunction,
-                              final ObjectFactory<V> objectFactory,
-                              final boolean returnObjects2Pool) {
+                              final ObjectFactory<V> objectFactory) {
         super();
-        this.returnObjects2Pool = returnObjects2Pool;
-        this.objectPool = new SimpleObjectPool<V>( objectFactory );
+        this.objectFactory = objectFactory;
         this.putFunction = Preconditions.checkNotNull( putFunction );
         this.getFunction = Preconditions.checkNotNull( getFunction );
         this.removeFunction = Preconditions.checkNotNull( removeFunction );
@@ -180,11 +174,9 @@ public final class PerformanceMonitor<V> implements Runnable {
                             readsMiss.incrementAndGet();
                     }
                     else if ( action < getPercentage + putPercentage ) {
-                        V entryToAdd = objectPool.borrowObject();
+                        V entryToAdd = objectFactory.newInstance();
                         putFunction.apply( new AbstractMap.SimpleEntry<String, V>( String.valueOf( key ), entryToAdd ) );
                         writes.incrementAndGet();
-                        if ( returnObjects2Pool )
-                            objectPool.returnObject( entryToAdd );
                     }
                     else {
                         V v = removeFunction.apply( String.valueOf( key ) );
