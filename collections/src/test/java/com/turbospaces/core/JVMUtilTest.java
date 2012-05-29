@@ -3,10 +3,11 @@ package com.turbospaces.core;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 import java.util.concurrent.atomic.AtomicInteger;
+
+import junit.framework.Assert;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -14,8 +15,6 @@ import org.junit.Test;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.base.Function;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.turbospaces.pool.ObjectPool;
 
 @SuppressWarnings("javadoc")
@@ -24,44 +23,6 @@ public class JVMUtilTest {
     @BeforeClass
     public static void beforeClass() {
         JVMUtil.gcOnExit();
-    }
-
-    @Test
-    public void canAllocateMemory() {
-        byte[] arr = new byte[] { 1, 2, 3, 4, 5 };
-        long address1 = JVMUtil.allocateMemory( arr.length );
-        JVMUtil.writeBytesArray( address1, arr );
-        byte[] array = JVMUtil.readBytesArray( address1, arr.length );
-        assertThat( array, is( arr ) );
-
-        long longMemory = JVMUtil.allocateMemory( Longs.BYTES );
-        JVMUtil.putLong( longMemory, System.currentTimeMillis() );
-        assertThat( JVMUtil.getLong( longMemory ), is( lessThanOrEqualTo( System.currentTimeMillis() ) ) );
-        JVMUtil.releaseMemory( longMemory );
-
-        long intMemory = JVMUtil.allocateMemory( Ints.BYTES );
-        JVMUtil.putInt( intMemory, Integer.MAX_VALUE );
-        assertThat( JVMUtil.getInt( intMemory ), is( Integer.MAX_VALUE ) );
-        JVMUtil.releaseMemory( intMemory );
-    }
-
-    @Test
-    public void allocate() {
-        for ( int i = 0; i < 100; i++ ) {
-            long address = JVMUtil.allocateMemory( 280 );
-            JVMUtil.releaseMemory( address );
-        }
-    }
-
-    @Test
-    public void canReallocate() {
-        byte[] arr = new byte[] { 1, 2, 3, 4, 5 };
-        long address = JVMUtil.allocateMemory( arr.length );
-        JVMUtil.writeBytesArray( address, arr );
-        arr = new byte[] { 1, 2, 3, 4, 5, 6 };
-        address = JVMUtil.reallocate( address, arr.length );
-        byte[] array = JVMUtil.readBytesArray( address, arr.length );
-        assertThat( array.length, is( 6 ) );
     }
 
     @Test
@@ -111,5 +72,30 @@ public class JVMUtilTest {
                 objectPool.returnObject( borrowObject );
             }
         } );
+    }
+
+    @Test
+    public void equals() {
+        Assert.assertFalse( JVMUtil.equals( new Object(), new Object() ) );
+        Assert.assertFalse( JVMUtil.equals( null, new Object() ) );
+        Assert.assertFalse( JVMUtil.equals( new Object(), null ) );
+        Assert.assertTrue( JVMUtil.equals( Integer.valueOf( 1 ), Integer.valueOf( 1 ) ) );
+        Assert.assertTrue( JVMUtil.equals( Integer.valueOf( 1 ), new Integer( 1 ) ) );
+        Assert.assertTrue( JVMUtil.equals( new int[] { 1, 2 }, new int[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new int[] { 1, 2 }, new int[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new long[] { 1, 2 }, new long[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new long[] { 1, 2 }, new long[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new short[] { 1, 2 }, new short[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new short[] { 1, 2 }, new short[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new byte[] { 1, 2 }, new byte[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new byte[] { 1, 2 }, new byte[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new char[] { 1, 2 }, new char[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new char[] { 1, 2 }, new char[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new float[] { 1, 2 }, new float[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new float[] { 1, 2 }, new float[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new double[] { 1, 2 }, new double[] { 1, 2 } ) );
+        Assert.assertFalse( JVMUtil.equals( new double[] { 1, 2 }, new double[] { 1, 2, 3 } ) );
+        Assert.assertTrue( JVMUtil.equals( new boolean[] { true, false }, new boolean[] { true, false } ) );
+        Assert.assertFalse( JVMUtil.equals( new boolean[] { true, true }, new boolean[] { true, false } ) );
     }
 }

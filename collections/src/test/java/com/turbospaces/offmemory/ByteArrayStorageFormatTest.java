@@ -30,24 +30,28 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.turbospaces.core.EffectiveMemoryManager;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.TestEntity1;
 
 @SuppressWarnings("javadoc")
 public class ByteArrayStorageFormatTest {
     Logger logger = LoggerFactory.getLogger( getClass() );
     TestEntity1 testEntity1;
+    EffectiveMemoryManager memoryManager;
 
     @Before
     public void before() {
         testEntity1 = new TestEntity1();
         testEntity1.afterPropertiesSet();
+        memoryManager = new UnsafeMemoryManager();
     }
 
     @Test
     public void storesCreationTimestampCorrectly() {
-        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
+        ByteArrayPointer p = new ByteArrayPointer( memoryManager, new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
         long address = p.dumpAndGetAddress();
-        long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
+        long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
 
         logger.info( "created  : = {}", new Date( creationTimestamp ) );
 
@@ -57,9 +61,9 @@ public class ByteArrayStorageFormatTest {
 
     @Test
     public void storesTimeToLiveCorrectly() {
-        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, 634 );
+        ByteArrayPointer p = new ByteArrayPointer( memoryManager, new byte[] { 1, 2, 3 }, testEntity1, 634 );
         long address = p.dumpAndGetAddress();
-        long ttl = ByteArrayPointer.getTimeToLive( address );
+        long ttl = ByteArrayPointer.getTimeToLive( address, memoryManager );
 
         logger.info( "ttl      : = {}", ttl );
 
@@ -68,12 +72,12 @@ public class ByteArrayStorageFormatTest {
 
     @Test
     public void storesInternalStateCorrectly() {
-        ByteArrayPointer p = new ByteArrayPointer( new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
+        ByteArrayPointer p = new ByteArrayPointer( memoryManager, new byte[] { 1, 2, 3 }, testEntity1, Integer.MAX_VALUE );
         long address = p.dumpAndGetAddress();
         byte[] b = p.getSerializedData();
         assertThat( b, is( new byte[] { 1, 2, 3 } ) );
 
-        ByteArrayPointer p1 = new ByteArrayPointer( address, ByteBuffer.wrap( b ) );
+        ByteArrayPointer p1 = new ByteArrayPointer( memoryManager, address, ByteBuffer.wrap( b ) );
         b = p1.getSerializedData();
         Assert.assertFalse( p.isExpired() );
         assertThat( b, is( new byte[] { 1, 2, 3 } ) );
@@ -88,7 +92,7 @@ public class ByteArrayStorageFormatTest {
 
         assertThat( (TestEntity1) p.getObject(), is( testEntity1 ) );
 
-        ByteArrayPointer p2 = new ByteArrayPointer( new byte[] { 2, 3, 4 }, testEntity1, Integer.MAX_VALUE );
+        ByteArrayPointer p2 = new ByteArrayPointer( memoryManager, new byte[] { 2, 3, 4 }, testEntity1, Integer.MAX_VALUE );
         p2.dumpAndGetAddress();
         Assert.assertFalse( p2.equals( p1 ) );
 

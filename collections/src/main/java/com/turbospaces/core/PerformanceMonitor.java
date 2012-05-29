@@ -41,7 +41,7 @@ import com.turbospaces.pool.SimpleObjectPool;
  * @since 0.1
  */
 @SuppressWarnings({ "javadoc" })
-public class PerformanceMonitor<V> implements Runnable {
+public final class PerformanceMonitor<V> implements Runnable {
 
     private int threadsCount;
     private int numberOfIterations;

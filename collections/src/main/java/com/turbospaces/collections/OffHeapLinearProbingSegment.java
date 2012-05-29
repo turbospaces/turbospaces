@@ -33,6 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -52,7 +53,7 @@ import com.turbospaces.serialization.MatchingSerializer;
  */
 @SuppressWarnings("rawtypes")
 @ThreadSafe
-class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
+final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffHeapHashSet {
     private static final long serialVersionUID = -9179258635918662649L;
 
     /**
@@ -65,6 +66,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
      */
     static final int MAX_SEGMENT_CAPACITY = 1 << 14;
 
+    private final EffectiveMemoryManager memoryManager;
     private final CacheEvictionPolicy evictionPolicy;
     private final ExecutorService executorService;
     private final MatchingSerializer<?> serializer;
@@ -80,6 +82,8 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     /**
      * create new OffHeapHashMap with default initial capacity.
      * 
+     * @param memoryManager
+     *            off-heap memory manager
      * @param serializer
      *            persistent entity serializer
      * @param executorService
@@ -87,17 +91,20 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
      * @param evictionPolicy
      *            optional e
      */
-    public OffHeapLinearProbingSegment(final MatchingSerializer<?> serializer,
+    public OffHeapLinearProbingSegment(final EffectiveMemoryManager memoryManager,
+                                       final MatchingSerializer<?> serializer,
                                        final ExecutorService executorService,
                                        final CacheEvictionPolicy evictionPolicy) {
-        this( DEFAULT_SEGMENT_CAPACITY, serializer, executorService, evictionPolicy );
+        this( memoryManager, DEFAULT_SEGMENT_CAPACITY, serializer, executorService, evictionPolicy );
     }
 
     @VisibleForTesting
-    OffHeapLinearProbingSegment(final int initialCapacity,
+    OffHeapLinearProbingSegment(final EffectiveMemoryManager memoryManager,
+                                final int initialCapacity,
                                 final MatchingSerializer<?> serializer,
                                 final ExecutorService executorService,
                                 final CacheEvictionPolicy evictionPolicy) {
+        this.memoryManager = memoryManager;
         this.evictionPolicy = evictionPolicy;
         this.serializer = Preconditions.checkNotNull( serializer );
         this.executorService = Preconditions.checkNotNull( executorService );
@@ -148,17 +155,18 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         lock.lock();
         try {
             for ( int i = 0; i < m; i++ ) {
-                long address = addresses[i];
+                final long address = addresses[i];
                 if ( address != 0 ) {
-                    final byte[] serializedData = ByteArrayPointer.getEntityState( address );
+                    final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
                     final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                     final boolean matches = serializer.matches( buffer, template );
 
-                    if ( ByteArrayPointer.isExpired( address ) ) {
+                    if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                         if ( expiredEntries == null )
                             expiredEntries = Lists.newLinkedList();
-                        ExpiredEntry expiredEntry = new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address ) );
-                        expiredEntries.add( expiredEntry );
+                        expiredEntries.add( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive(
+                                address,
+                                memoryManager ) ) );
                         continue;
                     }
 
@@ -166,8 +174,8 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                         if ( matchedEntries == null )
                             matchedEntries = Lists.newLinkedList();
                         buffer.clear();
-                        matchedEntries.add( new ByteArrayPointer( address, buffer ) );
-                        ByteArrayPointer.updateLastAccessTime( address, System.currentTimeMillis() );
+                        matchedEntries.add( new ByteArrayPointer( memoryManager, address, buffer ) );
+                        ByteArrayPointer.updateLastAccessTime( address, System.currentTimeMillis(), memoryManager );
                     }
                 }
             }
@@ -198,19 +206,19 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
 
             // use linear probing iteration starting at hash-index until not-zero array's element
             for ( int i = index; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
-                long address = addresses[i];
-                byte[] serializedData = ByteArrayPointer.getEntityState( address );
+                final long address = addresses[i];
+                final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
                 buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
                 if ( keyEquals( key, buffer ) ) {
                     // and finally validate that entity's state
-                    if ( ByteArrayPointer.isExpired( address ) ) {
+                    if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                         expired = true;
-                        ttl = ByteArrayPointer.getTimeToLive( address );
+                        ttl = ByteArrayPointer.getTimeToLive( address, memoryManager );
                         return null;
                     }
-                    ByteArrayPointer.updateLastAccessTime( address, System.currentTimeMillis() );
-                    return asPointer ? new ByteArrayPointer( address, buffer ) : buffer;
+                    ByteArrayPointer.updateLastAccessTime( address, System.currentTimeMillis(), memoryManager );
+                    return asPointer ? new ByteArrayPointer( memoryManager, address, buffer ) : buffer;
                 }
             }
         }
@@ -245,16 +253,16 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             int i;
             // use linear probing iteration starting at hash-index until not-zero array's element
             for ( i = hash2index( key ); addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
-                byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
-                ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
+                final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
                 if ( keyEquals( key, buffer ) ) {
                     // so this is override for given key
-                    int length = ByteArrayPointer.getBytesOccupied( addresses[i] );
+                    final int length = ByteArrayPointer.getBytesOccupied( addresses[i], memoryManager );
                     if ( p != null )
                         addresses[i] = p.rellocateAndDump( addresses[i] );
                     else {
-                        JVMUtil.releaseMemory( addresses[i] );
+                        memoryManager.freeMemory( addresses[i] );
                         addresses[i] = address;
                     }
                     return length;
@@ -282,13 +290,13 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             // try to find entry with the key
             int i = hash2index( key );
             for ( ; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
-                byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i] );
-                ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
+                final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // if the key equals - release memory
                 if ( keyEquals( key, buffer ) ) {
-                    bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i] );
+                    bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i], memoryManager );
                     assert bytesOccupied > 0;
-                    JVMUtil.releaseMemory( addresses[i] );
+                    memoryManager.freeMemory( addresses[i] );
                     break;
                 }
             }
@@ -310,7 +318,7 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 n--;
 
                 // and simply put it back
-                Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addressToRedo ) ) );
+                final Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addressToRedo, memoryManager ) ) );
                 put( id, addressToRedo, null );
                 i = ( ( i + 1 ) & mask );
             }
@@ -336,9 +344,9 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
                 @Override
                 public void run() {
                     Object obj2notify = null;
-                    for ( SpaceExpirationListener expirationListener : expirationListeners )
+                    for ( final SpaceExpirationListener expirationListener : expirationListeners )
                         try {
-                            boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
+                            final boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
                             if ( retrieveAsEntity ) {
                                 if ( obj2notify == null )
                                     obj2notify = serializer.read( expiredEntry.buffer );
@@ -362,15 +370,20 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
      *            new capacity
      */
     private void resize(final int capacity) {
-        OffHeapLinearProbingSegment temp = new OffHeapLinearProbingSegment( capacity, serializer, executorService, evictionPolicy );
+        final OffHeapLinearProbingSegment temp = new OffHeapLinearProbingSegment(
+                memoryManager,
+                capacity,
+                serializer,
+                executorService,
+                evictionPolicy );
         for ( int i = 0; i < m; i++ ) {
             final long address = addresses[i];
             if ( address != 0 ) {
-                final ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address ) );
+                final ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
                 final Object id = serializer.readID( buffer );
-                if ( ByteArrayPointer.isExpired( address ) ) {
-                    notifyExpired( new ExpiredEntry( buffer, id, ByteArrayPointer.getTimeToLive( address ) ) );
-                    JVMUtil.releaseMemory( address );
+                if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
+                    notifyExpired( new ExpiredEntry( buffer, id, ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
+                    memoryManager.freeMemory( address );
                     addresses[i] = 0;
                     continue;
                 }
@@ -407,12 +420,12 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             for ( int i = 0; i < m; i++ ) {
                 long address = addresses[i];
                 if ( address != 0 ) {
-                    if ( ByteArrayPointer.isExpired( address ) ) {
-                        byte[] entityState = ByteArrayPointer.getEntityState( address );
+                    if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
+                        byte[] entityState = ByteArrayPointer.getEntityState( address, memoryManager );
                         ByteBuffer buffer = ByteBuffer.wrap( entityState );
-                        notifyExpired( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address ) ) );
+                        notifyExpired( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
                     }
-                    JVMUtil.releaseMemory( address );
+                    memoryManager.freeMemory( address );
                     addresses[i] = 0;
                 }
             }
@@ -434,15 +447,17 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
         try {
             // just iterate over all all element and find (without any actions) expired entries
             for ( int i = 0; i < m; i++ ) {
-                long address = addresses[i];
+                final long address = addresses[i];
                 if ( address != 0 )
-                    if ( ByteArrayPointer.isExpired( address ) ) {
+                    if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                         if ( expiredEntries == null )
                             expiredEntries = Lists.newLinkedList();
 
-                        byte[] entityState = ByteArrayPointer.getEntityState( address );
-                        ByteBuffer buffer = ByteBuffer.wrap( entityState );
-                        expiredEntries.add( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address ) ) );
+                        final byte[] entityState = ByteArrayPointer.getEntityState( address, memoryManager );
+                        final ByteBuffer buffer = ByteBuffer.wrap( entityState );
+                        expiredEntries.add( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive(
+                                address,
+                                memoryManager ) ) );
                     }
             }
 
@@ -487,13 +502,13 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
             switch ( evictionPolicy ) {
                 case RANDOM: {
                     while ( evicted < elements && n > 0 ) {
-                        int randomIndex = random.nextInt( m );
-                        long address = addresses[randomIndex];
+                        final int randomIndex = random.nextInt( m );
+                        final long address = addresses[randomIndex];
                         if ( address != 0 ) {
-                            byte[] serializedData = ByteArrayPointer.getEntityState( address );
-                            ByteBuffer buffer = ByteBuffer.wrap( serializedData );
-                            Object key = serializer.readID( buffer );
-                            int bytes = remove( key );
+                            final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                            final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                            final Object key = serializer.readID( buffer );
+                            final int bytes = remove( key );
                             assert bytes > 0;
                             evicted++;
                         }
@@ -552,19 +567,19 @@ class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implements OffH
     private int evictLruFifoLfu(final int elements,
                                 final int evictedNow) {
         int evicted = evictedNow;
-        List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
+        final List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
         for ( int i = 0; i < m; i++ ) {
             long address = addresses[i];
             if ( address != 0 ) {
-                long lastAccessTime = ByteArrayPointer.getLastAccessTime( address );
-                long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address );
-                byte[] serializedData = ByteArrayPointer.getEntityState( address );
-                Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
+                final long lastAccessTime = ByteArrayPointer.getLastAccessTime( address, memoryManager );
+                final long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
+                final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                final Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
                 evictionCandidates.add( new EvictionEntry( id, lastAccessTime, creationTimestamp ) );
             }
         }
-        List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
-        for ( EvictionEntry evictionEntry : greatestOf )
+        final List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
+        for ( final EvictionEntry evictionEntry : greatestOf )
             remove( evictionEntry.key );
         return evicted;
     }

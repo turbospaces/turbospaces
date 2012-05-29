@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * 
  * @since 0.1
  */
-public class MutableObject<V> {
+public final class MutableObject<V> {
     private V value;
 
     @SuppressWarnings("javadoc")

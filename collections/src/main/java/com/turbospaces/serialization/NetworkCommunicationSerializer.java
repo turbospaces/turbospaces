@@ -26,7 +26,7 @@ import com.esotericsoftware.kryo.serialize.IntSerializer;
  * 
  * @since 0.1
  */
-public class NetworkCommunicationSerializer extends Serializer {
+public final class NetworkCommunicationSerializer extends Serializer {
 
     @Override
     public void writeObjectData(final ByteBuffer buffer,

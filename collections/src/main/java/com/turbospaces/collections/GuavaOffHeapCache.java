@@ -24,6 +24,7 @@ import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.CacheStats;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -47,6 +48,7 @@ import com.turbospaces.serialization.DecoratedKryo;
  *            value type
  */
 public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implements EvictableCache {
+    private final EffectiveMemoryManager memoryManager;
     private final OffHeapHashSet offHeapHashSet;
     private final ObjectPool<ObjectBuffer> objectsPool;
     private final DecoratedKryo kryo;
@@ -57,6 +59,8 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
      * create new guava's cache over off-heap set delegate and associated kryo serializer. also time-2-live must be
      * explicitly passed.
      * 
+     * @param memoryManager
+     *            off-heap memory manager
      * @param offHeapHashSet
      *            off-heap cache collection
      * @param kryo
@@ -66,10 +70,12 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
      * @param statsCounter
      *            statistics counter
      */
-    public GuavaOffHeapCache(final OffHeapHashSet offHeapHashSet,
+    public GuavaOffHeapCache(final EffectiveMemoryManager memoryManager,
+                             final OffHeapHashSet offHeapHashSet,
                              final DecoratedKryo kryo,
                              final int ttlAfterWrite,
                              final SimpleStatsCounter statsCounter) {
+        this.memoryManager = memoryManager;
         this.offHeapHashSet = offHeapHashSet;
         this.kryo = kryo;
         this.ttlAfterWrite = ttlAfterWrite;
@@ -122,7 +128,7 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
         ObjectBuffer objectBuffer = objectsPool.borrowObject();
         objectBuffer.setKryo( kryo );
         try {
-            ByteArrayPointer pointer = new ByteArrayPointer( objectBuffer.writeObjectData( e ), e, ttlAfterWrite );
+            ByteArrayPointer pointer = new ByteArrayPointer( memoryManager, objectBuffer.writeObjectData( e ), e, ttlAfterWrite );
             offHeapHashSet.put( key, pointer );
         }
         finally {

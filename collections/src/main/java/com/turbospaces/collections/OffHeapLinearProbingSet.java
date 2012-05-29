@@ -15,7 +15,6 @@
  */
 package com.turbospaces.collections;
 
-import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -23,10 +22,11 @@ import java.util.concurrent.ExecutorService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
-import com.google.common.math.IntMath;
+import com.lmax.disruptor.util.Util;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
@@ -47,6 +47,8 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     /**
      * create new off-heap linear set for the given {@link BO} class.
      * 
+     * @param memoryManager
+     *            off-heap memory manager
      * @param capacityRestriction
      *            the capacity restrictor
      * @param serializer
@@ -54,22 +56,24 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
      * @param executorService
      *            concurrent executor service
      */
-    public OffHeapLinearProbingSet(final CapacityRestriction capacityRestriction,
+    public OffHeapLinearProbingSet(final EffectiveMemoryManager memoryManager,
+                                   final CapacityRestriction capacityRestriction,
                                    final MatchingSerializer<?> serializer,
                                    final ExecutorService executorService) {
-        this( IntMath.pow( 2, IntMath.log2(
-                Math.max( (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ), 1 ),
-                RoundingMode.UP ) ), serializer, executorService, capacityRestriction.getEvictionPolicy() );
+        this( memoryManager, Util.ceilingNextPowerOfTwo( Math.max(
+                (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ),
+                1 ) ), serializer, executorService, capacityRestriction.getEvictionPolicy() );
     }
 
     @VisibleForTesting
-    OffHeapLinearProbingSet(final int initialSegments,
+    OffHeapLinearProbingSet(final EffectiveMemoryManager memoryManager,
+                            final int initialSegments,
                             final MatchingSerializer<?> serializer,
                             final ExecutorService executorService,
                             final CacheEvictionPolicy cacheEvictionPolicy) {
         this.segments = new OffHeapLinearProbingSegment[initialSegments];
         for ( int i = 0; i < initialSegments; i++ )
-            segments[i] = new OffHeapLinearProbingSegment( serializer, executorService, cacheEvictionPolicy );
+            segments[i] = new OffHeapLinearProbingSegment( memoryManager, serializer, executorService, cacheEvictionPolicy );
         this.size = segments.length;
         this.mask = this.size - 1;
     }

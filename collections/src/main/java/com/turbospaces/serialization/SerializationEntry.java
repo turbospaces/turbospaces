@@ -25,7 +25,7 @@ import javax.annotation.concurrent.Immutable;
  * @since 0.1
  */
 @Immutable
-public class SerializationEntry {
+public final class SerializationEntry {
     private final ByteBuffer src;
     private final Object object;
     private final Object[] propertyValues;

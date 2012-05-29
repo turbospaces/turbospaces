@@ -23,7 +23,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.turbospaces.core.JVMUtil;
+import com.turbospaces.core.EffectiveMemoryManager;
 
 /**
  * Off-heap memory pointer reference. This is low-level proxy over off-heap address.
@@ -72,6 +72,7 @@ public final class ByteArrayPointer {
     private static int INTERNAL_BYTES_OCCUPATION = FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght
             + FormatFields.TIME_TO_LIVE.lenght + FormatFields.LAST_ACCESS_DATE.lenght;
 
+    private final EffectiveMemoryManager memoryManager;
     private byte[] serializedBytes;
     private ByteBuffer serializedData;
     private long address;
@@ -82,14 +83,17 @@ public final class ByteArrayPointer {
      * create new byte array pointer at given address and byte array(buffer) - this is constructor is used for reading
      * from off-heap memory.
      * 
+     * @param memoryManager
+     *            off-heap memory manager
      * @param address
      *            off-heap memory address
      * @param serializedData
      *            actual de-serialized state of the entity(entry)
      */
-    public ByteArrayPointer(final long address, final ByteBuffer serializedData) {
+    public ByteArrayPointer(final EffectiveMemoryManager memoryManager, final long address, final ByteBuffer serializedData) {
         assert serializedData != null;
 
+        this.memoryManager = memoryManager;
         this.address = address;
         this.serializedData = serializedData;
     }
@@ -98,6 +102,8 @@ public final class ByteArrayPointer {
      * create new byte array pointer for the given de-serialized entry and associate original entry(as reference) with
      * this pointer. Also time-to-live must be provided.
      * 
+     * @param memoryManager
+     *            off-heap memory manager
      * @param serializedData
      *            serialized entiti'es state
      * @param object
@@ -105,9 +111,10 @@ public final class ByteArrayPointer {
      * @param ttl
      *            time-to-live
      */
-    public ByteArrayPointer(final byte[] serializedData, final Object object, final int ttl) {
+    public ByteArrayPointer(final EffectiveMemoryManager memoryManager, final byte[] serializedData, final Object object, final int ttl) {
         assert serializedData != null;
 
+        this.memoryManager = memoryManager;
         this.object = object;
         this.serializedBytes = serializedData;
         this.ttl = ttl;
@@ -121,45 +128,59 @@ public final class ByteArrayPointer {
      * 
      * @param address
      *            off-heap memory address
+     * @param offHeapMmoryManager
+     *            off-heap memory manager
      * @return the last access timestamp for this pointer
      */
-    public static long getLastAccessTime(final long address) {
-        return JVMUtil.getLong( address + FormatFields.LAST_ACCESS_DATE.offset );
+    public static long getLastAccessTime(final long address,
+                                         final EffectiveMemoryManager offHeapMmoryManager) {
+        return offHeapMmoryManager.getLong( address + FormatFields.LAST_ACCESS_DATE.offset );
     }
 
     /**
      * update the last access timestamp to given value.
      * 
+     * @param offHeapMmoryManager
+     *            off-heap memory manager
      * @param address
      *            off-heap memory address
      * @param now
      *            new last access timestamp value
      */
     public static void updateLastAccessTime(final long address,
-                                            final long now) {
-        JVMUtil.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
+                                            final long now,
+                                            final EffectiveMemoryManager offHeapMmoryManager) {
+        offHeapMmoryManager.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
     }
 
     /**
-     * read actual state of entity (without meta information) at the given address
+     * read actual state of entity (without meta information) at the given address.</p>
      * 
      * @param address
      *            off-heap memory address
+     * @param offHeapMmoryManager
+     *            off-heap memory manager
      * @return buffer over internal state
      */
-    public static byte[] getEntityState(final long address) {
-        return JVMUtil.readBytesArray( address + FormatFields.DATA.offset, JVMUtil.getInt( address + FormatFields.LENGTH.offset ) );
+    public static byte[] getEntityState(final long address,
+                                        final EffectiveMemoryManager offHeapMmoryManager) {
+        return offHeapMmoryManager.readBytesArray(
+                address + FormatFields.DATA.offset,
+                offHeapMmoryManager.getInt( address + FormatFields.LENGTH.offset ) );
     }
 
     /**
      * read how many bytes are being occupied by underlying de-serialized entry's data.
      * 
+     * @param offHeapMmoryManager
+     *            off-heap memory manager
      * @param address
      *            off-heap memory address
      * @return how many bytes occupied by pointer
      */
-    public static int getBytesOccupied(final long address) {
-        return JVMUtil.getInt( address + FormatFields.LENGTH.offset ) + INTERNAL_BYTES_OCCUPATION;
+    public static int getBytesOccupied(final long address,
+                                       final EffectiveMemoryManager offHeapMmoryManager) {
+        return offHeapMmoryManager.getInt( address + FormatFields.LENGTH.offset ) + INTERNAL_BYTES_OCCUPATION;
     }
 
     /**
@@ -167,10 +188,13 @@ public final class ByteArrayPointer {
      * 
      * @param address
      *            off-heap memory address
+     * @param offHeapMmoryManager
+     *            off-heap memory manager
      * @return creation timestamp
      */
-    public static long getCreationTimestamp(final long address) {
-        return JVMUtil.getLong( address + FormatFields.CREATION_TIMESTAMP.offset );
+    public static long getCreationTimestamp(final long address,
+                                            final EffectiveMemoryManager offHeapMmoryManager) {
+        return offHeapMmoryManager.getLong( address + FormatFields.CREATION_TIMESTAMP.offset );
     }
 
     /**
@@ -178,10 +202,13 @@ public final class ByteArrayPointer {
      * 
      * @param address
      *            off-heap memory address
+     * @param offHeapMemoryManager
+     *            off-heap memory manager
      * @return ttl time-to-live associate with entry
      */
-    public static int getTimeToLive(final long address) {
-        return JVMUtil.getInt( address + FormatFields.TIME_TO_LIVE.offset );
+    public static int getTimeToLive(final long address,
+                                    final EffectiveMemoryManager offHeapMemoryManager) {
+        return offHeapMemoryManager.getInt( address + FormatFields.TIME_TO_LIVE.offset );
     }
 
     /**
@@ -211,7 +238,8 @@ public final class ByteArrayPointer {
      */
     public void utilize() {
         if ( address != 0 )
-            JVMUtil.releaseMemory( address );
+            memoryManager.freeMemory( address );
+        address = 0;
     }
 
     /**
@@ -225,7 +253,7 @@ public final class ByteArrayPointer {
      * @return true if pointer's data is expired
      */
     public boolean isExpired() {
-        return isExpired( getAddress() );
+        return isExpired( getAddress(), memoryManager );
     }
 
     /**
@@ -241,14 +269,17 @@ public final class ByteArrayPointer {
      * 
      * @param address
      *            off-heap memory address
+     * @param offHeapMemoryManager
+     *            off-heap memory manager
      * @return true if pointer's data is expired, otherwise false
      */
-    public static boolean isExpired(final long address) {
+    public static boolean isExpired(final long address,
+                                    final EffectiveMemoryManager offHeapMemoryManager) {
         boolean expired = false;
 
         long currentTimeMillis = System.currentTimeMillis();
-        long timeToLive = getTimeToLive( address );
-        long creationTimestamp = getCreationTimestamp( address );
+        long timeToLive = getTimeToLive( address, offHeapMemoryManager );
+        long creationTimestamp = getCreationTimestamp( address, offHeapMemoryManager );
 
         if ( currentTimeMillis >= timeToLive + creationTimestamp )
             expired = true;
@@ -265,7 +296,7 @@ public final class ByteArrayPointer {
      */
     public long rellocateAndDump(final long offHeapAddress) {
         int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
-        this.address = JVMUtil.reallocate( offHeapAddress, bytesNeeded );
+        this.address = memoryManager.reallocateMemory( offHeapAddress, bytesNeeded );
         flush2offheap();
         return this.address;
     }
@@ -278,7 +309,7 @@ public final class ByteArrayPointer {
     public long dumpAndGetAddress() {
         if ( this.address == 0 ) {
             int bytesNeeded = getSerializedData().length + FormatFields.DATA.offset;
-            this.address = JVMUtil.allocateMemory( bytesNeeded );
+            this.address = memoryManager.allocateMemory( bytesNeeded );
             flush2offheap();
         }
         return this.address;
@@ -286,11 +317,11 @@ public final class ByteArrayPointer {
 
     private void flush2offheap() {
         long now = System.currentTimeMillis();
-        JVMUtil.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
-        JVMUtil.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, now );
-        JVMUtil.putInt( address + FormatFields.TIME_TO_LIVE.offset, ttl );
-        JVMUtil.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
-        JVMUtil.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
+        memoryManager.putInt( address + FormatFields.LENGTH.offset, getSerializedData().length );
+        memoryManager.putLong( address + FormatFields.CREATION_TIMESTAMP.offset, now );
+        memoryManager.putInt( address + FormatFields.TIME_TO_LIVE.offset, ttl );
+        memoryManager.putLong( address + FormatFields.LAST_ACCESS_DATE.offset, now );
+        memoryManager.writeBytesArray( address + FormatFields.DATA.offset, getSerializedData() );
     }
 
     private long getAddress() {

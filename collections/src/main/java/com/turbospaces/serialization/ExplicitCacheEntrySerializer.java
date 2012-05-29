@@ -25,7 +25,7 @@ import com.turbospaces.model.ExplicitCacheEntry;
  * @since 0.1
  * @see PropertiesSerializer
  */
-public class ExplicitCacheEntrySerializer extends MatchingSerializer<ExplicitCacheEntry<?, ?>> {
+public final class ExplicitCacheEntrySerializer extends MatchingSerializer<ExplicitCacheEntry<?, ?>> {
 
     /**
      * create new explicit serializer suitable to work with {@link ExplicitCacheEntry} beans.

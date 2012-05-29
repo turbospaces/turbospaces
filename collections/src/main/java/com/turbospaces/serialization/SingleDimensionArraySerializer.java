@@ -30,7 +30,7 @@ import com.esotericsoftware.kryo.serialize.ShortSerializer;
  * 
  * @since 0.1
  */
-public class SingleDimensionArraySerializer extends Serializer {
+public final class SingleDimensionArraySerializer extends Serializer {
     private final boolean isPrimitive;
     private final Kryo kryo;
 

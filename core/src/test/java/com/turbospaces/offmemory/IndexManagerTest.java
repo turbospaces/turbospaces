@@ -68,9 +68,11 @@ public class IndexManagerTest {
             while ( System.currentTimeMillis() > 0 ) {
                 TestEntity1 entity = new TestEntity1();
                 entity.afterPropertiesSet();
-                pointer = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf(
-                        bo,
-                        entity ) ), entity, Integer.MAX_VALUE );
+                pointer = new ByteArrayPointer(
+                        configuration.getMemoryManager(),
+                        new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity ) ),
+                        entity,
+                        Integer.MAX_VALUE );
                 indexManager.add(
                         entity,
                         keyLocker.writeLock( entity.getUniqueIdentifier(), new Random().nextLong(), Integer.MAX_VALUE, true ),
@@ -101,14 +103,26 @@ public class IndexManagerTest {
 
         entity4.setUniqueIdentifier( entity2.getUniqueIdentifier() );
 
-        ByteArrayPointer pointer1 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
-                .writeValueOf( bo, entity1 ) ), entity1, Integer.MAX_VALUE );
-        ByteArrayPointer pointer2 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
-                .writeValueOf( bo, entity2 ) ), entity2, Integer.MAX_VALUE );
-        ByteArrayPointer pointer3 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
-                .writeValueOf( bo, entity3 ) ), entity3, Integer.MAX_VALUE );
-        ByteArrayPointer pointer4 = new ByteArrayPointer( new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper
-                .writeValueOf( bo, entity4 ) ), entity4, Integer.MAX_VALUE );
+        ByteArrayPointer pointer1 = new ByteArrayPointer(
+                configuration.getMemoryManager(),
+                new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) ),
+                entity1,
+                Integer.MAX_VALUE );
+        ByteArrayPointer pointer2 = new ByteArrayPointer(
+                configuration.getMemoryManager(),
+                new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity2 ) ),
+                entity2,
+                Integer.MAX_VALUE );
+        ByteArrayPointer pointer3 = new ByteArrayPointer(
+                configuration.getMemoryManager(),
+                new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity3 ) ),
+                entity3,
+                Integer.MAX_VALUE );
+        ByteArrayPointer pointer4 = new ByteArrayPointer(
+                configuration.getMemoryManager(),
+                new ObjectBuffer( configuration.getKryo() ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity4 ) ),
+                entity4,
+                Integer.MAX_VALUE );
 
         indexManager.add( entity1, keyLocker.writeLock( entity1.getUniqueIdentifier(), 234, Integer.MAX_VALUE, true ), pointer1 );
         indexManager.add( entity2, keyLocker.writeLock( entity2.getUniqueIdentifier(), 235, Integer.MAX_VALUE, true ), pointer2 );

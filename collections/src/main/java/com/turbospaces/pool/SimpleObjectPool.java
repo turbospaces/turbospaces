@@ -38,7 +38,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @since 0.1
  */
 @ThreadSafe
-public class SimpleObjectPool<T> implements ObjectPool<T> {
+public final class SimpleObjectPool<T> implements ObjectPool<T> {
     /**
      * elements counter is weekly consistent counter(not necessary strict as this is not very important)
      */

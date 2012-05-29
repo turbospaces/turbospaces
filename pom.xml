@@ -55,6 +55,7 @@
         <cglib-revision>2.2.2</cglib-revision>
         <spring-data-revision>1.0.1.RELEASE</spring-data-revision>
         <guava-revision>12.0</guava-revision>
+        <disruptor-revision>2.10</disruptor-revision>
         <!-- sonar -->
         <sonar.java.source>1.6</sonar.java.source>
         <sonar.java.target>1.6</sonar.java.target>
@@ -130,6 +131,16 @@
                 <artifactId>jgroups</artifactId>
                 <version>${jgroups-revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.googlecode.disruptor</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor-revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava-revision}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -150,11 +161,6 @@
             <artifactId>hamcrest-all</artifactId>
             <version>${hamcrest-revision}</version>
             <scope>test</scope>
-        </dependency>               
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava-revision}</version>
         </dependency>
     </dependencies>
     <build>

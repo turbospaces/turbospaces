@@ -30,7 +30,9 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.MutableObject;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.serialization.ExplicitCacheEntrySerializer;
@@ -49,6 +51,7 @@ import com.turbospaces.serialization.MatchingSerializer;
 public final class GuavaOffHeapCacheBuilder<K, V> {
     private CapacityRestriction capacityRestriction = new CapacityRestriction();
     private ExecutorService executorService;
+    private EffectiveMemoryManager memoryManager;
     private DecoratedKryo kryo;
     private int ttl = Integer.MAX_VALUE;
     private SpaceExpirationListener<K, V> expirationListener;
@@ -149,6 +152,19 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
     }
 
     /**
+     * specify the custom off-heap memory manager(the default one uses SUN JDK's unsafe, but you would probably want to
+     * use SSD caching implementation).
+     * 
+     * @param memoryManager
+     *            off-heap memory manager
+     * @return this
+     */
+    public GuavaOffHeapCacheBuilder<K, V> memoryManager(final EffectiveMemoryManager memoryManager) {
+        this.memoryManager = memoryManager;
+        return this;
+    }
+
+    /**
      * Builds new off-heap linear probing set.
      * 
      * <p>
@@ -165,12 +181,14 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
             executorService = MoreExecutors.sameThreadExecutor();
         if ( kryo == null )
             kryo = new DecoratedKryo();
+        if ( memoryManager == null )
+            memoryManager = new UnsafeMemoryManager();
         kryo.register( clazz, new FieldSerializer( kryo, clazz ) );
         MatchingSerializer<?> serializer = new ExplicitCacheEntrySerializer( kryo );
         final MutableObject<SimpleStatsCounter> statsCounter = new MutableObject<AbstractCache.SimpleStatsCounter>();
         if ( recordStats )
             statsCounter.set( new SimpleStatsCounter() );
-        OffHeapLinearProbingSet offheapSet = new OffHeapLinearProbingSet( capacityRestriction, serializer, executorService );
+        OffHeapLinearProbingSet offheapSet = new OffHeapLinearProbingSet( memoryManager, capacityRestriction, serializer, executorService );
         SpaceExpirationListener<K, ByteBuffer> evictionListener = new SpaceExpirationListener<K, ByteBuffer>( false ) {
             @Override
             public void handleNotification(final ByteBuffer entity,
@@ -194,6 +212,6 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
             } );
         else
             offheapSet.setExpirationListeners( evictionListener );
-        return new GuavaOffHeapCache<K, V>( offheapSet, kryo, ttl, statsCounter.get() );
+        return new GuavaOffHeapCache<K, V>( memoryManager, offheapSet, kryo, ttl, statsCounter.get() );
     }
 }

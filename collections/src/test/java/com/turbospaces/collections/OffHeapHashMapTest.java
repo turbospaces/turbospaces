@@ -23,7 +23,9 @@ import com.google.common.base.Function;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.TestEntity1;
@@ -35,6 +37,7 @@ import com.turbospaces.serialization.PropertiesSerializer;
 @SuppressWarnings({ "javadoc" })
 @RunWith(Parameterized.class)
 public class OffHeapHashMapTest {
+    static EffectiveMemoryManager memoryManager;
     static ObjectBuffer objectBuffer;
     static BO bo;
     static DecoratedKryo decoratedKryo;
@@ -50,15 +53,23 @@ public class OffHeapHashMapTest {
     @Parameters
     public static List<Object[]> data()
                                        throws Exception {
+        memoryManager = new UnsafeMemoryManager();
         bo = TestEntity1.getPersistentEntity();
         decoratedKryo = new DecoratedKryo();
         BO.registerPersistentClasses( decoratedKryo, bo.getOriginalPersistentEntity() );
         objectBuffer = new ObjectBuffer( decoratedKryo );
         propertySerializer = new PropertiesSerializer( decoratedKryo, bo );
 
-        return Arrays.asList( new Object[][] {
-                { new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.REJECT ) },
-                { new OffHeapLinearProbingSet( bo.getCapacityRestriction(), propertySerializer, MoreExecutors.sameThreadExecutor() ) } } );
+        return Arrays
+                .asList( new Object[][] {
+                        { new OffHeapLinearProbingSegment(
+                                memoryManager,
+                                2,
+                                propertySerializer,
+                                MoreExecutors.sameThreadExecutor(),
+                                CacheEvictionPolicy.REJECT ) },
+                        { new OffHeapLinearProbingSet( memoryManager, bo.getCapacityRestriction(), propertySerializer, MoreExecutors
+                                .sameThreadExecutor() ) } } );
     }
 
     @SuppressWarnings({ "rawtypes" })
@@ -102,9 +113,9 @@ public class OffHeapHashMapTest {
         bytes2 = new ObjectBuffer( decoratedKryo ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity2 ) );
         bytes3 = new ObjectBuffer( decoratedKryo ).writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity3 ) );
 
-        p1 = new ByteArrayPointer( bytes1, entity1, Integer.MAX_VALUE );
-        p2 = new ByteArrayPointer( bytes2, entity2, Integer.MAX_VALUE );
-        p3 = new ByteArrayPointer( bytes3, entity3, Integer.MAX_VALUE );
+        p1 = new ByteArrayPointer( memoryManager, bytes1, entity1, Integer.MAX_VALUE );
+        p2 = new ByteArrayPointer( memoryManager, bytes2, entity2, Integer.MAX_VALUE );
+        p3 = new ByteArrayPointer( memoryManager, bytes3, entity3, Integer.MAX_VALUE );
 
         cacheStoreEntryWrapper1 = CacheStoreEntryWrapper.writeValueOf( bo, entity1 );
         cacheStoreEntryWrapper2 = CacheStoreEntryWrapper.writeValueOf( bo, entity2 );
@@ -130,17 +141,17 @@ public class OffHeapHashMapTest {
         ByteArrayPointer object2 = heapHashMap.getAsPointer( key2 );
         ByteArrayPointer object3 = heapHashMap.getAsPointer( key3 );
 
-        assertThat( ByteArrayPointer.getEntityState( object1.dumpAndGetAddress() ), is( bytes1 ) );
-        assertThat( ByteArrayPointer.getEntityState( object2.dumpAndGetAddress() ), is( bytes2 ) );
-        assertThat( ByteArrayPointer.getEntityState( object3.dumpAndGetAddress() ), is( bytes3 ) );
+        assertThat( ByteArrayPointer.getEntityState( object1.dumpAndGetAddress(), memoryManager ), is( bytes1 ) );
+        assertThat( ByteArrayPointer.getEntityState( object2.dumpAndGetAddress(), memoryManager ), is( bytes2 ) );
+        assertThat( ByteArrayPointer.getEntityState( object3.dumpAndGetAddress(), memoryManager ), is( bytes3 ) );
 
         List<ByteArrayPointer> templateMatch1 = heapHashMap.match( cacheStoreEntryWrapper1 );
         List<ByteArrayPointer> templateMatch2 = heapHashMap.match( cacheStoreEntryWrapper2 );
         List<ByteArrayPointer> templateMatch3 = heapHashMap.match( cacheStoreEntryWrapper3 );
 
-        assertThat( ByteArrayPointer.getEntityState( templateMatch1.iterator().next().dumpAndGetAddress() ), is( bytes1 ) );
-        assertThat( ByteArrayPointer.getEntityState( templateMatch2.iterator().next().dumpAndGetAddress() ), is( bytes2 ) );
-        assertThat( ByteArrayPointer.getEntityState( templateMatch3.iterator().next().dumpAndGetAddress() ), is( bytes3 ) );
+        assertThat( ByteArrayPointer.getEntityState( templateMatch1.iterator().next().dumpAndGetAddress(), memoryManager ), is( bytes1 ) );
+        assertThat( ByteArrayPointer.getEntityState( templateMatch2.iterator().next().dumpAndGetAddress(), memoryManager ), is( bytes2 ) );
+        assertThat( ByteArrayPointer.getEntityState( templateMatch3.iterator().next().dumpAndGetAddress(), memoryManager ), is( bytes3 ) );
 
         Assert.assertTrue( heapHashMap.contains( key1 ) );
         Assert.assertTrue( heapHashMap.contains( key2 ) );
@@ -152,7 +163,7 @@ public class OffHeapHashMapTest {
 
         heapHashMap.remove( UUID.randomUUID().toString() );
 
-        ByteArrayPointer p4 = new ByteArrayPointer( bytes2, entity2, Integer.MAX_VALUE );
+        ByteArrayPointer p4 = new ByteArrayPointer( memoryManager, bytes2, entity2, Integer.MAX_VALUE );
         Object prev = heapHashMap.put( key2, p4 );
         assertThat( prev, is( notNullValue() ) );
         assertThat( heapHashMap.getAsSerializedData( key2 ).array(), is( bytes2 ) );
@@ -167,7 +178,7 @@ public class OffHeapHashMapTest {
             arr[i].afterPropertiesSet();
 
             byte[] bytes = objectBuffer.writeObjectData( arr[i] );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
         }
 
@@ -181,7 +192,7 @@ public class OffHeapHashMapTest {
 
         for ( TestEntity1 element : arr ) {
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, element ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, element, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, element, Integer.MAX_VALUE );
 
             heapHashMap.put( element.getUniqueIdentifier(), p );
         }
@@ -203,7 +214,7 @@ public class OffHeapHashMapTest {
                 ObjectBuffer b = objectBufferPool.borrowObject();
                 b.setKryo( decoratedKryo );
                 byte[] bytes = b.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
-                ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], Integer.MAX_VALUE );
+                ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
 
                 heapHashMap.put( arr[i].getUniqueIdentifier(), p );
 
@@ -231,7 +242,7 @@ public class OffHeapHashMapTest {
             arr[i].afterPropertiesSet();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], 1 );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], 1 );
 
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
         }
@@ -256,7 +267,7 @@ public class OffHeapHashMapTest {
             arr[i].afterPropertiesSet();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, arr[i], 1 );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], 1 );
 
             heapHashMap.put( arr[i].getUniqueIdentifier(), p );
         }

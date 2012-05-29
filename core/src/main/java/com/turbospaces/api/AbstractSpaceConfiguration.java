@@ -42,7 +42,9 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
 import com.turbospaces.serialization.DecoratedKryo;
@@ -92,6 +94,10 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
      * kryo serialization configuration
      */
     private DecoratedKryo kryo;
+    /**
+     * off-heap memory manager abstraction(SSD,OS).
+     */
+    private EffectiveMemoryManager memoryManager;
     /**
      * jspace executor service
      */
@@ -218,6 +224,16 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     }
 
     /**
+     * associate custom off-heap memory manager with the space(it can be SSD cache for example).
+     * 
+     * @param memoryManager
+     *            custom memory manager
+     */
+    public void setMemoryManager(final EffectiveMemoryManager memoryManager) {
+        this.memoryManager = memoryManager;
+    }
+
+    /**
      * @return entity mapping context associated with this configuration(this is abstract spring-data's class which
      *         hides actual persistent storage's mapping details).
      */
@@ -276,6 +292,13 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         return scheduledExecutorService;
     }
 
+    /**
+     * @return off-heap memory manager associated with jspace
+     */
+    public EffectiveMemoryManager getMemoryManager() {
+        return memoryManager;
+    }
+
     @Override
     public void destroy() {
         if ( jChannel != null ) {
@@ -306,6 +329,8 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         }
         getJChannel().setDiscardOwnMessages( true );
 
+        if ( getMemoryManager() == null )
+            setMemoryManager( new UnsafeMemoryManager() );
         if ( getMappingContext() == null )
             if ( applicationContext != null )
                 setMappingContext( applicationContext.getBean( AbstractMappingContext.class ) );

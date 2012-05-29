@@ -167,7 +167,11 @@ public class OffHeapCacheStore implements SpaceStore {
         if ( isUpdateOnly && !hasWriteInModificationContext && !indexManager.containsUniqueIdentifier( uniqueIdentifier ) )
             SpaceUtility.raiseObjectRetrieveFailureException( uniqueIdentifier, entry.getPersistentEntity().getOriginalPersistentEntity().getType() );
 
-        ByteArrayPointer p = new ByteArrayPointer( entry.asSerializedData( objectBuffer ), entry.getBean(), timeToLive );
+        ByteArrayPointer p = new ByteArrayPointer(
+                configuration.getMemoryManager(),
+                entry.asSerializedData( objectBuffer ),
+                entry.getBean(),
+                timeToLive );
         modificationContext.addWrite( writeLockQuard, new WriteTakeEntry(
                 entry.getBean(),
                 entry.asPropertyValuesArray(),

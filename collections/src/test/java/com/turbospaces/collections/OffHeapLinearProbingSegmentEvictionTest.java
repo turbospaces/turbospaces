@@ -12,6 +12,8 @@ import org.junit.Test;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
+import com.turbospaces.core.EffectiveMemoryManager;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.TestEntity1;
@@ -21,6 +23,7 @@ import com.turbospaces.serialization.PropertiesSerializer;
 
 @SuppressWarnings("javadoc")
 public class OffHeapLinearProbingSegmentEvictionTest {
+    EffectiveMemoryManager memoryManager;
     BO bo;
     DecoratedKryo decoratedKryo;
     ObjectBuffer objectBuffer;
@@ -30,6 +33,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Before
     public void setUp()
                        throws Exception {
+        memoryManager = new UnsafeMemoryManager();
         bo = TestEntity1.getPersistentEntity();
         decoratedKryo = new DecoratedKryo();
         BO.registerPersistentClasses( decoratedKryo, bo.getOriginalPersistentEntity() );
@@ -44,21 +48,31 @@ public class OffHeapLinearProbingSegmentEvictionTest {
 
     @Test(expected = IllegalStateException.class)
     public void negativeScenario() {
-        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.REJECT );
+        segment = new OffHeapLinearProbingSegment(
+                memoryManager,
+                2,
+                propertySerializer,
+                MoreExecutors.sameThreadExecutor(),
+                CacheEvictionPolicy.REJECT );
         segment.evictElements( 2 );
     }
 
     @Test
     public void testRandomEviction() {
         int size = 12;
-        segment = new OffHeapLinearProbingSegment( size, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.RANDOM );
+        segment = new OffHeapLinearProbingSegment(
+                memoryManager,
+                size,
+                propertySerializer,
+                MoreExecutors.sameThreadExecutor(),
+                CacheEvictionPolicy.RANDOM );
 
         for ( int i = 0; i < size; i++ ) {
             TestEntity1 e = new TestEntity1();
             e.afterPropertiesSet();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, e ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, e, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, e, Integer.MAX_VALUE );
 
             segment.put( e.getUniqueIdentifier(), p );
         }
@@ -74,13 +88,18 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testRandomizeEvictionAfterExpiration()
                                                       throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.RANDOM );
+        segment = new OffHeapLinearProbingSegment(
+                memoryManager,
+                2,
+                propertySerializer,
+                MoreExecutors.sameThreadExecutor(),
+                CacheEvictionPolicy.RANDOM );
 
         TestEntity1 e = new TestEntity1();
         e.afterPropertiesSet();
 
         byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, e ) );
-        ByteArrayPointer p = new ByteArrayPointer( bytes, e, 1 );
+        ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, e, 1 );
 
         segment.put( e.getUniqueIdentifier(), p );
         Thread.sleep( 1 );
@@ -90,7 +109,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testLruEviction1()
                                   throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
 
         String[] keys = new String[100];
         for ( int i = 0; i < keys.length; i++ ) {
@@ -99,7 +118,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             keys[i] = entity1.getUniqueIdentifier();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, Integer.MAX_VALUE );
             segment.put( keys[i], p );
         }
         Thread.sleep( 2 );
@@ -116,7 +135,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testLruEviction2()
                                   throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
 
         String[] keys = new String[400];
         for ( int i = 0; i < keys.length; i++ ) {
@@ -125,7 +144,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             keys[i] = entity1.getUniqueIdentifier();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, Integer.MAX_VALUE );
             segment.put( keys[i], p );
         }
         Thread.sleep( 1 );
@@ -145,7 +164,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testFifoEviction1()
                                    throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.FIFO );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.FIFO );
 
         String[] keys = new String[100];
         for ( int i = 0; i < keys.length / 2; i++ ) {
@@ -154,7 +173,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             keys[i] = entity1.getUniqueIdentifier();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, Integer.MAX_VALUE );
             segment.put( keys[i], p );
         }
         Thread.sleep( 10 );
@@ -165,7 +184,7 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             keys[i] = entity1.getUniqueIdentifier();
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-            ByteArrayPointer p = new ByteArrayPointer( bytes, entity1, Integer.MAX_VALUE );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, Integer.MAX_VALUE );
             segment.put( keys[i], p );
         }
 

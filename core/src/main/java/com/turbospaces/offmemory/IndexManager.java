@@ -46,8 +46,9 @@ public class IndexManager implements DisposableBean, InitializingBean {
     public IndexManager(final MutablePersistentEntity mutablePersistentEntity, final SpaceConfiguration configuration) {
         bo = configuration.boFor( mutablePersistentEntity.getType() );
         capacityRestriction = new SpaceCapacityRestrictionHolder( bo.getCapacityRestriction() );
-        idCache = new OffHeapLinearProbingSet( bo.getCapacityRestriction(), (PropertiesSerializer) configuration.getKryo().getSerializer(
-                mutablePersistentEntity.getType() ), configuration.getListeningExecutorService() );
+        idCache = new OffHeapLinearProbingSet( configuration.getMemoryManager(), bo.getCapacityRestriction(), (PropertiesSerializer) configuration
+                .getKryo()
+                .getSerializer( mutablePersistentEntity.getType() ), configuration.getListeningExecutorService() );
     }
 
     /**

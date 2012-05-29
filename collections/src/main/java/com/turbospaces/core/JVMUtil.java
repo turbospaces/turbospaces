@@ -16,16 +16,11 @@
 package com.turbospaces.core;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import sun.misc.Unsafe;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.minlog.Log;
@@ -33,6 +28,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.lmax.disruptor.util.Util;
 import com.turbospaces.pool.ObjectFactory;
 import com.turbospaces.pool.ObjectPool;
 import com.turbospaces.pool.SimpleObjectPool;
@@ -44,29 +40,7 @@ import com.turbospaces.pool.SimpleObjectPool;
  * 
  * @since 0.1
  */
-@SuppressWarnings("restriction")
 public class JVMUtil {
-    private static final Unsafe UNSAFE;
-
-    static {
-        UNSAFE = AccessController.doPrivileged( new PrivilegedAction<Unsafe>() {
-            @Override
-            public Unsafe run() {
-                Unsafe unsafe = null;
-                try {
-                    Field theUnsafeInstance = Unsafe.class.getDeclaredField( "theUnsafe" );
-                    theUnsafeInstance.setAccessible( true );
-                    unsafe = (Unsafe) theUnsafeInstance.get( Unsafe.class );
-                }
-                catch ( Exception e ) {
-                    Log.error( e.getMessage(), e );
-                    Throwables.propagate( e );
-                }
-                return unsafe;
-            }
-        } );
-    }
-
     /**
      * This method guarantees that garbage collection is done unlike <code>{@link System#gc()}</code>. Please be careful
      * with extra usage of this method, we created it for testing purposes mostly.
@@ -106,125 +80,7 @@ public class JVMUtil {
     @SuppressWarnings("unchecked")
     public static <T> T newInstance(final Class<T> clazz)
                                                          throws InstantiationException {
-        return (T) UNSAFE.allocateInstance( clazz );
-    }
-
-    /**
-     * allocate off-heap memory and returns the address of the memory.
-     * 
-     * @param size
-     *            how many off-heap bytes required
-     * @return address in OS memory
-     */
-    public static long allocateMemory(final int size) {
-        return UNSAFE.allocateMemory( size );
-    }
-
-    /**
-     * free(release) off-heap memory (like C destructor)
-     * 
-     * @param address
-     *            off-heap address
-     */
-    public static void releaseMemory(final long address) {
-        UNSAFE.freeMemory( address );
-    }
-
-    /**
-     * re-allocate memory at the given address and extend to newSize
-     * 
-     * @param address
-     *            existing off-heap memory address
-     * @param newSize
-     *            how many bytes required now
-     * @return address itself
-     */
-    public static long reallocate(final long address,
-                                  final int newSize) {
-        return UNSAFE.reallocateMemory( address, newSize );
-    }
-
-    /**
-     * write byte array into off-heap memory at the given address. This method is not optimal to fit best performance,
-     * however is consistent and simple. Potentially bulk write will be used in future releases to get best performance.
-     * 
-     * @param address
-     *            off-heap memory address
-     * @param arr
-     *            bytes to write
-     */
-    public static void writeBytesArray(final long address,
-                                       final byte[] arr) {
-        long i = address;
-        for ( final byte b : arr )
-            UNSAFE.putByte( i++, b );
-    }
-
-    /**
-     * write int value at the given off-heap memory address
-     * 
-     * @param address
-     *            off-heap memory address
-     * @param value
-     *            int value
-     */
-    public static void putInt(final long address,
-                              final int value) {
-        UNSAFE.putInt( address, value );
-    }
-
-    /**
-     * write long value at the given off-heap memory
-     * 
-     * @param address
-     *            off-heap memory address
-     * @param value
-     *            long value
-     * 
-     */
-    public static void putLong(final long address,
-                               final long value) {
-        UNSAFE.putLong( address, value );
-    }
-
-    /**
-     * read int value at the at given off-heap address
-     * 
-     * @param address
-     *            off-heap memory address
-     * @return int value
-     */
-    public static int getInt(final long address) {
-        return UNSAFE.getInt( address );
-    }
-
-    /**
-     * read long value at the given off-heap memory address
-     * 
-     * @param address
-     *            off-heap memory address
-     * @return long value
-     */
-    public static long getLong(final long address) {
-        return UNSAFE.getLong( address );
-    }
-
-    /**
-     * read byte array at the given off-heap memory address.
-     * 
-     * @param address
-     *            off-heap memory address
-     * @param size
-     *            Exact byte's array size
-     * @return byte array
-     */
-    public static byte[] readBytesArray(final long address,
-                                        final int size) {
-        long j = address;
-        byte[] arr = new byte[size];
-        for ( int i = 0; i < size; i++ )
-            arr[i] = UNSAFE.getByte( j++ );
-        return arr;
+        return (T) Util.getUnsafe().allocateInstance( clazz );
     }
 
     /**
