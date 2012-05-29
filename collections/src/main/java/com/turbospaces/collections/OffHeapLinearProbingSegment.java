@@ -76,7 +76,6 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
     private int n;
     private int m;
-    private int mask;
     private long addresses[];
 
     /**
@@ -110,7 +109,6 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         this.executorService = Preconditions.checkNotNull( executorService );
 
         this.m = initialCapacity;
-        this.mask = initialCapacity - 1;
         this.addresses = new long[m];
 
         evictionComparator = Ordering.from( new Comparator<EvictionEntry>() {
@@ -205,7 +203,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             int index = hash2index( key );
 
             // use linear probing iteration starting at hash-index until not-zero array's element
-            for ( int i = index; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
+            for ( int i = index; addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
                 final long address = addresses[i];
                 final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
                 buffer = ByteBuffer.wrap( serializedData );
@@ -252,7 +250,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
             int i;
             // use linear probing iteration starting at hash-index until not-zero array's element
-            for ( i = hash2index( key ); addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
+            for ( i = hash2index( key ); addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
                 final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
                 final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
@@ -289,7 +287,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         try {
             // try to find entry with the key
             int i = hash2index( key );
-            for ( ; addresses[i] != 0; i = ( ( i + 1 ) & mask ) ) {
+            for ( ; addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
                 final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
                 final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // if the key equals - release memory
@@ -310,7 +308,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
             // for each key that was inserted later we need to re-insert it back just
             // because that might prematurely terminate the search for a key that was inserted into the table later
-            i = ( ( i + 1 ) & mask );
+            i = ( ( i + 1 ) % m );
             while ( addresses[i] != 0 ) {
                 long addressToRedo = addresses[i];
                 addresses[i] = 0;
@@ -320,7 +318,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 // and simply put it back
                 final Object id = serializer.readID( ByteBuffer.wrap( ByteArrayPointer.getEntityState( addressToRedo, memoryManager ) ) );
                 put( id, addressToRedo, null );
-                i = ( ( i + 1 ) & mask );
+                i = ( ( i + 1 ) % m );
             }
             // decrement size
             n--;
@@ -392,7 +390,6 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         }
         addresses = temp.addresses;
         m = temp.m;
-        mask = temp.mask;
         // re-assign number of items because potentially we already skipped expired entries, but didn't decrement n.
         n = temp.n;
     }
@@ -431,7 +428,6 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             }
             this.addresses = new long[DEFAULT_SEGMENT_CAPACITY];
             this.m = DEFAULT_SEGMENT_CAPACITY;
-            this.mask = DEFAULT_SEGMENT_CAPACITY - 1;
             this.n = 0;
         }
         finally {
@@ -502,16 +498,19 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             switch ( evictionPolicy ) {
                 case RANDOM: {
                     while ( evicted < elements && n > 0 ) {
-                        final int randomIndex = random.nextInt( m );
-                        final long address = addresses[randomIndex];
-                        if ( address != 0 ) {
-                            final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
-                            final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
-                            final Object key = serializer.readID( buffer );
-                            final int bytes = remove( key );
-                            assert bytes > 0;
-                            evicted++;
-                        }
+                        int randomIndex = random.nextInt( m );
+                        int nearestToRandomIndex = randomIndex;
+
+                        do
+                            nearestToRandomIndex = ( ( nearestToRandomIndex + 1 ) % m );
+                        while ( addresses[nearestToRandomIndex] == 0 );
+
+                        byte[] serializedData = ByteArrayPointer.getEntityState( addresses[nearestToRandomIndex], memoryManager );
+                        ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                        Object key = serializer.readID( buffer );
+                        int bytes = remove( key );
+                        assert bytes > 0;
+                        evicted++;
                     }
                     break;
                 }
@@ -590,6 +589,6 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     }
 
     private int hash2index(final Object key) {
-        return ( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) & mask;
+        return ( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
     }
 }
