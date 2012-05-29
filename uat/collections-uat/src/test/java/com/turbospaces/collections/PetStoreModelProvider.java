@@ -84,6 +84,6 @@ public class PetStoreModelProvider {
                 cache.invalidate( input );
                 return null;
             }
-        }, newAccountsObjectFactory() ).withNumberOfIterations( (int) 2.5 * 1000000 );
+        }, newAccountsObjectFactory() ).withNumberOfIterations( 1 * 1000000 );
     }
 }

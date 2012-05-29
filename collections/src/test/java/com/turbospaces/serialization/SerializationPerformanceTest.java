@@ -30,11 +30,10 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         entity1.afterPropertiesSet();
     }
 
-    @BenchmarkOptions(warmupRounds = 1, benchmarkRounds = 5)
-    // @Test
-            public void
-            runDefaultKryoSerialization()
-                                         throws ClassNotFoundException {
+    @BenchmarkOptions(warmupRounds = 1, benchmarkRounds = 1)
+    @Test
+    public void runDefaultKryoSerialization()
+                                             throws ClassNotFoundException {
         Class<?> cl1 = Class.forName( "[L" + RoundingMode.class.getName() + ";" );
         Class<?> cl2 = Class.forName( "[L" + Autowire.class.getName() + ";" );
         SingleDimensionArraySerializer s1 = new SingleDimensionArraySerializer( cl1, kryo );
@@ -43,11 +42,11 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         kryo.register( cl2, s2 );
         kryo.register( Autowire.class, new EnumSerializer( Autowire.class ) );
         kryo.register( TestEntity1.class, new FieldSerializer( kryo, TestEntity1.class ) );
-        run();
+        run( true );
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    @BenchmarkOptions(warmupRounds = 1, benchmarkRounds = 5)
+    @BenchmarkOptions(warmupRounds = 1, benchmarkRounds = 1)
     @Test
     public void runTurbospaceKryoSerialization()
                                                 throws SecurityException,
@@ -58,10 +57,10 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         mappingContext.afterPropertiesSet();
         BO bo = new BO( (BasicPersistentEntity) mappingContext.getPersistentEntity( TestEntity1.class ) );
         BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );
-        run();
+        run( false );
     }
 
-    private void run() {
+    private void run(final boolean nativeAccess) {
         int iterations = 10 * 1000 * 1000;
         long now = System.currentTimeMillis();
 
@@ -76,7 +75,7 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         } );
 
         double seconds = ( (double) ( System.currentTimeMillis() - now ) / 1000 );
-        System.out.println( "serialization TPS = " + ( (int) ( iterations / seconds ) ) );
+        System.out.println( ( nativeAccess ? "direct access:->" : "cglib access->" ) + "serialization TPS = " + ( (int) ( iterations / seconds ) ) );
 
         ObjectBuffer buffer = new ObjectBuffer( kryo );
         buffer.setKryo( kryo );
@@ -94,6 +93,7 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         } );
 
         seconds = ( (double) ( System.currentTimeMillis() - now ) / 1000 );
-        System.out.println( "de-serialization TPS = " + ( (int) ( iterations / seconds ) ) );
+        System.out
+                .println( ( nativeAccess ? "direct access:->" : "cglib access->" ) + "de-serialization TPS = " + ( (int) ( iterations / seconds ) ) );
     }
 }

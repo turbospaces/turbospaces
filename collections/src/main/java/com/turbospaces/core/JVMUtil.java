@@ -27,7 +27,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.lmax.disruptor.util.Util;
 
 /**
  * This is placeholder for all utility method of turbospaces-collections maven project. We prefer creation of one such
@@ -61,22 +60,6 @@ public class JVMUtil {
                 gc();
             }
         } );
-    }
-
-    /**
-     * Allocate an instance but do not run any constructor.
-     * Initializes the class if it has not yet been.
-     * 
-     * @param clazz
-     *            type of new instance
-     * @return new instance of class
-     * @throws InstantiationException
-     *             re-throw exceptions
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> T newInstance(final Class<T> clazz)
-                                                         throws InstantiationException {
-        return (T) Util.getUnsafe().allocateInstance( clazz );
     }
 
     /**
