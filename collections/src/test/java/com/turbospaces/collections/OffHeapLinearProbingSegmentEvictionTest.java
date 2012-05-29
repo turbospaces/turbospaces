@@ -5,13 +5,21 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
+import com.esotericsoftware.minlog.Log;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
+import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.BO;
@@ -193,5 +201,44 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             assertThat( segment.getAsPointer( keys[i] ), is( notNullValue() ) );
         for ( int i = keys.length / 2; i < keys.length; i++ )
             assertThat( segment.getAsPointer( keys[i] ), is( nullValue() ) );
+    }
+
+    @Test
+    public void randomizeTest() {
+        ListeningExecutorService threadExecutor = MoreExecutors.sameThreadExecutor();
+        final AtomicInteger evicted = new AtomicInteger();
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, threadExecutor, CacheEvictionPolicy.RANDOM );
+        segment.setExpirationListeners( new SpaceExpirationListener<String, TestEntity1>() {
+            @Override
+            public void handleNotification(final TestEntity1 entity,
+                                           final String id,
+                                           final Class<TestEntity1> persistentClass,
+                                           final int originalTimeToLive) {
+                evicted.incrementAndGet();
+            }
+        } );
+
+        Random r = new Random();
+        TestEntity1[] entities = new TestEntity1[1793];
+        for ( int i = 0; i < entities.length; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            entities[i] = entity1;
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, r.nextInt( 50 ) );
+            segment.put( entities[i].getUniqueIdentifier(), p );
+        }
+
+        System.out.println( segment.size() );
+        AtomicInteger found = new AtomicInteger();
+        for ( int i = 0; i < entities.length; i++ ) {
+            ByteArrayPointer p = segment.getAsPointer( entities[i].getUniqueIdentifier() );
+            if ( p != null )
+                found.incrementAndGet();
+        }
+        Log.info( String.format( "evicted = %s, found = %s, segment_size = %s", evicted.get(), found.get(), segment.size() ) );
+        Assert.assertEquals( evicted.get() + found.get(), entities.length );
+        Assert.assertEquals( entities.length - evicted.get(), segment.size() );
     }
 }

@@ -7,7 +7,6 @@ import com.lmax.disruptor.util.Util;
  * 
  * @since 0.1
  */
-@SuppressWarnings("restriction")
 public final class UnsafeMemoryManager implements EffectiveMemoryManager {
     @Override
     public long allocateMemory(final int bytes) {

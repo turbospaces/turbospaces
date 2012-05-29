@@ -375,11 +375,12 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 executorService,
                 evictionPolicy );
         for ( int i = 0; i < m; i++ ) {
-            final long address = addresses[i];
+            long address = addresses[i];
             if ( address != 0 ) {
-                final ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
-                final Object id = serializer.readID( buffer );
+                ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
+                Object id = serializer.readID( buffer );
                 if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
+                    System.out.println( "skipping expired" );
                     notifyExpired( new ExpiredEntry( buffer, id, ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
                     memoryManager.freeMemory( address );
                     addresses[i] = 0;
