@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.google.common.cache.Cache;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.offmemory.ByteArrayPointer;
 
@@ -32,15 +33,14 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * 
  * <b>NOTE :</b> particular implementation of this interface uses off-heap memory space(dramatically reduces the java
  * heap space and GC factor). Currently the only one supported mechanism for such off-heap allocation is
- * {@link sun.misc.Unsafe#allocateMemory(long)} and {@link sun.misc.Unsafe#reallocateMemory(long, long)} methods, but
- * this is subject for modifications in future(off-heap store can be mapped buffer files over SSD disks for
+ * {@link UnsafeMemoryManager}, but this is subject for modifications in future(off-heap store can be mapped buffer
+ * files over SSD disks for
  * example).</p>
  * 
  * Most method as self-explained so there is no need for detailed documentation as such.
  * 
  * @since 0.1
  */
-@SuppressWarnings("restriction")
 public interface OffHeapHashSet extends EvictableCache {
     /**
      * check whether particular value (associated with given key) is present in this collection.</p>

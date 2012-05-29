@@ -184,8 +184,7 @@ public class DirectOffHeapByteBufferTest {
 
     @Test
     public void canAdd3EntitiesAndFindByItself()
-                                                throws CloneNotSupportedException,
-                                                InterruptedException {
+                                                throws InterruptedException {
         TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity1 = new TestEntity1();
         TestEntity1 entity2 = new TestEntity1();
@@ -354,8 +353,7 @@ public class DirectOffHeapByteBufferTest {
     }
 
     @Test
-    public void puttingObjectByTheSameUniqueIdentifierBehavesAsOverride()
-                                                                         throws CloneNotSupportedException {
+    public void puttingObjectByTheSameUniqueIdentifierBehavesAsOverride() {
         TransactionModificationContext modificationContext = new TransactionModificationContext();
         TestEntity1 entity = new TestEntity1();
         entity.afterPropertiesSet();

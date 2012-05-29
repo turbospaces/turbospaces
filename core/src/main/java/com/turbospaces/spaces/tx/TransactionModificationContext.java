@@ -19,7 +19,6 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +27,7 @@ import org.springframework.util.ObjectUtils;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.lmax.disruptor.Sequence;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.core.SpaceUtility;
@@ -52,7 +52,7 @@ import com.turbospaces.spaces.SpaceStore;
  */
 public final class TransactionModificationContext {
     private static final Logger LOGGER = LoggerFactory.getLogger( TransactionModificationContext.class );
-    private static final AtomicLong IDS = new AtomicLong();
+    private static final Sequence IDS = new Sequence( 0 );
 
     /**
      * map of added/modified space entries

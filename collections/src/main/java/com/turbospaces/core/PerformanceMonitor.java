@@ -23,13 +23,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.lmax.disruptor.Sequence;
 
 /**
  * utility class for performance results measurement. allows to set overall number of iteration, number of concurrent
@@ -120,11 +120,11 @@ public final class PerformanceMonitor<V> implements Runnable {
         Log.info( " Take Percentage   : " + putPercentage );
 
         final AtomicBoolean completitionSemapshore = new AtomicBoolean( false );
-        final AtomicLong readsHit = new AtomicLong();
-        final AtomicLong readsMiss = new AtomicLong();
-        final AtomicLong takesHit = new AtomicLong();
-        final AtomicLong takesMiss = new AtomicLong();
-        final AtomicLong writes = new AtomicLong();
+        final Sequence readsHit = new Sequence( 0 );
+        final Sequence readsMiss = new Sequence( 0 );
+        final Sequence takesHit = new Sequence( 0 );
+        final Sequence takesMiss = new Sequence( 0 );
+        final Sequence writes = new Sequence( 0 );
 
         Executors.newSingleThreadExecutor( new ThreadFactory() {
             @Override

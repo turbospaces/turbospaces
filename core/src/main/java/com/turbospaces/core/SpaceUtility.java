@@ -22,7 +22,6 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -42,6 +41,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
 import com.google.common.collect.MapMaker;
+import com.lmax.disruptor.Sequence;
 import com.turbospaces.api.AbstractSpaceConfiguration;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
@@ -238,9 +238,9 @@ public abstract class SpaceUtility {
      * @param memoryUsed
      *            how many bytes is currently used
      */
-    public static void ensureEnoughCapacity(final ByteArrayPointer pointer,
-                                            final CapacityRestriction capacityRestriction,
-                                            final AtomicLong memoryUsed) {
+    public static void ensureEnoughMemoryCapacity(final ByteArrayPointer pointer,
+                                                  final CapacityRestriction capacityRestriction,
+                                                  final Sequence memoryUsed) {
         if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySizeInBytes() )
             throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySizeInBytes(), pointer.getSerializedData() );
     }
@@ -257,7 +257,7 @@ public abstract class SpaceUtility {
      */
     public static void ensureEnoughCapacity(final Object obj,
                                             final CapacityRestriction capacityRestriction,
-                                            final AtomicLong itemsCount) {
+                                            final Sequence itemsCount) {
         if ( itemsCount.get() >= capacityRestriction.getMaxElements() )
             throw new SpaceCapacityOverflowException( capacityRestriction.getMaxElements(), obj );
     }

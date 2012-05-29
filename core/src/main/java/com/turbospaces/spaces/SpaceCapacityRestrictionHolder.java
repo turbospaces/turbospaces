@@ -15,8 +15,7 @@
  */
 package com.turbospaces.spaces;
 
-import java.util.concurrent.atomic.AtomicLong;
-
+import com.lmax.disruptor.Sequence;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.offmemory.ByteArrayPointer;
@@ -27,8 +26,8 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * @since 0.1
  */
 public class SpaceCapacityRestrictionHolder {
-    private final AtomicLong memoryUsed = new AtomicLong();
-    private final AtomicLong itemsCount = new AtomicLong();
+    private final Sequence memoryUsed = new Sequence( 0 );
+    private final Sequence itemsCount = new Sequence( 0 );
     private final CapacityRestriction capacityRestriction;
 
     @SuppressWarnings("javadoc")
@@ -77,7 +76,7 @@ public class SpaceCapacityRestrictionHolder {
     public void remove(final int removedBytes) {
         if ( removedBytes > 0 ) {
             memoryUsed.addAndGet( -removedBytes );
-            itemsCount.decrementAndGet();
+            itemsCount.addAndGet( -1 );
         }
     }
 
@@ -91,7 +90,7 @@ public class SpaceCapacityRestrictionHolder {
      */
     public void ensureCapacity(final ByteArrayPointer pointer,
                                final Object obj) {
-        SpaceUtility.ensureEnoughCapacity( pointer, capacityRestriction, memoryUsed );
+        SpaceUtility.ensureEnoughMemoryCapacity( pointer, capacityRestriction, memoryUsed );
         SpaceUtility.ensureEnoughCapacity( obj, capacityRestriction, itemsCount );
     }
 }
