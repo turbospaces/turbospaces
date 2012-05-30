@@ -41,7 +41,6 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceTopology;
-import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.Memory;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
@@ -69,7 +68,6 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     private final ConcurrentMap<Class<?>, OffHeapCacheStore> offHeapBuffers;
     private final SpaceConfiguration configuration;
     private final Set<NotificationContext> notificationContext;
-    private final CapacityMonitor capacityRestriction;
     private final SpaceReceiveAdapter messageListener;
 
     protected AbstractJSpace(final SpaceConfiguration configuration) {
@@ -79,12 +77,11 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         offHeapBuffers = SpaceUtility.newCompMap( new Function<Class<?>, OffHeapCacheStore>() {
             @Override
             public OffHeapCacheStore apply(final Class<?> input) {
-                OffHeapCacheStore cacheStore = new OffHeapCacheStore( configuration, input, capacityRestriction );
+                OffHeapCacheStore cacheStore = new OffHeapCacheStore( configuration, input );
                 cacheStore.afterPropertiesSet();
                 return cacheStore;
             }
         } );
-        capacityRestriction = new CapacityMonitor( configuration.getCapacityRestriction() );
         notificationContext = new HashSet<NotificationContext>();
         messageListener = new SpaceReceiveAdapter( this );
     }
@@ -186,10 +183,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                    final int timeout,
                    final int maxResults,
                    final int modifiers) {
-        final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
-                .getPersistentEntity()
-                .getOriginalPersistentEntity()
-                .getType() : entry.getClass() );
+        SpaceStore buffer = storeFor( entry );
         int txTimeout = timeout;
         TransactionModificationContext txModification;
 
@@ -217,10 +211,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                final int timeToLive,
                final int timeout,
                final int modifier) {
-        final SpaceStore buffer = offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
-                .getPersistentEntity()
-                .getOriginalPersistentEntity()
-                .getType() : entry.getClass() );
+        SpaceStore buffer = storeFor( entry );
         int txTimeout = timeout;
         TransactionModificationContext txModification;
 
@@ -350,10 +341,9 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                     template ) );
 
         if ( logger.isDebugEnabled() )
-            logger.debug(
-                    "onFetch: template={}, id={}, version={}, routing={}, timeout={}, maxResults={}",
-                    new Object[] { cacheStoreEntryWrapper.getBean(), cacheStoreEntryWrapper.getId(),
-                            cacheStoreEntryWrapper.getOptimisticLockVersion(), cacheStoreEntryWrapper.getRouting(), timeout, maxResults } );
+            logger.debug( "onFetch: template={}, id={}, version={}, routing={}, timeout={}, maxResults={}, transaction={}", new Object[] {
+                    cacheStoreEntryWrapper.getBean(), cacheStoreEntryWrapper.getId(), cacheStoreEntryWrapper.getOptimisticLockVersion(),
+                    cacheStoreEntryWrapper.getRouting(), timeout, maxResults, modificationContext.getTransactionId() } );
 
         // fetch
         ByteBuffer[] c = heapBuffer.fetch( cacheStoreEntryWrapper, modificationContext, timeout, maxResults, modifiers );
@@ -381,6 +371,13 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                 return result;
             }
         return c;
+    }
+
+    private SpaceStore storeFor(final Object entry) {
+        return offHeapBuffers.get( entry instanceof CacheStoreEntryWrapper ? ( (CacheStoreEntryWrapper) entry )
+                .getPersistentEntity()
+                .getOriginalPersistentEntity()
+                .getType() : entry.getClass() );
     }
 
     /**

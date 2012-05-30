@@ -61,16 +61,11 @@ public class OffHeapHashMapTest {
         objectBuffer = new ObjectBuffer( decoratedKryo );
         propertySerializer = new PropertiesSerializer( decoratedKryo, bo );
 
-        return Arrays
-                .asList( new Object[][] {
-                        { new OffHeapLinearProbingSegment(
-                                memoryManager,
-                                2,
-                                propertySerializer,
-                                MoreExecutors.sameThreadExecutor(),
-                                new CapacityMonitor( bo.getCapacityRestriction() ) ) },
-                        { new OffHeapLinearProbingSet( memoryManager, bo.getCapacityRestriction(), propertySerializer, MoreExecutors
-                                .sameThreadExecutor() ) } } );
+        return Arrays.asList( new Object[][] {
+                { new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor( bo
+                        .getCapacityRestriction(), null ) ) },
+                { new OffHeapLinearProbingSet( memoryManager, bo.getCapacityRestriction(), null, propertySerializer, MoreExecutors
+                        .sameThreadExecutor() ) } } );
     }
 
     @SuppressWarnings({ "rawtypes" })

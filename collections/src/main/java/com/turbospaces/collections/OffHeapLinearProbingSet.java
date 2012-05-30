@@ -57,6 +57,8 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
      *            off-heap memory manager
      * @param capacityRestriction
      *            the capacity restrictor
+     * @param globalCapacityRestriction
+     *            global capacity restriction
      * @param serializer
      *            entity serializer
      * @param executorService
@@ -64,13 +66,14 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
      */
     public OffHeapLinearProbingSet(final EffectiveMemoryManager memoryManager,
                                    final CapacityRestriction capacityRestriction,
+                                   final CapacityRestriction globalCapacityRestriction,
                                    final MatchingSerializer<?> serializer,
                                    final ExecutorService executorService) {
         int nextPowerOfTwo = Util.ceilingNextPowerOfTwo( Math.max(
                 (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ),
                 1 ) );
 
-        this.capacityMonitor = new CapacityMonitor( capacityRestriction );
+        this.capacityMonitor = new CapacityMonitor( capacityRestriction, globalCapacityRestriction );
         this.segments = new OffHeapLinearProbingSegment[nextPowerOfTwo];
         for ( int i = 0; i < nextPowerOfTwo; i++ )
             segments[i] = new OffHeapLinearProbingSegment( memoryManager, serializer, executorService, capacityMonitor );

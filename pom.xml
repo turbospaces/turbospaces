@@ -62,7 +62,7 @@
         <sonar.jdbc.username>sonar</sonar.jdbc.username>
         <sonar.jdbc.password>sonar</sonar.jdbc.password>
         <sonar.hibernate.default_schema>sonar</sonar.hibernate.default_schema>
-        <sonar.skippedModules>turbospaces-collections-uat</sonar.skippedModules>
+        <sonar.skippedModules>turbospaces-collections-uat,turbospaces-documentation,turbospaces-monitor</sonar.skippedModules>
         <!-- maven -->
         <cobertura.maxmem>512m</cobertura.maxmem>
         <maven.plugin.source.version>2.1.2</maven.plugin.source.version>

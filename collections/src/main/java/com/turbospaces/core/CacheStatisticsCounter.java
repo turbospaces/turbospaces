@@ -15,14 +15,13 @@
  */
 package com.turbospaces.core;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import javax.annotation.concurrent.Immutable;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache.SimpleStatsCounter;
 import com.google.common.cache.CacheStats;
+import com.lmax.disruptor.Sequence;
 
 /**
  * cache statistic wrapper. contains hits/puts/takes count information.
@@ -31,9 +30,9 @@ import com.google.common.cache.CacheStats;
  */
 @SuppressWarnings("javadoc")
 public final class CacheStatisticsCounter extends SimpleStatsCounter {
-    private final AtomicLong putsCount = new AtomicLong();
-    private final AtomicLong takesCount = new AtomicLong();
-    private final AtomicLong exclusiveReadsCount = new AtomicLong();
+    private final Sequence putsCount = new Sequence( 0 );
+    private final Sequence takesCount = new Sequence( 0 );
+    private final Sequence exclusiveReadsCount = new Sequence( 0 );
 
     public void recordPuts(final int count) {
         putsCount.addAndGet( count );

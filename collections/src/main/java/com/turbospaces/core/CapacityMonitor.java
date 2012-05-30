@@ -30,11 +30,20 @@ public final class CapacityMonitor {
     private final Sequence memoryUsed = new Sequence( 0 );
     private final Sequence itemsCount = new Sequence( 0 );
     private final CapacityRestriction capacityRestriction;
+    private final CapacityMonitor globalCapacityMonitor;
 
-    @SuppressWarnings("javadoc")
-    public CapacityMonitor(final CapacityRestriction capacityRestriction) {
+    /**
+     * create new capacity monitor for given capacityRestriction configuration and associate globalCapacityRestrion
+     * 
+     * @param capacityRestriction
+     *            capacity restriction on level class
+     * @param globalCapacityRestriction
+     *            global space capacity restriction
+     */
+    public CapacityMonitor(final CapacityRestriction capacityRestriction, final CapacityRestriction globalCapacityRestriction) {
         super();
         this.capacityRestriction = capacityRestriction;
+        this.globalCapacityMonitor = globalCapacityRestriction != null ? new CapacityMonitor( globalCapacityRestriction, null ) : null;
     }
 
     /**
@@ -74,7 +83,10 @@ public final class CapacityMonitor {
             memoryUsed.addAndGet( -prevBytesOccupation );
         else
             itemsCount.incrementAndGet();
+        //
         memoryUsed.addAndGet( addedBytes );
+        if ( globalCapacityMonitor != null )
+            globalCapacityMonitor.add( addedBytes, prevBytesOccupation );
     }
 
     /**
@@ -90,6 +102,9 @@ public final class CapacityMonitor {
             assert currentItemsCount >= 0;
             assert currentMemoryUsed >= 0;
         }
+
+        if ( globalCapacityMonitor != null )
+            globalCapacityMonitor.remove( removedBytes );
     }
 
     /**
@@ -107,6 +122,11 @@ public final class CapacityMonitor {
      */
     public void ensureCapacity(final ByteArrayPointer pointer,
                                final Object obj) {
+        if ( globalCapacityMonitor != null ) {
+            JVMUtil.ensureEnoughMemoryCapacity( pointer, globalCapacityMonitor.capacityRestriction, globalCapacityMonitor.memoryUsed );
+            JVMUtil.ensureEnoughCapacity( obj, globalCapacityMonitor.capacityRestriction, globalCapacityMonitor.itemsCount );
+        }
+
         JVMUtil.ensureEnoughMemoryCapacity( pointer, capacityRestriction, memoryUsed );
         JVMUtil.ensureEnoughCapacity( obj, capacityRestriction, itemsCount );
     }

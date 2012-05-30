@@ -188,7 +188,7 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
         final MutableObject<SimpleStatsCounter> statsCounter = new MutableObject<AbstractCache.SimpleStatsCounter>();
         if ( recordStats )
             statsCounter.set( new SimpleStatsCounter() );
-        OffHeapLinearProbingSet offheapSet = new OffHeapLinearProbingSet( memoryManager, capacityRestriction, serializer, executorService );
+        OffHeapLinearProbingSet offheapSet = new OffHeapLinearProbingSet( memoryManager, capacityRestriction, null, serializer, executorService );
         SpaceExpirationListener<K, ByteBuffer> evictionListener = new SpaceExpirationListener<K, ByteBuffer>( false ) {
             @Override
             public void handleNotification(final ByteBuffer entity,

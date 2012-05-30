@@ -25,7 +25,7 @@ import com.turbospaces.network.NetworkCommunicationDispatcher;
  * 
  * @since 0.1
  */
-public class ClientSpaceConfiguration extends AbstractSpaceConfiguration {
+public final class ClientSpaceConfiguration extends AbstractSpaceConfiguration {
     private NetworkCommunicationDispatcher dispatcher;
 
     @Override

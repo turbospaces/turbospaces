@@ -138,4 +138,22 @@ public class BasicCommunicationTest {
         Object[] fetch = remoteJSpace.fetch( entity1, 0, 1, JSpace.MATCH_BY_ID );
         assertThat( fetch.length, is( 0 ) );
     }
+
+    @Test
+    public void fullNonTransactionScenario() {
+        TestEntity1 entity1 = new TestEntity1();
+        entity1.afterPropertiesSet();
+        remoteJSpace.write( entity1, JSpace.LEASE_FOREVER, 0, JSpace.WRITE_ONLY );
+        Object[] resp = remoteJSpace.fetch( entity1, 0, 1, JSpace.MATCH_BY_ID );
+        entity1.assertMatch( (TestEntity1) resp[0] );
+        resp = remoteJSpace.fetch( entity1, 0, 1, JSpace.TAKE_ONLY | JSpace.MATCH_BY_ID | JSpace.RETURN_AS_BYTES );
+        entity1.assertMatch( (TestEntity1) remoteJSpace
+                .getSpaceConfiguration()
+                .getKryo()
+                .deserialize( (ByteBuffer) resp[0], TestEntity1.class )
+                .getObject() );
+        assertThat( remoteJSpace.size(), is( 0L ) );
+        resp = remoteJSpace.fetch( entity1, 0, 1, JSpace.READ_ONLY | JSpace.RETURN_AS_BYTES | JSpace.MATCH_BY_ID );
+        assertThat( resp.length, is( 0 ) );
+    }
 }

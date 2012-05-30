@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.lmax.disruptor.Sequence;
@@ -226,7 +227,7 @@ public final class TransactionModificationContext {
     private void sync(final SpaceStore memoryManager,
                       final Set<NotificationContext> notificationContext,
                       final boolean applyDiscard) {
-        LOGGER.debug( "synchronizing transaction {} wih offheap cache store. commit/rollback = {}", getTransactionId(), applyDiscard ? "C" : "R" );
+        LOGGER.debug( "synchronizing {} wih offheap cache store. commit/rollback = {}", this, applyDiscard ? "COMMIT" : "ROLLBACK" );
         try {
             memoryManager.sync( this, applyDiscard );
             if ( !CollectionUtils.isEmpty( notificationContext ) )
@@ -367,5 +368,16 @@ public final class TransactionModificationContext {
      */
     public Set<EntryKeyLockQuard> getExclusiveReads() {
         return exclusiveReads;
+    }
+
+    @Override
+    public String toString() {
+        return Objects
+                .toStringHelper( this )
+                .add( "transactionId", getTransactionId() )
+                .add( "writes", getWrites() )
+                .add( "takes", getTakes() )
+                .add( "exclusiveReads", getExclusiveReads() )
+                .toString();
     }
 }

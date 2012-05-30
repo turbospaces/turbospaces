@@ -91,7 +91,8 @@ public class MethodCall {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper( this ).add( "methodId", methodId ).toString();
+        SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[getMethodId()];
+        return Objects.toStringHelper( this ).add( "method", spaceMethodsMapping.name() ).toString();
     }
 
     @SuppressWarnings("javadoc")

@@ -101,7 +101,8 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
                 ids[i] = correlationId;
                 messages[i] = message;
                 configuration.getJChannel().send( message );
-                LOGGER.debug( "sent jgroups message with correlation_id={} and destinations = {}", correlationId, destinations );
+                LOGGER.debug( "sent jgroups message with correlation_id={} and destinations={}, methodCall={}", new Object[] { correlationId,
+                        destinations, methodCall } );
             }
             catch ( Exception t ) {
                 requestResponseCorrelator.clear( correlationId );

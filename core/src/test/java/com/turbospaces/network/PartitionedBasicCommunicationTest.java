@@ -72,7 +72,8 @@ public class PartitionedBasicCommunicationTest {
 
     @Test
     public void canWriteFetchNonTransactionally() {
-        List<Throwable> errors = JVMUtil.repeatConcurrently( Runtime.getRuntime().availableProcessors(), 1000, new Runnable() {
+        int threads = Runtime.getRuntime().availableProcessors();
+        List<Throwable> errors = JVMUtil.repeatConcurrently( threads, 1000, new Runnable() {
             @Override
             public void run() {
                 final TestEntity1 entity = new TestEntity1();

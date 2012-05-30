@@ -24,6 +24,7 @@ public class TransactionModificationLockTest {
         lock.lock( c.getTransactionId() );
         lock.lock( c.getTransactionId() );
         lock.unlock( c.getTransactionId() );
+        c.toString();
     }
 
     @Test
@@ -43,6 +44,8 @@ public class TransactionModificationLockTest {
 
         b = lock.tryLock( c2.getTransactionId(), Long.MAX_VALUE, TimeUnit.MILLISECONDS );
         assertTrue( b );
+        c1.toString();
+        c2.toString();
     }
 
     @Test

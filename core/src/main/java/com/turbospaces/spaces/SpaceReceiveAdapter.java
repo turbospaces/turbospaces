@@ -116,8 +116,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
         final MethodCall methodCall = (MethodCall) objectBuffer.readClassAndObject( data );
         final short id = methodCall.getMethodId();
 
-        SpaceMethodsMapping spaceMethodsMapping = SpaceMethodsMapping.values()[methodCall.getMethodId()];
-        logger.debug( "received MethodCall[{}] from {}", spaceMethodsMapping, nodeRaised );
+        logger.debug( "received {} from {}", methodCall, nodeRaised );
 
         if ( id == SpaceMethodsMapping.BEGIN_TRANSACTION.ordinal() )
             sendResponseBackAfterExecution( methodCall, new Runnable() {

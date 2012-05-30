@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.core.CacheStatisticsCounter;
-import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.CacheStatisticsCounter.CompleteCacheStats;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
@@ -60,7 +59,6 @@ public class OffHeapCacheStore implements SpaceStore {
     private final IndexManager indexManager;
     private final CacheStatisticsCounter statsCounter;
     private final KeyLocker lockManager;
-    private final CapacityMonitor capacityRestriction;
 
     /**
      * create new off-heap memory buffer for the given configuration and particular entity class.
@@ -69,15 +67,10 @@ public class OffHeapCacheStore implements SpaceStore {
      *            jspace store configuration
      * @param entityClass
      *            target entity class that this instance has been created for
-     * @param capacityRestriction
-     *            store capacity restriction
      */
     @SuppressWarnings("unchecked")
-    public OffHeapCacheStore(final SpaceConfiguration configuration,
-                             final Class<?> entityClass,
-                             final CapacityMonitor capacityRestriction) {
+    public OffHeapCacheStore(final SpaceConfiguration configuration, final Class<?> entityClass) {
         this.configuration = configuration;
-        this.capacityRestriction = capacityRestriction;
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );
         this.statsCounter = new CacheStatisticsCounter();
         this.lockManager = SpaceUtility.parallelizedKeyLocker();
@@ -97,10 +90,8 @@ public class OffHeapCacheStore implements SpaceStore {
                     unlockKeys.add( entry.getKey() );
                     if ( apply ) {
                         WriteTakeEntry value = entry.getValue();
-                        capacityRestriction.ensureCapacity( value.getPointer(), value.getObj() );
                         int prevBytesOccupation = indexManager.add( value.getObj(), value.getIdLockQuard(), value.getPointer() );
                         value.setSpaceOperation( prevBytesOccupation > 0 ? SpaceOperation.UPDATE : SpaceOperation.WRITE );
-                        capacityRestriction.add( value.getPointer().bytesOccupied(), prevBytesOccupation );
                         statsCounter.recordPuts( 1 );
                     }
                     else
@@ -112,8 +103,7 @@ public class OffHeapCacheStore implements SpaceStore {
                     unlockKeys.add( entry.getKey() );
                     if ( apply ) {
                         entry.getValue().setSpaceOperation( SpaceOperation.TAKE );
-                        int bytesFreed = indexManager.takeByUniqueIdentifier( entry.getKey() );
-                        capacityRestriction.remove( bytesFreed );
+                        indexManager.takeByUniqueIdentifier( entry.getKey() );
                         statsCounter.recordTakes( 1 );
                     }
                 }

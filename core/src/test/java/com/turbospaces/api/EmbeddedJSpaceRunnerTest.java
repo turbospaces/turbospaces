@@ -24,7 +24,7 @@ public class EmbeddedJSpaceRunnerTest {
         configuration.setCommunicationTimeoutInMillis( TimeUnit.MINUTES.toMicros( 2 ) );
         CapacityRestriction capacityRestriction = new CapacityRestriction();
         capacityRestriction.setEvictionPolicy( CacheEvictionPolicy.RANDOM );
-        capacityRestriction.setMaxElements( 100000 );
+        capacityRestriction.setMaxElements( 5000000 );
         configuration.setCapacityRestriction( capacityRestriction );
         configuration.afterPropertiesSet();
         return configuration;

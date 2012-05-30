@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import com.google.common.base.Objects;
 import com.turbospaces.api.SpaceException;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
@@ -101,6 +102,11 @@ public final class TransactionScopeKeyLocker implements KeyLocker {
         @Override
         public Object getKey() {
             return key;
+        }
+
+        @Override
+        public String toString() {
+            return Objects.toStringHelper( this ).add( "key", getKey() ).toString();
         }
 
         @Override
