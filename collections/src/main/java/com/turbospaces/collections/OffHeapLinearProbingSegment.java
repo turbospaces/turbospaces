@@ -23,12 +23,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import com.esotericsoftware.minlog.Log;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.turbospaces.api.CacheEvictionPolicy;
@@ -204,8 +208,8 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
             // use linear probing iteration starting at hash-index until not-zero array's element
             for ( int i = index; addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
-                final long address = addresses[i];
-                final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                long address = addresses[i];
+                byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
                 buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
                 if ( keyEquals( key, buffer ) ) {
@@ -233,6 +237,49 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     }
 
     @Override
+    public ImmutableSet<?> toImmutableSet() {
+        Builder<Object> builder = ImmutableSet.builder();
+        final Lock lock = readLock();
+        lock.lock();
+        try {
+            for ( int i = 0; i < m; i++ ) {
+                long address = addresses[i];
+                if ( address != 0 ) {
+                    ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
+                    Object entity = serializer.readObjectData( buffer, serializer.getType() );
+                    builder.add( entity );
+                }
+            }
+        }
+        finally {
+            lock.unlock();
+        }
+        return builder.build();
+    }
+
+    @Override
+    public ImmutableMap<?, ?> toImmutableMap() {
+        com.google.common.collect.ImmutableMap.Builder<Object, Object> builder = ImmutableMap.builder();
+        final Lock lock = readLock();
+        lock.lock();
+        try {
+            for ( int i = 0; i < m; i++ ) {
+                long address = addresses[i];
+                if ( address != 0 ) {
+                    ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
+                    Object id = serializer.readID( buffer );
+                    Object entity = serializer.readObjectData( buffer, serializer.getType() );
+                    builder.put( id, entity );
+                }
+            }
+        }
+        finally {
+            lock.unlock();
+        }
+        return builder.build();
+    }
+
+    @Override
     public int put(final Object key,
                    final ByteArrayPointer value) {
         return put( key, 0, value );
@@ -251,8 +298,8 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             int i;
             // use linear probing iteration starting at hash-index until not-zero array's element
             for ( i = hash2index( key ); addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
-                final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
-                final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
+                ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // check whether key equals key from byte buffer's content
                 if ( keyEquals( key, buffer ) ) {
                     // so this is override for given key
@@ -288,8 +335,8 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             // try to find entry with the key
             int i = hash2index( key );
             for ( ; addresses[i] != 0; i = ( ( i + 1 ) % m ) ) {
-                final byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
-                final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                byte[] serializedData = ByteArrayPointer.getEntityState( addresses[i], memoryManager );
+                ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                 // if the key equals - release memory
                 if ( keyEquals( key, buffer ) ) {
                     bytesOccupied = ByteArrayPointer.getBytesOccupied( addresses[i], memoryManager );
@@ -344,7 +391,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                     Object obj2notify = null;
                     for ( final SpaceExpirationListener expirationListener : expirationListeners )
                         try {
-                            final boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
+                            boolean retrieveAsEntity = expirationListener.retrieveAsEntity();
                             if ( retrieveAsEntity ) {
                                 if ( obj2notify == null )
                                     obj2notify = serializer.read( expiredEntry.buffer );
@@ -374,13 +421,14 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 serializer,
                 executorService,
                 evictionPolicy );
+        int expired = 0;
         for ( int i = 0; i < m; i++ ) {
             long address = addresses[i];
             if ( address != 0 ) {
                 ByteBuffer buffer = ByteBuffer.wrap( ByteArrayPointer.getEntityState( address, memoryManager ) );
                 Object id = serializer.readID( buffer );
                 if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
-                    System.out.println( "skipping expired" );
+                    expired++;
                     notifyExpired( new ExpiredEntry( buffer, id, ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
                     memoryManager.freeMemory( address );
                     addresses[i] = 0;
@@ -389,6 +437,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 temp.put( id, address, null );
             }
         }
+        Log.trace( String.format( "resizing completed: size.before=%s, size.after=%s, expired=%s", n, temp.n, expired ) );
         addresses = temp.addresses;
         m = temp.m;
         // re-assign number of items because potentially we already skipped expired entries, but didn't decrement n.
@@ -444,14 +493,14 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         try {
             // just iterate over all all element and find (without any actions) expired entries
             for ( int i = 0; i < m; i++ ) {
-                final long address = addresses[i];
+                long address = addresses[i];
                 if ( address != 0 )
                     if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                         if ( expiredEntries == null )
                             expiredEntries = Lists.newLinkedList();
 
-                        final byte[] entityState = ByteArrayPointer.getEntityState( address, memoryManager );
-                        final ByteBuffer buffer = ByteBuffer.wrap( entityState );
+                        byte[] entityState = ByteArrayPointer.getEntityState( address, memoryManager );
+                        ByteBuffer buffer = ByteBuffer.wrap( entityState );
                         expiredEntries.add( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive(
                                 address,
                                 memoryManager ) ) );
@@ -538,6 +587,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         return Objects.toStringHelper( this ).add( "size", size() ).toString();
     }
 
+    @Immutable
     private static final class ExpiredEntry {
         private final ByteBuffer buffer;
         private final int ttl;
@@ -551,6 +601,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         }
     }
 
+    @Immutable
     private static final class EvictionEntry {
         private final Object key;
         private final long lastAccessTime;
@@ -567,19 +618,19 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     private int evictLruFifoLfu(final int elements,
                                 final int evictedNow) {
         int evicted = evictedNow;
-        final List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
+        List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
         for ( int i = 0; i < m; i++ ) {
             long address = addresses[i];
             if ( address != 0 ) {
-                final long lastAccessTime = ByteArrayPointer.getLastAccessTime( address, memoryManager );
-                final long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
-                final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
-                final Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
+                long lastAccessTime = ByteArrayPointer.getLastAccessTime( address, memoryManager );
+                long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
+                byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
                 evictionCandidates.add( new EvictionEntry( id, lastAccessTime, creationTimestamp ) );
             }
         }
-        final List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
-        for ( final EvictionEntry evictionEntry : greatestOf )
+        List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
+        for ( EvictionEntry evictionEntry : greatestOf )
             remove( evictionEntry.key );
         return evicted;
     }

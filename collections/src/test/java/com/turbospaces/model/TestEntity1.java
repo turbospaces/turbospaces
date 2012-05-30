@@ -33,6 +33,7 @@ import org.springframework.data.annotation.Routing;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mapping.model.BasicPersistentEntity;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 
 @SuppressWarnings("javadoc")
@@ -488,6 +489,32 @@ public class TestEntity1 implements InitializingBean, Cloneable {
 
     public void setRouting(final String routing) {
         this.routing = routing;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode( getUniqueIdentifier(), getOptimisticLockVersion(), getRouting() );
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if ( obj instanceof TestEntity1 ) {
+            TestEntity1 other = (TestEntity1) obj;
+            return Objects.equal( other.getUniqueIdentifier(), getUniqueIdentifier() )
+                    && Objects.equal( other.getOptimisticLockVersion(), getOptimisticLockVersion() )
+                    && Objects.equal( other.getRouting(), getRouting() );
+        }
+        return super.equals( obj );
+    }
+
+    @Override
+    public String toString() {
+        return Objects
+                .toStringHelper( this )
+                .add( "id", getUniqueIdentifier() )
+                .add( "version", getOptimisticLockVersion() )
+                .add( "routing", getRouting() )
+                .toString();
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })

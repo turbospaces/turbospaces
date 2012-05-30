@@ -20,6 +20,8 @@ import org.springframework.beans.factory.InitializingBean;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
@@ -196,6 +198,36 @@ public class OffHeapHashMapTest {
             heapHashMap.put( element.getUniqueIdentifier(), p );
         }
         heapHashMap.destroy();
+    }
+
+    @Test
+    public void sizeConsistent() {
+        TestEntity1[] arr = new TestEntity1[2000];
+        for ( int i = 0; i < arr.length; i++ ) {
+            arr[i] = new TestEntity1();
+            arr[i].afterPropertiesSet();
+
+            byte[] bytes = objectBuffer.writeObjectData( arr[i] );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
+            heapHashMap.put( arr[i].getUniqueIdentifier(), p );
+            assertThat( heapHashMap.size(), is( i + 1 ) );
+        }
+        ImmutableCollection<?> entities1 = heapHashMap.toImmutableMap().values();
+        ImmutableSet<?> entities2 = heapHashMap.toImmutableSet();
+
+        Assert.assertEquals( entities1.size(), entities2.size() );
+
+        for ( Object o : entities1 )
+            Assert.assertTrue( entities2.contains( o ) );
+        for ( Object o : entities2 )
+            Assert.assertTrue( entities1.contains( o ) );
+
+        for ( int i = 0; i < arr.length; i++ ) {
+            Assert.assertTrue( heapHashMap.contains( arr[i].getUniqueIdentifier() ) );
+            heapHashMap.remove( arr[i].getUniqueIdentifier() );
+            Assert.assertFalse( heapHashMap.contains( arr[i].getUniqueIdentifier() ) );
+            assertThat( heapHashMap.size() + i + 1, is( arr.length ) );
+        }
     }
 
     @Test

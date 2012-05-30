@@ -19,6 +19,8 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.CacheStoreEntryWrapper;
@@ -132,4 +134,26 @@ public interface OffHeapHashSet extends EvictableCache {
      * @return the size of set(potentially counting expired entities)
      */
     int size();
+
+    /**
+     * fetch the all entities in the set. the result may include expired entities as well.</p>
+     * 
+     * <strong>NOTE:</strong> this method must be used carefully because will fetch all entities from off-heap memory to
+     * heap-memory and you can get {@link OutOfMemoryError} immediately. use this method for debug and junit
+     * testing.</p>
+     * 
+     * @return all entities(potentially expired entries as well)
+     */
+    ImmutableSet<?> toImmutableSet();
+
+    /**
+     * fetch the all entities in the set. the result may include expired entities as well.</p>
+     * 
+     * <strong>NOTE:</strong> this method must be used carefully because will fetch all entities from off-heap memory to
+     * heap-memory and you can get {@link OutOfMemoryError} immediately. use this method for debug and junit
+     * testing.</p>
+     * 
+     * @return all entities(potentially expired entries as well)
+     */
+    ImmutableMap<?, ?> toImmutableMap();
 }

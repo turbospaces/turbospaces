@@ -5,7 +5,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Assert;
@@ -16,6 +18,7 @@ import org.junit.Test;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.minlog.Log;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
@@ -203,10 +206,12 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             assertThat( segment.getAsPointer( keys[i] ), is( nullValue() ) );
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void randomizeTest() {
         ListeningExecutorService threadExecutor = MoreExecutors.sameThreadExecutor();
         final AtomicInteger evicted = new AtomicInteger();
+        final Set<TestEntity1> expiredEntities = Sets.newHashSet();
         segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, threadExecutor, CacheEvictionPolicy.RANDOM );
         segment.setExpirationListeners( new SpaceExpirationListener<String, TestEntity1>() {
             @Override
@@ -215,9 +220,12 @@ public class OffHeapLinearProbingSegmentEvictionTest {
                                            final Class<TestEntity1> persistentClass,
                                            final int originalTimeToLive) {
                 evicted.incrementAndGet();
+                assertThat( entity.getUniqueIdentifier(), is( id ) );
+                expiredEntities.add( entity );
             }
         } );
 
+        System.out.println( "putting------" );
         Random r = new Random();
         TestEntity1[] entities = new TestEntity1[1793];
         for ( int i = 0; i < entities.length; i++ ) {
@@ -226,19 +234,39 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             entities[i] = entity1;
 
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
-            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, r.nextInt( 50 ) );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, entity1, Math.max( 1, r.nextInt( 50 ) ) );
             segment.put( entities[i].getUniqueIdentifier(), p );
         }
+        Assert.assertEquals( entities.length - evicted.get(), segment.size() );
 
-        System.out.println( segment.size() );
+        Log.info( String.format( "evicted = %s, segment_size = %s, elements=%s", evicted.get(), segment.size(), entities.length ) );
+        System.out.println( "getting------" );
         AtomicInteger found = new AtomicInteger();
+        final Set<TestEntity1> foundEntities = Sets.newHashSet();
         for ( int i = 0; i < entities.length; i++ ) {
             ByteArrayPointer p = segment.getAsPointer( entities[i].getUniqueIdentifier() );
-            if ( p != null )
+            if ( p != null ) {
                 found.incrementAndGet();
+                Assert.assertFalse( expiredEntities.contains( entities[i] ) );
+                foundEntities.add( (TestEntity1) propertySerializer.readObjectData( p.getSerializedDataBuffer(), TestEntity1.class ) );
+            }
+            else
+                Assert.assertTrue( expiredEntities.contains( entities[i] ) );
+
         }
-        Log.info( String.format( "evicted = %s, found = %s, segment_size = %s", evicted.get(), found.get(), segment.size() ) );
-        Assert.assertEquals( evicted.get() + found.get(), entities.length );
+        Log.info( String.format(
+                "evicted = %s, found = %s, segment_size = %s, elements=%s",
+                evicted.get(),
+                found.get(),
+                segment.size(),
+                entities.length ) );
+
+        HashSet<TestEntity1> hashSet = new HashSet<TestEntity1>( foundEntities );
+        hashSet.removeAll( segment.toImmutableSet() );
+        System.out.println( "found:MINUS:segment = " + hashSet );
+        System.out.println( "expired=" + expiredEntities );
+        System.out.println( "segment=" + segment.toImmutableSet() );
+
         Assert.assertEquals( entities.length - evicted.get(), segment.size() );
     }
 }

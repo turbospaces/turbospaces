@@ -21,6 +21,9 @@ import java.util.concurrent.ExecutorService;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Lists;
 import com.lmax.disruptor.util.Util;
 import com.turbospaces.api.CacheEvictionPolicy;
@@ -143,6 +146,22 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     public void cleanUp() {
         for ( OffHeapLinearProbingSegment entry : segments )
             entry.cleanUp();
+    }
+
+    @Override
+    public ImmutableSet<?> toImmutableSet() {
+        Builder<Object> builder = ImmutableSet.builder();
+        for ( OffHeapLinearProbingSegment entry : segments )
+            builder.addAll( entry.toImmutableSet() );
+        return builder.build();
+    }
+
+    @Override
+    public ImmutableMap<?, ?> toImmutableMap() {
+        com.google.common.collect.ImmutableMap.Builder<Object, Object> builder = ImmutableMap.builder();
+        for ( OffHeapLinearProbingSegment entry : segments )
+            builder.putAll( entry.toImmutableMap() );
+        return builder.build();
     }
 
     @Override
