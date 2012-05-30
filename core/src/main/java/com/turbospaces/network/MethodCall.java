@@ -111,6 +111,50 @@ public class MethodCall {
     }
 
     @SuppressWarnings("javadoc")
+    public static final class EvictAllMethodCall extends MethodCall {
+        public EvictAllMethodCall() {
+            super();
+            methodId = (short) SpaceMethodsMapping.EVICT_ALL.ordinal();
+        }
+    }
+
+    @SuppressWarnings("javadoc")
+    public static final class EvictPercentageMethodCall extends MethodCall {
+        private int percentage;
+
+        public EvictPercentageMethodCall() {
+            super();
+            methodId = (short) SpaceMethodsMapping.EVICT_PERCENTAGE.ordinal();
+        }
+
+        public int getPercentage() {
+            return percentage;
+        }
+
+        public void setPercentage(final int percentage) {
+            this.percentage = percentage;
+        }
+    }
+
+    @SuppressWarnings("javadoc")
+    public static final class EvictElementsMethodCall extends MethodCall {
+        private long elements;
+
+        public EvictElementsMethodCall() {
+            super();
+            methodId = (short) SpaceMethodsMapping.EVICT_ELEMENTS.ordinal();
+        }
+
+        public long getElements() {
+            return elements;
+        }
+
+        public void setElements(final long elements) {
+            this.elements = elements;
+        }
+    }
+
+    @SuppressWarnings("javadoc")
     public static final class GetSpaceTopologyMethodCall extends MethodCall {
         public GetSpaceTopologyMethodCall() {
             super();

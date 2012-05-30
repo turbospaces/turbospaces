@@ -59,10 +59,6 @@ import com.turbospaces.spaces.tx.SpaceTransactionManager;
  */
 @SuppressWarnings("rawtypes")
 public abstract class AbstractSpaceConfiguration implements ApplicationContextAware, DisposableBean, InitializingBean, SpaceErrors {
-    /**
-     * the maximum possible number of nodes in cluster.
-     */
-    public static final int MAX_CLUSTER_NODE = 1 << 10;
     private static final int DEFAULT_TRANSACTION_TIMEOUT = (int) TimeUnit.SECONDS.toSeconds( 10 );
     private static final long DEFAULT_COMMUNICATION_TIMEOUT = TimeUnit.SECONDS.toMillis( 5 );
     private static final long DEFAULT_CACHE_CLEANUP_PERIOD = TimeUnit.SECONDS.toMillis( 1 );
@@ -109,7 +105,11 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * default network communication timeout.
      */
-    private long defaultCommunicationTimeout = defaultCommunicationTimeout();
+    private long communicationTimeout = defaultCommunicationTimeout();
+    /**
+     * default period for cleanup maintenance tasks.
+     */
+    private long cleanupPeriod = defaultCacheCleanupPeriod();
 
     /**
      * space deployment topology
@@ -122,7 +122,9 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         public BO apply(final Class<?> input) {
             for ( ;; )
                 try {
-                    return new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( input ) );
+                    BO bo = new BO( (BasicPersistentEntity) getMappingContext().getPersistentEntity( input ) );
+                    adjustBO( bo );
+                    return bo;
                 }
                 catch ( Exception e ) {
                     logger.error( e.getMessage(), e );
@@ -189,18 +191,36 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
     /**
      * @return the default network communication timeout
      */
-    public long getDefaultCommunicationTimeoutInMillis() {
-        return defaultCommunicationTimeout;
+    public long getCommunicationTimeoutInMillis() {
+        return communicationTimeout;
     }
 
     /**
      * change the default communication timeout (which is about <b>5 seconds</b>) to new value in milliseconds
      * 
-     * @param defaultCommunicationTimeout
+     * @param timeout
      *            new timeout in milliseconds
      */
-    public void setDefaultCommunicationTimeoutInMillis(final long defaultCommunicationTimeout) {
-        this.defaultCommunicationTimeout = defaultCommunicationTimeout;
+    public void setCommunicationTimeoutInMillis(final long timeout) {
+        this.communicationTimeout = timeout;
+    }
+
+    /**
+     * @return the default cache cleanup period in milliseconds.
+     */
+    public long getCacheCleanupPeriod() {
+        return cleanupPeriod;
+    }
+
+    /**
+     * set the custom period in milliseconds for cache cleanup maintenance tasks.
+     * 
+     * @param period
+     *            value in milliseconds
+     */
+    public void setCacheCleanupPeriod(final long period) {
+        Preconditions.checkArgument( period > 0 );
+        this.cleanupPeriod = period;
     }
 
     /**
@@ -391,6 +411,10 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
         logger.info( "JSpace configuration initialization finished: group = {}", getGroup() );
     }
 
+    protected void adjustBO(final BO bo) {
+        logger.trace( "adjusted BO = {}", bo );
+    }
+
     /**
      * join the network and begin communications with other nodes
      * 
@@ -413,7 +437,7 @@ public abstract class AbstractSpaceConfiguration implements ApplicationContextAw
 
     /**
      * @return default network lookup/communication timeout in milliseconds
-     * @see #setDefaultCommunicationTimeoutInMillis(long)
+     * @see #setCommunicationTimeoutInMillis(long)
      */
     public static long defaultCommunicationTimeout() {
         return DEFAULT_COMMUNICATION_TIMEOUT;

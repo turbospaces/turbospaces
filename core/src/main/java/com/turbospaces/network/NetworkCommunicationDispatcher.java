@@ -113,7 +113,7 @@ public final class NetworkCommunicationDispatcher extends ServerCommunicationDis
         for ( int i = 0; i < size; i++ ) {
             Long id = ids[i];
             Object monitor = monitors[i];
-            result[i] = requestResponseCorrelator.responseFor( id, monitor, configuration.getDefaultCommunicationTimeoutInMillis() );
+            result[i] = requestResponseCorrelator.responseFor( id, monitor, configuration.getCommunicationTimeoutInMillis() );
         }
 
         return verifyNoExceptions( result, messages, methodCall );

@@ -23,6 +23,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.mapping.context.AbstractMappingContext;
 
 import com.google.common.base.Preconditions;
+import com.turbospaces.core.Memory;
+import com.turbospaces.model.BO;
 import com.turbospaces.network.ServerCommunicationDispatcher;
 import com.turbospaces.network.SpaceNetworkServiceProvider;
 import com.turbospaces.serialization.DecoratedKryo;
@@ -71,6 +73,22 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
     private CapacityRestriction capacityRestriction = new CapacityRestriction();
     private ServerCommunicationDispatcher dispatcher;
 
+    @Override
+    protected void adjustBO(final BO bo) {
+        CapacityRestriction cr = bo.getCapacityRestriction();
+        // if we don't have eviction policy on class level, propagate global eviction policy
+        if ( cr.getEvictionPolicy() == null )
+            cr.setEvictionPolicy( getCapacityRestriction().getEvictionPolicy() != null ? getCapacityRestriction().getEvictionPolicy()
+                    : CacheEvictionPolicy.REJECT );
+        // propagate max elements if necessary
+        if ( cr.getMaxElements() > getCapacityRestriction().getMaxElements() )
+            cr.setMaxElements( getCapacityRestriction().getMaxElements() );
+        // propagate max memory if necessary
+        if ( cr.getMaxMemorySizeInBytes() > getCapacityRestriction().getMaxMemorySizeInBytes() )
+            cr.setMaxMemorySizeInMb( Memory.toMb( getCapacityRestriction().getMaxMemorySizeInBytes() ) );
+        super.adjustBO( bo );
+    }
+
     /**
      * specify the space topology. either synch-replicated or partitioned. the default one is
      * {@link SpaceTopology#SYNC_REPLICATED} because partitioned one requires some configuration and understanding, so
@@ -116,7 +134,7 @@ public final class SpaceConfiguration extends AbstractSpaceConfiguration {
      *            new global space capacity restriction
      */
     public void setCapacityRestriction(final CapacityRestriction capacityRestriction) {
-        this.capacityRestriction = Preconditions.checkNotNull( capacityRestriction );
+        this.capacityRestriction = Preconditions.checkNotNull( capacityRestriction ).clone();
     }
 
     @Override

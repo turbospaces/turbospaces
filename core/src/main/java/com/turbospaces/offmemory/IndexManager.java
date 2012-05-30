@@ -15,6 +15,8 @@
  */
 package com.turbospaces.offmemory;
 
+import java.util.concurrent.TimeUnit;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.springframework.beans.factory.DisposableBean;
@@ -23,11 +25,11 @@ import org.springframework.data.mapping.model.MutablePersistentEntity;
 
 import com.google.common.base.Objects;
 import com.turbospaces.api.SpaceConfiguration;
+import com.turbospaces.collections.EvictableCache;
 import com.turbospaces.collections.OffHeapLinearProbingSet;
 import com.turbospaces.model.BO;
 import com.turbospaces.serialization.PropertiesSerializer;
 import com.turbospaces.spaces.EntryKeyLockQuard;
-import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
 
 /**
  * index manager is responsible for managing indexes over space index fields for much faster data retrieve and primary
@@ -37,15 +39,15 @@ import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
  */
 @ThreadSafe
 @SuppressWarnings("rawtypes")
-public class IndexManager implements DisposableBean, InitializingBean {
-    private final SpaceCapacityRestrictionHolder capacityRestriction;
+public class IndexManager implements DisposableBean, InitializingBean, EvictableCache {
     private final OffHeapLinearProbingSet idCache;
     private final BO bo;
+    private final SpaceConfiguration configuration;
 
     @SuppressWarnings({ "javadoc" })
     public IndexManager(final MutablePersistentEntity mutablePersistentEntity, final SpaceConfiguration configuration) {
+        this.configuration = configuration;
         bo = configuration.boFor( mutablePersistentEntity.getType() );
-        capacityRestriction = new SpaceCapacityRestrictionHolder( bo.getCapacityRestriction() );
         idCache = new OffHeapLinearProbingSet( configuration.getMemoryManager(), bo.getCapacityRestriction(), (PropertiesSerializer) configuration
                 .getKryo()
                 .getSerializer( mutablePersistentEntity.getType() ), configuration.getListeningExecutorService() );
@@ -65,10 +67,7 @@ public class IndexManager implements DisposableBean, InitializingBean {
     public int add(final Object obj,
                    final EntryKeyLockQuard idGuard,
                    final ByteArrayPointer pointer) {
-        capacityRestriction.ensureCapacity( pointer, obj );
-        int bytesOccupied = idCache.put( idGuard.getKey(), pointer );
-        capacityRestriction.add( pointer.bytesOccupied(), bytesOccupied );
-        return bytesOccupied;
+        return idCache.put( idGuard.getKey(), pointer );
     }
 
     /**
@@ -104,42 +103,60 @@ public class IndexManager implements DisposableBean, InitializingBean {
      * @return how many bytes are freed now
      */
     public int takeByUniqueIdentifier(final EntryKeyLockQuard idGuard) {
-        int bytesOccupied = idCache.remove( idGuard.getKey() );
-        capacityRestriction.remove( bytesOccupied );
-        return bytesOccupied;
+        return idCache.remove( idGuard.getKey() );
     }
 
     /**
      * @return total number of entities stored by uniqueIdentifier index.
      */
     public long size() {
-        return capacityRestriction.getItemsCount();
+        return idCache.getCapacityMonitor().getItemsCount();
     }
 
     /**
      * @return number of bytes dedicated for storing off-heap memory entities.
      */
     public long offHeapBytesOccuiped() {
-        return capacityRestriction.getMemoryUsed();
+        return idCache.getCapacityMonitor().getMemoryUsed();
     }
 
     @Override
     public void destroy() {
-        idCache.destroy();
+        idCache.evictAll();
+    }
+
+    @Override
+    public long evictAll() {
+        return idCache.evictAll();
+    }
+
+    @Override
+    public long evictPercentage(final int percentage) {
+        return idCache.evictPercentage( percentage );
+    }
+
+    @Override
+    public long evictElements(final long elements) {
+        return idCache.evictElements( elements );
     }
 
     @Override
     public void afterPropertiesSet() {
-        // TODO: schedule cleanup task
-        // idCache.afterPropertiesSet();
+        // schedule cleanup maintenance task
+        configuration.getScheduledExecutorService().scheduleAtFixedRate( new Runnable() {
+            @Override
+            public void run() {
+                idCache.cleanUp();
+            }
+        }, 0, configuration.getCacheCleanupPeriod(), TimeUnit.MILLISECONDS );
     }
 
     @Override
     public String toString() {
         return Objects
                 .toStringHelper( this )
-                .add( "memoryUsed", capacityRestriction.getMemoryUsed() )
-                .add( "itemsCount", capacityRestriction.getItemsCount() )
+                .add( "memoryUsed", offHeapBytesOccuiped() )
+                .add( "itemsCount", size() )
                 .add( "idCache", idCache )
                 .toString();
     }

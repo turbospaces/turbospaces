@@ -41,6 +41,7 @@ import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceNotificationListener;
 import com.turbospaces.api.SpaceTopology;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.Memory;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
@@ -68,7 +69,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
     private final ConcurrentMap<Class<?>, OffHeapCacheStore> offHeapBuffers;
     private final SpaceConfiguration configuration;
     private final Set<NotificationContext> notificationContext;
-    private final SpaceCapacityRestrictionHolder capacityRestriction;
+    private final CapacityMonitor capacityRestriction;
     private final SpaceReceiveAdapter messageListener;
 
     protected AbstractJSpace(final SpaceConfiguration configuration) {
@@ -83,7 +84,7 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
                 return cacheStore;
             }
         } );
-        capacityRestriction = new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() );
+        capacityRestriction = new CapacityMonitor( configuration.getCapacityRestriction() );
         notificationContext = new HashSet<NotificationContext>();
         messageListener = new SpaceReceiveAdapter( this );
     }
@@ -114,6 +115,36 @@ public abstract class AbstractJSpace implements TransactionalJSpace, SpaceErrors
         for ( OffHeapCacheStore b : buffers )
             used += b.getIndexManager().offHeapBytesOccuiped();
         return Memory.toMb( used );
+    }
+
+    @Override
+    public long evictAll() {
+        long evicted = 0;
+        Collection<OffHeapCacheStore> buffers = offHeapBuffers.values();
+        for ( OffHeapCacheStore b : buffers )
+            evicted += b.getIndexManager().evictAll();
+        logger.info( "evictAll(): {} entries detached from jspace", evicted );
+        return evicted;
+    }
+
+    @Override
+    public long evictPercentage(final int percentage) {
+        long evicted = 0;
+        Collection<OffHeapCacheStore> buffers = offHeapBuffers.values();
+        for ( OffHeapCacheStore b : buffers )
+            evicted += b.getIndexManager().evictPercentage( percentage );
+        logger.info( "evictPercentage({}): {} entries detached from jspace", percentage, evicted );
+        return evicted;
+    }
+
+    @Override
+    public long evictElements(final long elements) {
+        long evicted = 0;
+        Collection<OffHeapCacheStore> buffers = offHeapBuffers.values();
+        for ( OffHeapCacheStore b : buffers )
+            evicted += b.getIndexManager().evictElements( elements );
+        logger.info( "evictElements({}): {} entries detached from jspace", elements, evicted );
+        return evicted;
     }
 
     @Override

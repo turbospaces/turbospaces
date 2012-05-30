@@ -30,7 +30,7 @@ import com.google.common.base.Throwables;
 public final class CapacityRestriction implements Cloneable {
     private long maxMemorySizeInBytes = Long.MAX_VALUE;
     private long maxElements = Integer.MAX_VALUE / 16;
-    private CacheEvictionPolicy evictionPolicy = CacheEvictionPolicy.REJECT;
+    private CacheEvictionPolicy evictionPolicy;
     private int evictionPercentage = 10;
 
     /**
@@ -45,10 +45,12 @@ public final class CapacityRestriction implements Cloneable {
      * 
      * @param mb
      *            max memory that can be used by off-heap data structure in megabytes
+     * @return this
      */
-    public void setMaxMemorySizeInMb(final long mb) {
+    public CapacityRestriction setMaxMemorySizeInMb(final long mb) {
         Preconditions.checkArgument( mb > 0, " maxMemorySize must be positive" );
         this.maxMemorySizeInBytes = com.turbospaces.core.Memory.mb( mb );
+        return this;
     }
 
     /**
@@ -63,10 +65,12 @@ public final class CapacityRestriction implements Cloneable {
      * 
      * @param maxElements
      *            maximum capacity
+     * @return this
      */
-    public void setMaxElements(final long maxElements) {
+    public CapacityRestriction setMaxElements(final long maxElements) {
         Preconditions.checkArgument( maxElements > 0, "maxElements must be positive" );
         this.maxElements = maxElements;
+        return this;
     }
 
     /**
@@ -81,9 +85,11 @@ public final class CapacityRestriction implements Cloneable {
      * 
      * @param evictionPolicy
      *            new cache eviction policy
+     * @return this
      */
-    public void setEvictionPolicy(final CacheEvictionPolicy evictionPolicy) {
+    public CapacityRestriction setEvictionPolicy(final CacheEvictionPolicy evictionPolicy) {
         this.evictionPolicy = evictionPolicy;
+        return this;
     }
 
     /**
@@ -101,13 +107,16 @@ public final class CapacityRestriction implements Cloneable {
      * 
      * @param evictionPercentage
      *            value between 0..100
+     * @return this
      */
-    public void setEvictionPercentage(final int evictionPercentage) {
+    public CapacityRestriction setEvictionPercentage(final int evictionPercentage) {
+        Preconditions.checkNotNull( evictionPercentage, "set the eviction policy explicitly first" );
         Preconditions.checkState( getEvictionPolicy().isEviction(), "configure eviction policy first" );
         Preconditions.checkArgument( evictionPercentage > 0, "eviction percentage must be positive" );
         Preconditions.checkArgument( evictionPercentage < 100, "eviction percentage must be < 100%" );
 
         this.evictionPercentage = evictionPercentage;
+        return this;
     }
 
     @Override

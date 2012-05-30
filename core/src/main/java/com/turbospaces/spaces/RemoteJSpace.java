@@ -40,6 +40,9 @@ import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
+import com.turbospaces.network.MethodCall.EvictAllMethodCall;
+import com.turbospaces.network.MethodCall.EvictElementsMethodCall;
+import com.turbospaces.network.MethodCall.EvictPercentageMethodCall;
 import com.turbospaces.network.MethodCall.GetMbUsedMethodCall;
 import com.turbospaces.network.MethodCall.GetSizeMethodCall;
 import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
@@ -176,6 +179,50 @@ public class RemoteJSpace implements TransactionalJSpace, SpaceErrors {
     }
 
     @Override
+    public long evictAll() {
+        long evicted = 0;
+
+        Address[] addresses = clientReceiever.getServerNodes();
+        ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
+        EvictAllMethodCall methodCall = new EvictAllMethodCall();
+
+        for ( MethodCall object : clientReceiever.sendAndReceive( methodCall, objectBuffer, addresses ) )
+            evicted += objectBuffer.readObjectData( object.getResponseBody(), Long.class );
+
+        return evicted;
+    }
+
+    @Override
+    public long evictPercentage(final int percentage) {
+        long evicted = 0;
+
+        Address[] addresses = clientReceiever.getServerNodes();
+        ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
+        EvictPercentageMethodCall methodCall = new EvictPercentageMethodCall();
+        methodCall.setPercentage( percentage );
+
+        for ( MethodCall object : clientReceiever.sendAndReceive( methodCall, objectBuffer, addresses ) )
+            evicted += objectBuffer.readObjectData( object.getResponseBody(), Long.class );
+
+        return evicted;
+    }
+
+    @Override
+    public long evictElements(final long elements) {
+        long evicted = 0;
+
+        Address[] addresses = clientReceiever.getServerNodes();
+        ObjectBuffer objectBuffer = new ObjectBuffer( configuration.getKryo() );
+        EvictElementsMethodCall methodCall = new EvictElementsMethodCall();
+        methodCall.setElements( elements );
+
+        for ( MethodCall object : clientReceiever.sendAndReceive( methodCall, objectBuffer, addresses ) )
+            evicted += objectBuffer.readObjectData( object.getResponseBody(), Long.class );
+
+        return evicted;
+    }
+
+    @Override
     public int mbUsed() {
         int mdUbed = 0;
 
@@ -211,8 +258,8 @@ public class RemoteJSpace implements TransactionalJSpace, SpaceErrors {
 
     @Override
     public void afterPropertiesSet() {
-        getAllResponsesOption = new RequestOptions( ResponseMode.GET_ALL, configuration.getDefaultCommunicationTimeoutInMillis() );
-        getFirstResponseOption = new RequestOptions( ResponseMode.GET_FIRST, configuration.getDefaultCommunicationTimeoutInMillis() );
+        getAllResponsesOption = new RequestOptions( ResponseMode.GET_ALL, configuration.getCommunicationTimeoutInMillis() );
+        getFirstResponseOption = new RequestOptions( ResponseMode.GET_FIRST, configuration.getCommunicationTimeoutInMillis() );
 
         getAllResponsesOption.setAnycasting( true );
         getFirstResponseOption.setAnycasting( true );

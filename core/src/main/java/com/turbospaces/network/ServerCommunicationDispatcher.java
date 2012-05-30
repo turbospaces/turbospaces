@@ -127,8 +127,8 @@ public class ServerCommunicationDispatcher extends ReceiverAdapter implements Sp
      */
     public final Address[] getServerNodes()
                                            throws RemoteLookupFailureException {
-        final Address[] nodes = serverNodes;
-        final long communicationTimeout = configuration.getDefaultCommunicationTimeoutInMillis();
+        Address[] nodes = serverNodes;
+        long communicationTimeout = configuration.getCommunicationTimeoutInMillis();
 
         if ( nodes.length == 0 )
             synchronized ( monitor ) {

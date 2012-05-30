@@ -149,17 +149,22 @@ public final class GuavaOffHeapCache<K, V> extends AbstractCache<K, V> implement
 
     @Override
     public void invalidateAll() {
-        offHeapHashSet.destroy();
+        offHeapHashSet.evictAll();
     }
 
     @Override
-    public int evictPercentage(final int percentage) {
+    public long evictPercentage(final int percentage) {
         return offHeapHashSet.evictPercentage( percentage );
     }
 
     @Override
-    public int evictElements(final int elements) {
+    public long evictElements(final long elements) {
         return offHeapHashSet.evictElements( elements );
+    }
+
+    @Override
+    public long evictAll() {
+        return offHeapHashSet.evictAll();
     }
 
     @Override

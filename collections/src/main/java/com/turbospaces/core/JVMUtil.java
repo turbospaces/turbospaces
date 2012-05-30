@@ -27,6 +27,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.lmax.disruptor.Sequence;
+import com.turbospaces.api.CapacityRestriction;
+import com.turbospaces.api.SpaceCapacityOverflowException;
+import com.turbospaces.api.SpaceMemoryOverflowException;
+import com.turbospaces.offmemory.ByteArrayPointer;
 
 /**
  * This is placeholder for all utility method of turbospaces-collections maven project. We prefer creation of one such
@@ -249,6 +254,40 @@ public class JVMUtil {
                 return Arrays.equals( (short[]) o1, (short[]) o2 );
         }
         return false;
+    }
+
+    /**
+     * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
+     * 
+     * @param pointer
+     *            byte array pointer
+     * @param capacityRestriction
+     *            capacity restriction configuration
+     * @param memoryUsed
+     *            how many bytes is currently used
+     */
+    public static void ensureEnoughMemoryCapacity(final ByteArrayPointer pointer,
+                                                  final CapacityRestriction capacityRestriction,
+                                                  final Sequence memoryUsed) {
+        if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySizeInBytes() )
+            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySizeInBytes(), pointer.getSerializedData() );
+    }
+
+    /**
+     * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
+     * 
+     * @param obj
+     *            object that needs to be added to the jspace
+     * @param capacityRestriction
+     *            space capacity restriction
+     * @param itemsCount
+     *            how many items currently in space
+     */
+    public static void ensureEnoughCapacity(final Object obj,
+                                            final CapacityRestriction capacityRestriction,
+                                            final Sequence itemsCount) {
+        if ( itemsCount.get() >= capacityRestriction.getMaxElements() )
+            throw new SpaceCapacityOverflowException( capacityRestriction.getMaxElements(), obj );
     }
 
     private JVMUtil() {}

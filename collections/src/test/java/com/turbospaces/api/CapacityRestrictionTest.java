@@ -26,6 +26,7 @@ public class CapacityRestrictionTest {
     @Test(expected = IllegalStateException.class)
     public void canGetExceptionForUnproperLRUConfiguration3() {
         CapacityRestriction restriction = new CapacityRestriction();
+        restriction.setEvictionPolicy( CacheEvictionPolicy.REJECT );
         restriction.setEvictionPercentage( 56 );
     }
 

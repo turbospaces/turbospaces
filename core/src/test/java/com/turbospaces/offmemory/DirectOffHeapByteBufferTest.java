@@ -32,13 +32,13 @@ import com.turbospaces.api.EmbeddedJSpaceRunnerTest;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceCapacityOverflowException;
 import com.turbospaces.api.SpaceConfiguration;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.TestEntity1;
 import com.turbospaces.spaces.CountingSpaceNotificationListener;
 import com.turbospaces.spaces.NotificationContext;
-import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
 import com.turbospaces.spaces.tx.TransactionModificationContext;
 
 @RunWith(Parameterized.class)
@@ -63,7 +63,7 @@ public class DirectOffHeapByteBufferTest {
     public void before()
                         throws Exception {
         configuration = EmbeddedJSpaceRunnerTest.configurationFor();
-        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
+        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new CapacityMonitor( configuration.getCapacityRestriction() ) );
         bo = new BO( (BasicPersistentEntity) configuration.getMappingContext().getPersistentEntity( TestEntity1.class ) );
         buffer.afterPropertiesSet();
     }
@@ -92,7 +92,7 @@ public class DirectOffHeapByteBufferTest {
         capacityRestriction.setMaxElements( 1 );
         configuration.restrictCapacity( TestEntity1.class, capacityRestriction );
         configuration.afterPropertiesSet();
-        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new SpaceCapacityRestrictionHolder( configuration.getCapacityRestriction() ) );
+        buffer = new OffHeapCacheStore( configuration, TestEntity1.class, new CapacityMonitor( configuration.getCapacityRestriction() ) );
         buffer.afterPropertiesSet();
 
         TestEntity1 entity1 = new TestEntity1();

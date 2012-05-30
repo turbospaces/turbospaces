@@ -303,6 +303,21 @@ public class SimplisticJSpace implements TransactionalJSpace {
     }
 
     @Override
+    public long evictAll() {
+        return delegate.evictAll();
+    }
+
+    @Override
+    public long evictPercentage(final int percentage) {
+        return delegate.evictPercentage( percentage );
+    }
+
+    @Override
+    public long evictElements(final long elements) {
+        return delegate.evictElements( elements );
+    }
+
+    @Override
     public long size() {
         return delegate.size();
     }

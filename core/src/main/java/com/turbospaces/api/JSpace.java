@@ -29,6 +29,8 @@ import org.springframework.remoting.RemoteInvocationFailureException;
 import org.springframework.remoting.RemoteLookupFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.turbospaces.collections.EvictableCache;
+
 /**
  * core interface of the system which encapsulates concept of tuple spaces.
  * 
@@ -79,7 +81,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 
  * @sine 0.1
  */
-public interface JSpace extends InitializingBean, DisposableBean {
+public interface JSpace extends InitializingBean, DisposableBean, EvictableCache {
 
     /**
      * send notification to the listeners if entity was inserted into the space and matches with template. Currently
@@ -373,11 +375,11 @@ public interface JSpace extends InitializingBean, DisposableBean {
 
     // TERMINOLOGY
     /**
-     * Jspace service container.
+     * Jspace server identifier(prefix).
      */
     String SSC = "SSC";
     /**
-     * JSpace service client.
+     * JSpace client identifier(prefix).
      */
     String SC = "SC";
 }

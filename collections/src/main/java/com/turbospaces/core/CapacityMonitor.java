@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.turbospaces.spaces;
+package com.turbospaces.core;
 
 import com.lmax.disruptor.Sequence;
 import com.turbospaces.api.CapacityRestriction;
-import com.turbospaces.core.SpaceUtility;
+import com.turbospaces.api.SpaceCapacityOverflowException;
+import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.offmemory.ByteArrayPointer;
 
 /**
@@ -25,13 +26,13 @@ import com.turbospaces.offmemory.ByteArrayPointer;
  * 
  * @since 0.1
  */
-public class SpaceCapacityRestrictionHolder {
+public final class CapacityMonitor {
     private final Sequence memoryUsed = new Sequence( 0 );
     private final Sequence itemsCount = new Sequence( 0 );
     private final CapacityRestriction capacityRestriction;
 
     @SuppressWarnings("javadoc")
-    public SpaceCapacityRestrictionHolder(final CapacityRestriction capacityRestriction) {
+    public CapacityMonitor(final CapacityRestriction capacityRestriction) {
         super();
         this.capacityRestriction = capacityRestriction;
     }
@@ -48,6 +49,15 @@ public class SpaceCapacityRestrictionHolder {
      */
     public long getItemsCount() {
         return itemsCount.get();
+    }
+
+    /**
+     * capacity restriction configuration associated with this monitor.</p>
+     * 
+     * @return capacity restriction configuration
+     */
+    public CapacityRestriction getCapacityRestriction() {
+        return capacityRestriction;
     }
 
     /**
@@ -75,22 +85,29 @@ public class SpaceCapacityRestrictionHolder {
      */
     public void remove(final int removedBytes) {
         if ( removedBytes > 0 ) {
-            memoryUsed.addAndGet( -removedBytes );
-            itemsCount.addAndGet( -1 );
+            long currentMemoryUsed = memoryUsed.addAndGet( -removedBytes );
+            long currentItemsCount = itemsCount.addAndGet( -1 );
+            assert currentItemsCount >= 0;
+            assert currentMemoryUsed >= 0;
         }
     }
 
     /**
-     * ensure enough capacity for new entity
+     * ensure enough capacity for new entity and throw capacity overflow exception if necessary.
      * 
      * @param pointer
      *            new byte array pointer
      * @param obj
      *            the actual entity that needs to be added to the space
+     * 
+     * @throws SpaceCapacityOverflowException
+     *             in case of capacity overflow
+     * @throws SpaceMemoryOverflowException
+     *             in case of memory overflow
      */
     public void ensureCapacity(final ByteArrayPointer pointer,
                                final Object obj) {
-        SpaceUtility.ensureEnoughMemoryCapacity( pointer, capacityRestriction, memoryUsed );
-        SpaceUtility.ensureEnoughCapacity( obj, capacityRestriction, itemsCount );
+        JVMUtil.ensureEnoughMemoryCapacity( pointer, capacityRestriction, memoryUsed );
+        JVMUtil.ensureEnoughCapacity( obj, capacityRestriction, itemsCount );
     }
 }

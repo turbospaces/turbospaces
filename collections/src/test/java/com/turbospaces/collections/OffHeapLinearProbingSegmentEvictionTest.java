@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -23,6 +24,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.UnsafeMemoryManager;
 import com.turbospaces.model.BO;
@@ -54,29 +56,30 @@ public class OffHeapLinearProbingSegmentEvictionTest {
 
     @After
     public void tearDown() {
-        segment.destroy();
+        segment.evictAll();
+
+        assertThat( segment.getCapacityMonitor().getItemsCount(), is( 0L ) );
+        assertThat( segment.getCapacityMonitor().getMemoryUsed(), is( 0L ) );
     }
 
     @Test(expected = IllegalStateException.class)
     public void negativeScenario() {
-        segment = new OffHeapLinearProbingSegment(
-                memoryManager,
-                2,
-                propertySerializer,
-                MoreExecutors.sameThreadExecutor(),
-                CacheEvictionPolicy.REJECT );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor(
+                bo.getCapacityRestriction() ) );
+        TestEntity1 e = new TestEntity1();
+        e.afterPropertiesSet();
+
+        byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, e ) );
+        ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, e, Integer.MAX_VALUE );
+        segment.put( e.getUniqueIdentifier(), p );
         segment.evictElements( 2 );
     }
 
     @Test
     public void testRandomEviction() {
         int size = 12;
-        segment = new OffHeapLinearProbingSegment(
-                memoryManager,
-                size,
-                propertySerializer,
-                MoreExecutors.sameThreadExecutor(),
-                CacheEvictionPolicy.RANDOM );
+        segment = new OffHeapLinearProbingSegment( memoryManager, size, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor(
+                bo.getCapacityRestriction().clone().setEvictionPolicy( CacheEvictionPolicy.RANDOM ) ) );
 
         for ( int i = 0; i < size; i++ ) {
             TestEntity1 e = new TestEntity1();
@@ -89,8 +92,8 @@ public class OffHeapLinearProbingSegmentEvictionTest {
         }
 
         // 25 % = 3
-        assertThat( segment.evictPercentage( 25 ), is( 3 ) );
-        assertThat( segment.evictElements( 2 ), is( 2 ) );
+        assertThat( segment.evictPercentage( 25 ), is( 3L ) );
+        assertThat( segment.evictElements( 2 ), is( 2L ) );
 
         // 7?
         assertThat( segment.size(), is( 7 ) );
@@ -99,12 +102,9 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testRandomizeEvictionAfterExpiration()
                                                       throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment(
-                memoryManager,
-                2,
-                propertySerializer,
-                MoreExecutors.sameThreadExecutor(),
-                CacheEvictionPolicy.RANDOM );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor( bo
+                .getCapacityRestriction()
+                .clone() ) );
 
         TestEntity1 e = new TestEntity1();
         e.afterPropertiesSet();
@@ -114,13 +114,16 @@ public class OffHeapLinearProbingSegmentEvictionTest {
 
         segment.put( e.getUniqueIdentifier(), p );
         Thread.sleep( 1 );
-        assertThat( segment.evictPercentage( 25 ), is( 0 ) );
+        assertThat( segment.evictPercentage( 25 ), is( 0L ) );
     }
 
     @Test
     public void testLruEviction1()
                                   throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor( bo
+                .getCapacityRestriction()
+                .clone()
+                .setEvictionPolicy( CacheEvictionPolicy.LRU ) ) );
 
         String[] keys = new String[100];
         for ( int i = 0; i < keys.length; i++ ) {
@@ -146,7 +149,10 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testLruEviction2()
                                   throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.LRU );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor( bo
+                .getCapacityRestriction()
+                .clone()
+                .setEvictionPolicy( CacheEvictionPolicy.LRU ) ) );
 
         String[] keys = new String[400];
         for ( int i = 0; i < keys.length; i++ ) {
@@ -175,7 +181,10 @@ public class OffHeapLinearProbingSegmentEvictionTest {
     @Test
     public void testFifoEviction1()
                                    throws InterruptedException {
-        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), CacheEvictionPolicy.FIFO );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), new CapacityMonitor( bo
+                .getCapacityRestriction()
+                .clone()
+                .setEvictionPolicy( CacheEvictionPolicy.FIFO ) ) );
 
         String[] keys = new String[100];
         for ( int i = 0; i < keys.length / 2; i++ ) {
@@ -212,7 +221,9 @@ public class OffHeapLinearProbingSegmentEvictionTest {
         ListeningExecutorService threadExecutor = MoreExecutors.sameThreadExecutor();
         final AtomicInteger evicted = new AtomicInteger();
         final Set<TestEntity1> expiredEntities = Sets.newHashSet();
-        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, threadExecutor, CacheEvictionPolicy.RANDOM );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, threadExecutor, new CapacityMonitor( bo
+                .getCapacityRestriction()
+                .clone() ) );
         segment.setExpirationListeners( new SpaceExpirationListener<String, TestEntity1>() {
             @Override
             public void handleNotification(final TestEntity1 entity,
@@ -225,7 +236,6 @@ public class OffHeapLinearProbingSegmentEvictionTest {
             }
         } );
 
-        System.out.println( "putting------" );
         Random r = new Random();
         TestEntity1[] entities = new TestEntity1[1793];
         for ( int i = 0; i < entities.length; i++ ) {
@@ -240,7 +250,6 @@ public class OffHeapLinearProbingSegmentEvictionTest {
         Assert.assertEquals( entities.length - evicted.get(), segment.size() );
 
         Log.info( String.format( "evicted = %s, segment_size = %s, elements=%s", evicted.get(), segment.size(), entities.length ) );
-        System.out.println( "getting------" );
         AtomicInteger found = new AtomicInteger();
         final Set<TestEntity1> foundEntities = Sets.newHashSet();
         for ( int i = 0; i < entities.length; i++ ) {
@@ -250,9 +259,6 @@ public class OffHeapLinearProbingSegmentEvictionTest {
                 Assert.assertFalse( expiredEntities.contains( entities[i] ) );
                 foundEntities.add( (TestEntity1) propertySerializer.readObjectData( p.getSerializedDataBuffer(), TestEntity1.class ) );
             }
-            else
-                Assert.assertTrue( expiredEntities.contains( entities[i] ) );
-
         }
         Log.info( String.format(
                 "evicted = %s, found = %s, segment_size = %s, elements=%s",
@@ -268,5 +274,59 @@ public class OffHeapLinearProbingSegmentEvictionTest {
         System.out.println( "segment=" + segment.toImmutableSet() );
 
         Assert.assertEquals( entities.length - evicted.get(), segment.size() );
+    }
+
+    @Test
+    public void capacityRestrictionMonitoringIsConsistent() {
+        CapacityMonitor capacityMonitor = new CapacityMonitor( bo.getCapacityRestriction().clone().setEvictionPolicy( CacheEvictionPolicy.RANDOM ) );
+        segment = new OffHeapLinearProbingSegment( memoryManager, 2, propertySerializer, MoreExecutors.sameThreadExecutor(), capacityMonitor );
+        long bytesOccupied = 0;
+        TestEntity1[] arr = new TestEntity1[156];
+        long[] bytesAdded = new long[arr.length];
+        for ( int i = 0; i < arr.length; i++ ) {
+            arr[i] = new TestEntity1();
+            arr[i].afterPropertiesSet();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
+            bytesOccupied += p.bytesOccupied();
+            bytesAdded[i] = p.bytesOccupied();
+
+            segment.put( arr[i].getUniqueIdentifier(), p );
+            assertThat( (int) capacityMonitor.getItemsCount(), is( i + 1 ) );
+            assertThat( capacityMonitor.getMemoryUsed(), is( bytesOccupied ) );
+        }
+        long[] bytesRemoved = new long[arr.length];
+        long bytesRemovedTotal = bytesOccupied;
+        for ( int i = 0; i < arr.length; i++ ) {
+            bytesRemoved[i] = segment.remove( arr[i].getUniqueIdentifier() );
+            bytesRemovedTotal -= bytesAdded[i];
+            assertThat( (int) capacityMonitor.getItemsCount(), is( arr.length - i - 1 ) );
+            assertThat( capacityMonitor.getMemoryUsed(), is( bytesRemovedTotal ) );
+        }
+        Assert.assertTrue( Arrays.equals( bytesAdded, bytesRemoved ) );
+
+        for ( int i = 0; i < arr.length; i++ ) {
+            arr[i] = new TestEntity1();
+            arr[i].afterPropertiesSet();
+
+            byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, arr[i] ) );
+            ByteArrayPointer p = new ByteArrayPointer( memoryManager, bytes, arr[i], Integer.MAX_VALUE );
+            bytesOccupied += p.bytesOccupied();
+            bytesAdded[i] = p.bytesOccupied();
+
+            segment.put( arr[i].getUniqueIdentifier(), p );
+        }
+
+        segment.evictPercentage( 50 );
+
+        long bytesLeft = 0;
+        for ( int i = 0; i < arr.length; i++ ) {
+            ByteArrayPointer asPointer = segment.getAsPointer( arr[i].getUniqueIdentifier() );
+            if ( asPointer != null )
+                bytesLeft += asPointer.bytesOccupied();
+        }
+
+        assertThat( capacityMonitor.getMemoryUsed(), is( bytesLeft ) );
     }
 }

@@ -101,15 +101,10 @@ public interface OffHeapHashSet extends EvictableCache {
     int remove(Object key);
 
     /**
-     * similar to spring's {@code DisposabelBean} - release off-heap resources.
-     */
-    void destroy();
-
-    /**
      * Performs any pending maintenance operations needed by the cache. This is automatic removal of expired cache
      * entries.</p>
      * 
-     * <b>NOTE</b> - this method is different from {@link #destroy()}, don't confuse
+     * <b>NOTE</b> - this method is different from {@link #evictAll()}, don't confuse
      */
     void cleanUp();
 

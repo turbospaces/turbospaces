@@ -23,8 +23,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.core.UnsafeMemoryManager;
@@ -68,7 +68,7 @@ public class OffHeapHashMapTest {
                                 2,
                                 propertySerializer,
                                 MoreExecutors.sameThreadExecutor(),
-                                CacheEvictionPolicy.REJECT ) },
+                                new CapacityMonitor( bo.getCapacityRestriction() ) ) },
                         { new OffHeapLinearProbingSet( memoryManager, bo.getCapacityRestriction(), propertySerializer, MoreExecutors
                                 .sameThreadExecutor() ) } } );
     }
@@ -88,7 +88,7 @@ public class OffHeapHashMapTest {
                 Assert.assertTrue( persistentClass == TestEntity1.class );
                 Assert.assertTrue( originalTimeToLive > 0 );
 
-                Log.info( String.format( "%s has been expired, %s-%s", entity, persistentClass.getSimpleName(), originalTimeToLive ) );
+                Log.debug( String.format( "%s has been expired, %s-%s", entity, persistentClass.getSimpleName(), originalTimeToLive ) );
             }
         } );
     }
@@ -129,7 +129,11 @@ public class OffHeapHashMapTest {
         heapHashMap.size();
         heapHashMap.size();
         System.out.println( heapHashMap );
-        heapHashMap.destroy();
+        heapHashMap.evictAll();
+        if ( heapHashMap instanceof OffHeapLinearProbingSegment ) {
+            assertThat( ( (OffHeapLinearProbingSegment) heapHashMap ).getCapacityMonitor().getItemsCount(), is( 0L ) );
+            assertThat( ( (OffHeapLinearProbingSegment) heapHashMap ).getCapacityMonitor().getMemoryUsed(), is( 0L ) );
+        }
     }
 
     @Test
@@ -189,7 +193,7 @@ public class OffHeapHashMapTest {
             Assert.assertFalse( heapHashMap.contains( arr[i].getUniqueIdentifier() ) );
         }
 
-        heapHashMap.destroy();
+        heapHashMap.evictAll();
 
         for ( TestEntity1 element : arr ) {
             byte[] bytes = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, element ) );
@@ -197,7 +201,7 @@ public class OffHeapHashMapTest {
 
             heapHashMap.put( element.getUniqueIdentifier(), p );
         }
-        heapHashMap.destroy();
+        heapHashMap.evictAll();
     }
 
     @Test

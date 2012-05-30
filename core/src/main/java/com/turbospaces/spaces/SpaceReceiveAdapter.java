@@ -57,6 +57,8 @@ import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
+import com.turbospaces.network.MethodCall.EvictElementsMethodCall;
+import com.turbospaces.network.MethodCall.EvictPercentageMethodCall;
 import com.turbospaces.network.MethodCall.FetchMethodCall;
 import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
@@ -96,7 +98,7 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                     }
                 }
             }
-        }, 0, AbstractSpaceConfiguration.defaultCacheCleanupPeriod(), TimeUnit.MILLISECONDS );
+        }, 0, jSpace.getSpaceConfiguration().getCacheCleanupPeriod(), TimeUnit.MILLISECONDS );
     }
 
     @Override
@@ -282,6 +284,31 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                     methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.mbUsed() ) );
                 }
             }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.EVICT_ELEMENTS.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    EvictElementsMethodCall evictElementsMethodCall = (EvictElementsMethodCall) methodCall;
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.evictElements( evictElementsMethodCall.getElements() ) ) );
+                }
+            }, nodeRaised, objectBuffer );
+        else if ( id == SpaceMethodsMapping.EVICT_PERCENTAGE.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    EvictPercentageMethodCall evictPercentageMethodCall = (EvictPercentageMethodCall) methodCall;
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.evictPercentage( evictPercentageMethodCall.getPercentage() ) ) );
+                }
+            },
+                    nodeRaised,
+                    objectBuffer );
+        else if ( id == SpaceMethodsMapping.EVICT_ALL.ordinal() )
+            sendResponseBackAfterExecution( methodCall, new Runnable() {
+                @Override
+                public void run() {
+                    methodCall.setResponseBody( objectBuffer.writeObjectData( jSpace.evictAll() ) );
+                }
+            }, nodeRaised, objectBuffer );
         else if ( id == SpaceMethodsMapping.SPACE_TOPOLOGY.ordinal() )
             sendResponseBackAfterExecution( methodCall, new Runnable() {
                 @Override
@@ -364,7 +391,6 @@ class SpaceReceiveAdapter extends ReceiverAdapter implements InitializingBean, D
                 CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
                 applyExpireAfterWriteSettings( cacheBuilder );
                 cache = cacheBuilder.removalListener( new RemovalListener<Long, SpaceTransactionHolder>() {
-
                     @Override
                     public void onRemoval(final RemovalNotification<Long, SpaceTransactionHolder> notification) {
                         Long transactionId = notification.getKey();

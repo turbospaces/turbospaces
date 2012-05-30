@@ -17,18 +17,19 @@ package com.turbospaces.collections;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import com.lmax.disruptor.util.Util;
-import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
@@ -45,7 +46,9 @@ import com.turbospaces.serialization.MatchingSerializer;
  */
 public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     private final OffHeapLinearProbingSegment[] segments;
-    private final int size, mask;
+    private final int mask;
+    private final CapacityMonitor capacityMonitor;
+    private final Random rnd;
 
     /**
      * create new off-heap linear set for the given {@link BO} class.
@@ -63,22 +66,16 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
                                    final CapacityRestriction capacityRestriction,
                                    final MatchingSerializer<?> serializer,
                                    final ExecutorService executorService) {
-        this( memoryManager, Util.ceilingNextPowerOfTwo( Math.max(
+        int nextPowerOfTwo = Util.ceilingNextPowerOfTwo( Math.max(
                 (int) ( capacityRestriction.getMaxElements() / OffHeapLinearProbingSegment.MAX_SEGMENT_CAPACITY ),
-                1 ) ), serializer, executorService, capacityRestriction.getEvictionPolicy() );
-    }
+                1 ) );
 
-    @VisibleForTesting
-    OffHeapLinearProbingSet(final EffectiveMemoryManager memoryManager,
-                            final int initialSegments,
-                            final MatchingSerializer<?> serializer,
-                            final ExecutorService executorService,
-                            final CacheEvictionPolicy cacheEvictionPolicy) {
-        this.segments = new OffHeapLinearProbingSegment[initialSegments];
-        for ( int i = 0; i < initialSegments; i++ )
-            segments[i] = new OffHeapLinearProbingSegment( memoryManager, serializer, executorService, cacheEvictionPolicy );
-        this.size = segments.length;
-        this.mask = this.size - 1;
+        this.capacityMonitor = new CapacityMonitor( capacityRestriction );
+        this.segments = new OffHeapLinearProbingSegment[nextPowerOfTwo];
+        for ( int i = 0; i < nextPowerOfTwo; i++ )
+            segments[i] = new OffHeapLinearProbingSegment( memoryManager, serializer, executorService, capacityMonitor );
+        this.mask = nextPowerOfTwo - 1;
+        this.rnd = new Random();
     }
 
     @Override
@@ -122,9 +119,11 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     }
 
     @Override
-    public void destroy() {
+    public long evictAll() {
+        long removed = 0;
         for ( OffHeapLinearProbingSegment entry : segments )
-            entry.destroy();
+            removed += entry.evictAll();
+        return removed;
     }
 
     @SuppressWarnings("rawtypes")
@@ -165,19 +164,37 @@ public final class OffHeapLinearProbingSet implements OffHeapHashSet {
     }
 
     @Override
-    public int evictPercentage(final int percentage) {
-        int evictedObjects = 0;
-        for ( OffHeapLinearProbingSegment entry : segments )
-            evictedObjects += entry.evictPercentage( percentage );
-        return evictedObjects;
+    public long evictPercentage(final int percentage) {
+        long items2evict = ( capacityMonitor.getItemsCount() * percentage ) / 100;
+        return evictElements( items2evict );
     }
 
     @Override
-    public int evictElements(final int elements) {
-        int evictedObjects = 0;
-        for ( OffHeapLinearProbingSegment entry : segments )
-            evictedObjects += entry.evictElements( elements );
+    public long evictElements(final long elements) {
+        long evictedObjects = 0;
+        // actually start from random index
+        int rndIdx = rnd.nextInt( segments.length );
+
+        // try at least 8 times to adjust/align the result (typically it should be enough to do one loop...)
+        for ( int y = 0; y < ( 1 << 3 ); y++ )
+            for ( int i = 0; i < segments.length; i++ ) {
+                int idx = ( i + rndIdx ) % segments.length;
+                OffHeapLinearProbingSegment entry = segments[idx];
+                long itemsPerSegment = Math.max( 1, Ints.checkedCast( ( elements - evictedObjects ) / ( segments.length - i ) ) );
+                long evictElements = entry.evictElements( itemsPerSegment );
+                evictedObjects += evictElements;
+                if ( evictedObjects >= elements )
+                    return evictedObjects;
+            }
+
         return evictedObjects;
+    }
+
+    /**
+     * @return capacity monitor associated with this set
+     */
+    public CapacityMonitor getCapacityMonitor() {
+        return capacityMonitor;
     }
 
     @Override

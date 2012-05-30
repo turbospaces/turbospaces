@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.notNullValue;
 
 import java.nio.ByteBuffer;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,6 +63,12 @@ public class BasicCommunicationTest {
         configuration.destroy();
     }
 
+    @After
+    public void after() {
+        remoteJSpace.evictAll();
+        assertThat( remoteJSpace.size(), is( 0L ) );
+    }
+
     @Test
     public void canGetTopologySizeAndMbUsedForEmptyRemoteSychReplicatedSpace() {
         assertThat( clientConfiguration.getReceiever().getServerNodes(), is( notNullValue() ) );
@@ -72,13 +79,26 @@ public class BasicCommunicationTest {
 
     @Test
     public void canSeeChangesInRemoteServerNode() {
-        for ( int i = 0; i < 100; i++ ) {
+        for ( int i = 0; i < 167; i++ ) {
             TestEntity1 entity1 = new TestEntity1();
             entity1.afterPropertiesSet();
             simplisticJSpace.write( entity1 );
         }
 
-        assertThat( remoteJSpace.size(), is( 100L ) );
+        assertThat( remoteJSpace.size(), is( 167L ) );
+    }
+
+    @Test
+    public void canPerformeManualEviction() {
+        for ( int i = 0; i < 80; i++ ) {
+            TestEntity1 entity1 = new TestEntity1();
+            entity1.afterPropertiesSet();
+            simplisticJSpace.write( entity1 );
+        }
+
+        assertThat( remoteJSpace.evictPercentage( 25 ), is( 20L ) );
+        assertThat( remoteJSpace.size(), is( 60L ) );
+        assertThat( remoteJSpace.evictElements( 60 ), is( 60L ) );
     }
 
     @Test

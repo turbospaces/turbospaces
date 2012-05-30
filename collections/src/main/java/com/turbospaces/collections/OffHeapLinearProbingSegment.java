@@ -35,8 +35,10 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Ints;
 import com.turbospaces.api.CacheEvictionPolicy;
 import com.turbospaces.api.SpaceExpirationListener;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.CacheStoreEntryWrapper;
@@ -71,7 +73,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     static final int MAX_SEGMENT_CAPACITY = 1 << 14;
 
     private final EffectiveMemoryManager memoryManager;
-    private final CacheEvictionPolicy evictionPolicy;
+    private final CapacityMonitor capacityMonitor;
     private final ExecutorService executorService;
     private final MatchingSerializer<?> serializer;
     private SpaceExpirationListener[] expirationListeners;
@@ -91,14 +93,14 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
      *            persistent entity serializer
      * @param executorService
      *            this is for asynchronous cache expiration notification
-     * @param evictionPolicy
-     *            optional e
+     * @param capacityMonitor
+     *            capacity restriction configuration and monitor
      */
     public OffHeapLinearProbingSegment(final EffectiveMemoryManager memoryManager,
                                        final MatchingSerializer<?> serializer,
                                        final ExecutorService executorService,
-                                       final CacheEvictionPolicy evictionPolicy) {
-        this( memoryManager, DEFAULT_SEGMENT_CAPACITY, serializer, executorService, evictionPolicy );
+                                       final CapacityMonitor capacityMonitor) {
+        this( memoryManager, DEFAULT_SEGMENT_CAPACITY, serializer, executorService, capacityMonitor );
     }
 
     @VisibleForTesting
@@ -106,9 +108,9 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                                 final int initialCapacity,
                                 final MatchingSerializer<?> serializer,
                                 final ExecutorService executorService,
-                                final CacheEvictionPolicy evictionPolicy) {
+                                final CapacityMonitor capacityMonitor) {
         this.memoryManager = memoryManager;
-        this.evictionPolicy = evictionPolicy;
+        this.capacityMonitor = capacityMonitor;
         this.serializer = Preconditions.checkNotNull( serializer );
         this.executorService = Preconditions.checkNotNull( executorService );
 
@@ -120,9 +122,9 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             public int compare(final EvictionEntry o1,
                                final EvictionEntry o2) {
                 for ( ;; )
-                    if ( evictionPolicy == CacheEvictionPolicy.LRU )
+                    if ( capacityMonitor.getCapacityRestriction().getEvictionPolicy() == CacheEvictionPolicy.LRU )
                         return o1.lastAccessTime < o2.lastAccessTime ? -1 : o1.lastAccessTime == o2.lastAccessTime ? 0 : 1;
-                    else if ( evictionPolicy == CacheEvictionPolicy.FIFO )
+                    else if ( capacityMonitor.getCapacityRestriction().getEvictionPolicy() == CacheEvictionPolicy.FIFO )
                         return o1.creationTimestamp < o2.creationTimestamp ? 1 : o1.creationTimestamp == o2.creationTimestamp ? 0 : -1;
             }
         } );
@@ -157,11 +159,11 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         lock.lock();
         try {
             for ( int i = 0; i < m; i++ ) {
-                final long address = addresses[i];
+                long address = addresses[i];
                 if ( address != 0 ) {
-                    final byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
-                    final ByteBuffer buffer = ByteBuffer.wrap( serializedData );
-                    final boolean matches = serializer.matches( buffer, template );
+                    byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                    ByteBuffer buffer = ByteBuffer.wrap( serializedData );
+                    boolean matches = serializer.matches( buffer, template );
 
                     if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                         if ( expiredEntries == null )
@@ -185,10 +187,14 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         finally {
             lock.unlock();
             if ( expiredEntries != null )
-                for ( ExpiredEntry entry : expiredEntries )
+                for ( ExpiredEntry entry : expiredEntries ) {
                     // potentially another thread removed entry? check if bytesOccupied > 0
-                    if ( remove( entry.id ) > 0 )
+                    int removeBytes = remove0( entry.id );
+                    if ( removeBytes > 0 ) {
                         notifyExpired( entry );
+                        capacityMonitor.remove( removeBytes );
+                    }
+                }
         }
         return matchedEntries;
     }
@@ -211,14 +217,15 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 long address = addresses[i];
                 byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
                 buffer = ByteBuffer.wrap( serializedData );
+
+                if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
+                    expired = true;
+                    ttl = ByteArrayPointer.getTimeToLive( address, memoryManager );
+                    return null;
+                }
+
                 // check whether key equals key from byte buffer's content
                 if ( keyEquals( key, buffer ) ) {
-                    // and finally validate that entity's state
-                    if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
-                        expired = true;
-                        ttl = ByteArrayPointer.getTimeToLive( address, memoryManager );
-                        return null;
-                    }
                     ByteArrayPointer.updateLastAccessTime( address, System.currentTimeMillis(), memoryManager );
                     return asPointer ? new ByteArrayPointer( memoryManager, address, buffer ) : buffer;
                 }
@@ -227,18 +234,22 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         finally {
             // immediately un-lock read lock in order to acquire write lock
             lock.unlock();
-            if ( expired )
+            if ( expired ) {
                 // potentially another thread removed entry? check if bytesOccupied > 0
-                if ( remove( key ) > 0 )
+                int removeBytes = remove0( key );
+                if ( removeBytes > 0 ) {
                     // and now raise expiration event
                     notifyExpired( new ExpiredEntry( buffer, serializer.readID( buffer ), ttl ) );
+                    capacityMonitor.remove( removeBytes );
+                }
+            }
         }
         return null;
     }
 
     @Override
     public ImmutableSet<?> toImmutableSet() {
-        Builder<Object> builder = ImmutableSet.builder();
+        final Builder<Object> builder = ImmutableSet.builder();
         final Lock lock = readLock();
         lock.lock();
         try {
@@ -259,7 +270,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
     @Override
     public ImmutableMap<?, ?> toImmutableMap() {
-        com.google.common.collect.ImmutableMap.Builder<Object, Object> builder = ImmutableMap.builder();
+        final com.google.common.collect.ImmutableMap.Builder<Object, Object> builder = ImmutableMap.builder();
         final Lock lock = readLock();
         lock.lock();
         try {
@@ -281,8 +292,32 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
     @Override
     public int put(final Object key,
-                   final ByteArrayPointer value) {
-        return put( key, 0, value );
+                   final ByteArrayPointer p) {
+        final Lock lock = writeLock();
+        lock.lock();
+        try {
+            capacityMonitor.ensureCapacity( p, p.getObject() );
+            int prevBytesOccupation = put( key, 0, p );
+            capacityMonitor.add( p.bytesOccupied(), prevBytesOccupation );
+            return prevBytesOccupation;
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public int remove(final Object key) {
+        final Lock lock = writeLock();
+        lock.lock();
+        try {
+            int removedBytes = remove0( key );
+            capacityMonitor.remove( removedBytes );
+            return removedBytes;
+        }
+        finally {
+            lock.unlock();
+        }
     }
 
     private int put(final Object key,
@@ -326,8 +361,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         }
     }
 
-    @Override
-    public int remove(final Object key) {
+    private int remove0(final Object key) {
         int bytesOccupied = 0;
         final Lock lock = writeLock();
         lock.lock();
@@ -420,7 +454,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 capacity,
                 serializer,
                 executorService,
-                evictionPolicy );
+                capacityMonitor );
         int expired = 0;
         for ( int i = 0; i < m; i++ ) {
             long address = addresses[i];
@@ -430,6 +464,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 if ( ByteArrayPointer.isExpired( address, memoryManager ) ) {
                     expired++;
                     notifyExpired( new ExpiredEntry( buffer, id, ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
+                    capacityMonitor.remove( ByteArrayPointer.getBytesOccupied( address, memoryManager ) );
                     memoryManager.freeMemory( address );
                     addresses[i] = 0;
                     continue;
@@ -437,7 +472,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                 temp.put( id, address, null );
             }
         }
-        Log.trace( String.format( "resizing completed: size.before=%s, size.after=%s, expired=%s", n, temp.n, expired ) );
+        Log.debug( String.format( "resizing completed: size.before=%s, size.after=%s, expired=%s", n, temp.n, expired ) );
         addresses = temp.addresses;
         m = temp.m;
         // re-assign number of items because potentially we already skipped expired entries, but didn't decrement n.
@@ -460,8 +495,9 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     }
 
     @Override
-    public void destroy() {
+    public long evictAll() {
         final Lock lock = writeLock();
+        long removed = 0;
         lock.lock();
         try {
             for ( int i = 0; i < m; i++ ) {
@@ -472,8 +508,10 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                         ByteBuffer buffer = ByteBuffer.wrap( entityState );
                         notifyExpired( new ExpiredEntry( buffer, serializer.readID( buffer ), ByteArrayPointer.getTimeToLive( address, memoryManager ) ) );
                     }
+                    capacityMonitor.remove( ByteArrayPointer.getBytesOccupied( address, memoryManager ) );
                     memoryManager.freeMemory( address );
                     addresses[i] = 0;
+                    removed++;
                 }
             }
             this.addresses = new long[DEFAULT_SEGMENT_CAPACITY];
@@ -483,6 +521,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         finally {
             lock.unlock();
         }
+        return removed;
     }
 
     @Override
@@ -509,12 +548,13 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
 
             // now if there are any expired entries, remove them
             if ( expiredEntries != null )
-                for ( ExpiredEntry entry : expiredEntries )
-                    // potentially another thread removed entry? check if bytesOccupied > 0
-                    if ( remove( entry.id ) > 0 ) {
+                for ( ExpiredEntry entry : expiredEntries ) {
+                    int bytesOccupation = remove0( entry.id );
+                    if ( bytesOccupation > 0 ) {
+                        capacityMonitor.remove( bytesOccupation );
                         notifyExpired( entry );
-                        Log.trace( "automatically removed expired entry with key = " + entry.id );
                     }
+                }
         }
         finally {
             lock.unlock();
@@ -522,7 +562,7 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     }
 
     @Override
-    public int evictPercentage(final int percentage) {
+    public long evictPercentage(final int percentage) {
         final Lock lock = writeLock();
         lock.lock();
         try {
@@ -534,11 +574,16 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
     }
 
     @Override
-    public int evictElements(final int elements) {
+    public long evictElements(final long elements) {
         final Lock lock = writeLock();
+        CacheEvictionPolicy evictionPolicy = capacityMonitor.getCapacityRestriction().getEvictionPolicy();
+        if ( evictionPolicy == null )
+            evictionPolicy = CacheEvictionPolicy.REJECT;
         lock.lock();
-        int evicted = 0;
+        long evicted = 0;
         try {
+            if ( n == 0 )
+                return n;
             int sizeBefore = n;
             cleanUp();
             evicted = sizeBefore - n;
@@ -558,18 +603,16 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
                         byte[] serializedData = ByteArrayPointer.getEntityState( addresses[nearestToRandomIndex], memoryManager );
                         ByteBuffer buffer = ByteBuffer.wrap( serializedData );
                         Object key = serializer.readID( buffer );
-                        int bytes = remove( key );
-                        assert bytes > 0;
+                        int bytes = remove0( key );
+                        if ( bytes > 0 )
+                            capacityMonitor.remove( bytes );
                         evicted++;
                     }
                     break;
                 }
-                case LRU: {
-                    evicted = evictLruFifoLfu( elements, evicted );
-                    break;
-                }
+                case LRU:
                 case FIFO: {
-                    evicted = evictLruFifoLfu( elements, evicted );
+                    evicted = evictLruFifoLfu( Ints.checkedCast( elements ), Ints.checkedCast( evicted ) );
                     break;
                 }
                 case REJECT:
@@ -579,12 +622,50 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
         finally {
             lock.unlock();
         }
+        Log.info( String.format( "manually evicted %s elements, policy = %s", evicted, evictionPolicy ) );
         return evicted;
+    }
+
+    @VisibleForTesting
+    CapacityMonitor getCapacityMonitor() {
+        return capacityMonitor;
     }
 
     @Override
     public String toString() {
         return Objects.toStringHelper( this ).add( "size", size() ).toString();
+    }
+
+    private long evictLruFifoLfu(final int elements,
+                                 final int evictedNow) {
+        int evicted = evictedNow;
+        List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
+        for ( int i = 0; i < m; i++ ) {
+            long address = addresses[i];
+            if ( address != 0 ) {
+                long lastAccessTime = ByteArrayPointer.getLastAccessTime( address, memoryManager );
+                long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
+                byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
+                Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
+                evictionCandidates.add( new EvictionEntry( id, lastAccessTime, creationTimestamp ) );
+            }
+        }
+        List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
+        for ( EvictionEntry evictionEntry : greatestOf ) {
+            int byteOccupation = remove0( evictionEntry.key );
+            if ( byteOccupation > 0 )
+                capacityMonitor.remove( byteOccupation );
+        }
+        return evicted;
+    }
+
+    private boolean keyEquals(final Object key,
+                              final ByteBuffer buffer) {
+        return JVMUtil.equals( key, serializer.readID( buffer ) );
+    }
+
+    private int hash2index(final Object key) {
+        return ( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
     }
 
     @Immutable
@@ -613,34 +694,5 @@ final class OffHeapLinearProbingSegment extends ReentrantReadWriteLock implement
             this.lastAccessTime = lastAccessTime;
             this.creationTimestamp = creationTimestamp;
         }
-    }
-
-    private int evictLruFifoLfu(final int elements,
-                                final int evictedNow) {
-        int evicted = evictedNow;
-        List<EvictionEntry> evictionCandidates = Lists.newLinkedList();
-        for ( int i = 0; i < m; i++ ) {
-            long address = addresses[i];
-            if ( address != 0 ) {
-                long lastAccessTime = ByteArrayPointer.getLastAccessTime( address, memoryManager );
-                long creationTimestamp = ByteArrayPointer.getCreationTimestamp( address, memoryManager );
-                byte[] serializedData = ByteArrayPointer.getEntityState( address, memoryManager );
-                Object id = serializer.readID( ByteBuffer.wrap( serializedData ) );
-                evictionCandidates.add( new EvictionEntry( id, lastAccessTime, creationTimestamp ) );
-            }
-        }
-        List<EvictionEntry> greatestOf = evictionComparator.leastOf( evictionCandidates, Math.min( elements, n ) );
-        for ( EvictionEntry evictionEntry : greatestOf )
-            remove( evictionEntry.key );
-        return evicted;
-    }
-
-    private boolean keyEquals(final Object key,
-                              final ByteBuffer buffer) {
-        return JVMUtil.equals( key, serializer.readID( buffer ) );
-    }
-
-    private int hash2index(final Object key) {
-        return ( JVMUtil.jdkRehash( key.hashCode() ) & Integer.MAX_VALUE ) % m;
     }
 }

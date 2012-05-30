@@ -1,6 +1,7 @@
 package com.turbospaces.api;
 
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
@@ -19,6 +20,12 @@ public class EmbeddedJSpaceRunnerTest {
         mappingContext.setInitialEntitySet( Collections.singleton( TestEntity1.class ) );
         mappingContext.afterPropertiesSet();
         configuration.setMappingContext( mappingContext );
+        configuration.setCacheCleanupPeriod( TimeUnit.MINUTES.toMicros( 2 ) );
+        configuration.setCommunicationTimeoutInMillis( TimeUnit.MINUTES.toMicros( 2 ) );
+        CapacityRestriction capacityRestriction = new CapacityRestriction();
+        capacityRestriction.setEvictionPolicy( CacheEvictionPolicy.RANDOM );
+        capacityRestriction.setMaxElements( 100000 );
+        configuration.setCapacityRestriction( capacityRestriction );
         configuration.afterPropertiesSet();
         return configuration;
     }

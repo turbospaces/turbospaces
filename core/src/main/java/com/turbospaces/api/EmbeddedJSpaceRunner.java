@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.jgroups.Global;
+import org.jgroups.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.AbstractXmlApplicationContext;
@@ -77,6 +78,7 @@ public final class EmbeddedJSpaceRunner {
                 catch ( InterruptedException e ) {
                     LOGGER.info( "got interruption signal, terminating jspaces... stack_trace = {}", Throwables.getStackTraceAsString( e ) );
                     Thread.currentThread().interrupt();
+                    Util.printThreads();
                 }
             }
 

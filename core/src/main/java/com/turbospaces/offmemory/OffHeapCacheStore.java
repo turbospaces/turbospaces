@@ -30,13 +30,13 @@ import com.google.common.collect.Lists;
 import com.turbospaces.api.SpaceConfiguration;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.core.CacheStatisticsCounter;
+import com.turbospaces.core.CapacityMonitor;
 import com.turbospaces.core.CacheStatisticsCounter.CompleteCacheStats;
 import com.turbospaces.core.SpaceUtility;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
-import com.turbospaces.spaces.SpaceCapacityRestrictionHolder;
 import com.turbospaces.spaces.SpaceModifiers;
 import com.turbospaces.spaces.SpaceStore;
 import com.turbospaces.spaces.tx.TransactionModificationContext;
@@ -60,7 +60,7 @@ public class OffHeapCacheStore implements SpaceStore {
     private final IndexManager indexManager;
     private final CacheStatisticsCounter statsCounter;
     private final KeyLocker lockManager;
-    private final SpaceCapacityRestrictionHolder capacityRestriction;
+    private final CapacityMonitor capacityRestriction;
 
     /**
      * create new off-heap memory buffer for the given configuration and particular entity class.
@@ -75,7 +75,7 @@ public class OffHeapCacheStore implements SpaceStore {
     @SuppressWarnings("unchecked")
     public OffHeapCacheStore(final SpaceConfiguration configuration,
                              final Class<?> entityClass,
-                             final SpaceCapacityRestrictionHolder capacityRestriction) {
+                             final CapacityMonitor capacityRestriction) {
         this.configuration = configuration;
         this.capacityRestriction = capacityRestriction;
         this.indexManager = new IndexManager( configuration.getMappingContext().getPersistentEntity( entityClass ), configuration );

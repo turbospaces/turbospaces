@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Properties;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -41,26 +40,25 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
 import com.google.common.collect.MapMaker;
-import com.lmax.disruptor.Sequence;
+import com.google.common.io.Closeables;
 import com.turbospaces.api.AbstractSpaceConfiguration;
-import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.JSpace;
 import com.turbospaces.api.SpaceCapacityOverflowException;
 import com.turbospaces.api.SpaceErrors;
-import com.turbospaces.api.SpaceException;
-import com.turbospaces.api.SpaceMemoryOverflowException;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.model.BO;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
+import com.turbospaces.network.MethodCall.EvictAllMethodCall;
+import com.turbospaces.network.MethodCall.EvictElementsMethodCall;
+import com.turbospaces.network.MethodCall.EvictPercentageMethodCall;
 import com.turbospaces.network.MethodCall.FetchMethodCall;
 import com.turbospaces.network.MethodCall.GetMbUsedMethodCall;
 import com.turbospaces.network.MethodCall.GetSizeMethodCall;
 import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
 import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
-import com.turbospaces.offmemory.ByteArrayPointer;
 import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
@@ -79,24 +77,19 @@ public abstract class SpaceUtility {
 
     static {
         LOGGER.trace( "initializing {}", SpaceUtility.class.toString() );
-        cloudProperties = SpaceUtility.exceptionShouldNotHappen( new Callable<Properties>() {
-            @Override
-            public Properties call()
-                                    throws IOException {
-                ClassPathResource resource = new ClassPathResource( "turbospaces.properties" );
-                Properties properties = new Properties();
-                InputStream inputStream = null;
-                try {
-                    inputStream = resource.getInputStream();
-                    properties.load( inputStream );
-                }
-                finally {
-                    if ( inputStream != null )
-                        inputStream.close();
-                }
-                return properties;
-            }
-        } );
+        ClassPathResource resource = new ClassPathResource( "turbospaces.properties" );
+        cloudProperties = new Properties();
+        InputStream inputStream = null;
+        try {
+            inputStream = resource.getInputStream();
+            cloudProperties.load( inputStream );
+        }
+        catch ( IOException e ) {
+            LOGGER.error( e.getMessage(), e );
+        }
+        finally {
+            Closeables.closeQuietly( inputStream );
+        }
     }
 
     /**
@@ -157,6 +150,9 @@ public abstract class SpaceUtility {
         kryo.register( GetMbUsedMethodCall.class, new FieldSerializer( kryo, GetMbUsedMethodCall.class ) );
         kryo.register( GetSizeMethodCall.class, new FieldSerializer( kryo, GetSizeMethodCall.class ) );
         kryo.register( NotifyListenerMethodCall.class, new FieldSerializer( kryo, NotifyListenerMethodCall.class ) );
+        kryo.register( EvictAllMethodCall.class, new FieldSerializer( kryo, EvictAllMethodCall.class ) );
+        kryo.register( EvictPercentageMethodCall.class, new FieldSerializer( kryo, EvictPercentageMethodCall.class ) );
+        kryo.register( EvictElementsMethodCall.class, new FieldSerializer( kryo, EvictElementsMethodCall.class ) );
 
         Collection persistentEntities = configuration.getMappingContext().getPersistentEntities();
         BasicPersistentEntity[] persistentEntitiesAsArray = (BasicPersistentEntity[]) persistentEntities
@@ -226,92 +222,6 @@ public abstract class SpaceUtility {
                                                        final boolean write) {
         String type = write ? "write" : "exclusive read";
         throw new CannotAcquireLockException( String.format( SpaceErrors.UNABLE_TO_ACQUIRE_LOCK, type, uniqueIdentifier, timeout ) );
-    }
-
-    /**
-     * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
-     * 
-     * @param pointer
-     *            byte array pointer
-     * @param capacityRestriction
-     *            capacity restriction configuration
-     * @param memoryUsed
-     *            how many bytes is currently used
-     */
-    public static void ensureEnoughMemoryCapacity(final ByteArrayPointer pointer,
-                                                  final CapacityRestriction capacityRestriction,
-                                                  final Sequence memoryUsed) {
-        if ( memoryUsed.get() + pointer.bytesOccupied() > capacityRestriction.getMaxMemorySizeInBytes() )
-            throw new SpaceMemoryOverflowException( capacityRestriction.getMaxMemorySizeInBytes(), pointer.getSerializedData() );
-    }
-
-    /**
-     * ensure that the space buffer does not violate space capacity and can add new byte array pointer.
-     * 
-     * @param obj
-     *            object that needs to be added to the jspace
-     * @param capacityRestriction
-     *            space capacity restriction
-     * @param itemsCount
-     *            how many items currently in space
-     */
-    public static void ensureEnoughCapacity(final Object obj,
-                                            final CapacityRestriction capacityRestriction,
-                                            final Sequence itemsCount) {
-        if ( itemsCount.get() >= capacityRestriction.getMaxElements() )
-            throw new SpaceCapacityOverflowException( capacityRestriction.getMaxElements(), obj );
-    }
-
-    /**
-     * execute callback action assuming that exception should not occur and transform exceptions into
-     * {@link SpaceException}
-     * 
-     * @param callback
-     *            user function which should not cause execution failure
-     * @return result of callback execution
-     * @throws SpaceException
-     *             if something went wrong
-     */
-    public static <R> R exceptionShouldNotHappen(final Callable<R> callback)
-                                                                            throws SpaceException {
-        Exception e = null;
-        R result = null;
-        try {
-            result = callback.call();
-        }
-        catch ( Exception e1 ) {
-            e = e1;
-        }
-        if ( e != null )
-            throw new SpaceException( "unexpected exception", e );
-        return result;
-    }
-
-    /**
-     * execute callback action assuming that exception should not occur and transform exceptions into
-     * {@link SpaceException} in case of exception.</p>
-     * 
-     * @param callback
-     *            user function which should not cause execution failure
-     * @param input
-     *            argument to pass to the callback function
-     * @return result of callback execution
-     * @throws SpaceException
-     *             if something goes wrong
-     */
-    public static <I, R> R exceptionShouldNotHappen(final Function<I, R> callback,
-                                                    final I input) {
-        Exception e = null;
-        R result = null;
-        try {
-            result = callback.apply( input );
-        }
-        catch ( Exception e1 ) {
-            e = e1;
-        }
-        if ( e != null )
-            throw new SpaceException( "unexpected exception", e );
-        return result;
     }
 
     /**

@@ -20,11 +20,10 @@ import java.util.Arrays;
 /**
  * signals that cache memory exceeded it's max capacity and it is not possible to add more elements.
  * typically you would like to restrict max off-heap memory buffer because uncontrolled growth can lead to
- * unmaintainable state of operation system. you can restrict the maximum memory capacity by setting
- * {@link SpaceConfiguration#setCapacityRestriction(CapacityRestriction)} bean.
+ * unmaintainable state of operation system.
  * 
- * @see SpaceConfiguration#setCapacityRestriction(CapacityRestriction)
  * @since 0.1
+ * @see CapacityRestriction
  */
 public class SpaceMemoryOverflowException extends RuntimeException {
     private static final long serialVersionUID = -4537158624229189977L;

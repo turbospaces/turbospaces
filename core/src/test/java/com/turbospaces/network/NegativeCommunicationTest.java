@@ -24,7 +24,7 @@ public class NegativeCommunicationTest {
     public void cantGetExceptionLookupFailureException()
                                                         throws Exception {
         ClientSpaceConfiguration clientConfigurationFor = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
-        clientConfigurationFor.setDefaultCommunicationTimeoutInMillis( 10 );
+        clientConfigurationFor.setCommunicationTimeoutInMillis( 10 );
         clientConfigurationFor.joinNetwork();
         NetworkCommunicationDispatcher receiever = clientConfigurationFor.getReceiever();
         try {
@@ -44,7 +44,7 @@ public class NegativeCommunicationTest {
                                                  throws Throwable {
         final MutableObject<Throwable> er = new MutableObject<Throwable>();
         final ClientSpaceConfiguration clientConfigurationFor = EmbeddedJSpaceRunnerTest.clientConfigurationFor();
-        clientConfigurationFor.setDefaultCommunicationTimeoutInMillis( TimeUnit.SECONDS.toMillis( 10 ) );
+        clientConfigurationFor.setCommunicationTimeoutInMillis( TimeUnit.SECONDS.toMillis( 10 ) );
         clientConfigurationFor.joinNetwork();
         Thread t = new Thread( new Runnable() {
 
