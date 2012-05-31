@@ -17,8 +17,6 @@ package com.turbospaces.serialization;
 
 import java.nio.ByteBuffer;
 
-import com.esotericsoftware.kryo.Kryo.RegisteredClass;
-import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.base.Preconditions;
 import com.turbospaces.core.JVMUtil;
@@ -34,6 +32,14 @@ import com.turbospaces.model.CacheStoreEntryWrapper;
  *            value type
  */
 public abstract class MatchingSerializer<V> extends SimpleSerializer<V> {
+    private static boolean DEFAULT_BOOLEAN;
+    private static byte DEFAULT_BYTE;
+    private static short DEFAULT_SHORT;
+    private static int DEFAULT_INT;
+    private static long DEFAULT_LONG;
+    private static float DEFAULT_FLOAT;
+    private static double DEFAULT_DOUBLE;
+
     final DecoratedKryo kryo;
     final CachedSerializationProperty[] cachedProperties;
 
@@ -80,59 +86,55 @@ public abstract class MatchingSerializer<V> extends SimpleSerializer<V> {
         for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
             CachedSerializationProperty cachedProperty = cachedProperties[i];
             Object templateValue = templateValues[i];
-            Object value = readPropertyValue( cachedProperty, buffer );
+            Object value = DecoratedKryo.readPropertyValue( kryo, cachedProperty, buffer );
             values[i] = value;
+            Class<?> propertyType = cachedProperty.getPropertyType();
 
-            if ( templateValue != null && !JVMUtil.equals( templateValue, value ) ) {
-                matches = false;
+            if ( templateValue != null )
+                if ( propertyType.isPrimitive() ) {
+                    if ( propertyType.equals( boolean.class ) ) {
+                        boolean b = (Boolean) templateValue;
+                        if ( b != DEFAULT_BOOLEAN )
+                            matches = ( b == ( (Boolean) templateValue ) );
+                    }
+                    else if ( propertyType.equals( byte.class ) ) {
+                        byte b = (Byte) templateValue;
+                        if ( b != DEFAULT_BYTE )
+                            matches = ( b == ( (Byte) templateValue ) );
+                    }
+                    else if ( propertyType.equals( short.class ) ) {
+                        short s = (Short) templateValue;
+                        if ( s != DEFAULT_SHORT )
+                            matches = ( s == ( (Short) templateValue ) );
+                    }
+                    else if ( propertyType.equals( int.class ) ) {
+                        int ii = (Integer) templateValue;
+                        if ( ii != DEFAULT_INT )
+                            matches = ( ii == ( (Integer) templateValue ) );
+                    }
+                    else if ( propertyType.equals( long.class ) ) {
+                        long l = (Long) templateValue;
+                        if ( l != DEFAULT_LONG )
+                            matches = ( l == ( (Long) templateValue ) );
+                    }
+                    else if ( propertyType.equals( float.class ) ) {
+                        float f = (Float) templateValue;
+                        if ( f != DEFAULT_FLOAT )
+                            matches = ( f == ( (Float) templateValue ) );
+                    }
+                    else if ( propertyType.equals( double.class ) ) {
+                        double d = (Double) templateValue;
+                        if ( d != DEFAULT_DOUBLE )
+                            matches = ( d == ( (Double) templateValue ) );
+                    }
+                }
+                else
+                    matches = JVMUtil.equals( templateValue, value );
+
+            if ( !matches )
                 break;
-            }
         }
         buffer.clear();
         return matches;
-    }
-
-    final void writePropertyValue(final CachedSerializationProperty cachedProperty,
-                                  final Object value,
-                                  final ByteBuffer buffer) {
-        Serializer serializer = cachedProperty.getSerializer();
-
-        if ( cachedProperty.isFinal() ) {
-            if ( serializer == null )
-                cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
-            cachedProperty.write( buffer, value );
-        }
-        else {
-            if ( value == null ) {
-                kryo.writeClass( buffer, null );
-                return;
-            }
-            RegisteredClass registeredClass = kryo.writeClass( buffer, value.getClass() );
-
-            if ( serializer == null )
-                serializer = registeredClass.getSerializer();
-            serializer.writeObjectData( buffer, value );
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    final Object readPropertyValue(final CachedSerializationProperty cachedProperty,
-                                   final ByteBuffer buffer) {
-        Object value = null;
-        Serializer serializer = cachedProperty.getSerializer();
-        if ( cachedProperty.isFinal() ) {
-            if ( serializer == null )
-                cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
-            value = cachedProperty.read( buffer, cachedProperty.getPropertyType() );
-        }
-        else {
-            RegisteredClass registeredClass = kryo.readClass( buffer );
-            if ( registeredClass != null ) {
-                if ( serializer == null )
-                    serializer = registeredClass.getSerializer();
-                value = serializer.readObjectData( buffer, registeredClass.getType() );
-            }
-        }
-        return value;
     }
 }

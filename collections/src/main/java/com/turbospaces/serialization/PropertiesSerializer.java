@@ -20,13 +20,12 @@ import java.util.ArrayList;
 
 import org.springframework.data.mapping.PersistentProperty;
 
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.turbospaces.model.BO;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 
 /**
- * Optimized implementation of {@link FieldSerializer}, basically doing almost the same stuff, but with some
- * customization for reflection stuff and spring-data's properties bindings. </p>
+ * Optimized/customized version of kryo's FieldSerializer, basically doing almost the same stuff, but with some
+ * customization for reflection and spring-data's properties bindings as well as template matching. </p>
  * 
  * This class allows you to do template matching over all fields and is compatible with type safe specifications.
  * 
@@ -50,8 +49,8 @@ public final class PropertiesSerializer extends MatchingSerializer {
 
             {
                 PersistentProperty[] orderedProperties = entityMetadata.getOrderedProperties();
-                for ( PersistentProperty orderedPropertie : orderedProperties )
-                    add( new CachedSerializationProperty( orderedPropertie.getType() ) );
+                for ( PersistentProperty orderedProperty : orderedProperties )
+                    add( new CachedSerializationProperty( orderedProperty.getType(), orderedProperty.getField() ) );
             }
         }.toArray( new CachedSerializationProperty[entityMetadata.getOrderedProperties().length] ) );
         this.entityMetadata = entityMetadata;
@@ -68,7 +67,7 @@ public final class PropertiesSerializer extends MatchingSerializer {
         for ( int i = 0, n = cachedProperties.length; i < n; i++ ) {
             CachedSerializationProperty cachedProperty = cachedProperties[i];
             Object value = bulkPropertyValues[i];
-            writePropertyValue( cachedProperty, value, buffer );
+            DecoratedKryo.writePropertyValue( kryo, cachedProperty, value, buffer );
         }
     }
 
@@ -76,7 +75,7 @@ public final class PropertiesSerializer extends MatchingSerializer {
     public Object readID(final ByteBuffer buffer) {
         buffer.clear();
         final CachedSerializationProperty idProperty = cachedProperties[BO.getIdIndex()];
-        Object id = readPropertyValue( idProperty, buffer );
+        Object id = DecoratedKryo.readPropertyValue( kryo, idProperty, buffer );
         buffer.clear();
         return id;
     }
@@ -85,7 +84,7 @@ public final class PropertiesSerializer extends MatchingSerializer {
     public Object read(final ByteBuffer buffer) {
         final Object values[] = new Object[cachedProperties.length];
         for ( int i = 0, n = cachedProperties.length; i < n; i++ )
-            values[i] = readPropertyValue( cachedProperties[i], buffer );
+            values[i] = DecoratedKryo.readPropertyValue( kryo, cachedProperties[i], buffer );
         return entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values );
     }
 
@@ -100,21 +99,14 @@ public final class PropertiesSerializer extends MatchingSerializer {
         buffer.clear();
         final Object values[] = new Object[cachedProperties.length];
         for ( int i = 0, n = cachedProperties.length; i < n; i++ )
-            values[i] = readPropertyValue( cachedProperties[i], buffer );
+            values[i] = DecoratedKryo.readPropertyValue( kryo, cachedProperties[i], buffer );
         buffer.clear();
 
         return new SerializationEntry( buffer, entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ), values );
     }
 
-    /**
-     * @return entity meta-data
-     */
-    public BO getBO() {
-        return entityMetadata;
-    }
-
     @Override
     public Class getType() {
-        return getBO().getOriginalPersistentEntity().getType();
+        return entityMetadata.getOriginalPersistentEntity().getType();
     }
 }

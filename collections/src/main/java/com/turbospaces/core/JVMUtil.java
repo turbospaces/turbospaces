@@ -16,11 +16,14 @@
 package com.turbospaces.core;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import sun.misc.Unsafe;
 
 import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Function;
@@ -28,6 +31,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.lmax.disruptor.Sequence;
+import com.lmax.disruptor.util.Util;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.api.SpaceCapacityOverflowException;
 import com.turbospaces.api.SpaceMemoryOverflowException;
@@ -65,6 +69,112 @@ public class JVMUtil {
                 gc();
             }
         } );
+    }
+
+    /**
+     * get the declared field by name.
+     * 
+     * @param clazz
+     *            target class
+     * @param name
+     *            field name
+     * @return reflection field
+     */
+    public static Field fieldFor(final Class<?> clazz,
+                                 final String name) {
+        for ( ;; )
+            try {
+                return clazz.getDeclaredField( name );
+            }
+            catch ( Exception e ) {
+                Log.warn( String.format(
+                        "unable to lookup %s field of class %s, available fields = %s",
+                        name,
+                        clazz.getName(),
+                        Arrays.toString( clazz.getFields() ) ) );
+                Throwables.propagate( e );
+            }
+    }
+
+    /**
+     * extract property value using Unsafe tricks.
+     * 
+     * @param source
+     *            properties holder
+     * @param valueType
+     *            field type
+     * @param fieldOffset
+     *            field offset
+     * @return extracted value
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T getPropertyValueUnsafe(final Object source,
+                                               final Class<T> valueType,
+                                               final long fieldOffset) {
+        Unsafe unsafe = Util.getUnsafe();
+        Object value = null;
+
+        if ( valueType.isPrimitive() ) {
+            if ( valueType == int.class )
+                value = unsafe.getInt( source, fieldOffset );
+            if ( valueType == short.class )
+                value = unsafe.getShort( source, fieldOffset );
+            else if ( valueType == long.class )
+                value = unsafe.getLong( source, fieldOffset );
+            else if ( valueType == float.class )
+                value = unsafe.getFloat( source, fieldOffset );
+            else if ( valueType == double.class )
+                value = unsafe.getDouble( source, fieldOffset );
+            else if ( valueType == char.class )
+                value = unsafe.getChar( source, fieldOffset );
+            else if ( valueType == byte.class )
+                value = unsafe.getByte( source, fieldOffset );
+            else if ( valueType == boolean.class )
+                value = unsafe.getBoolean( source, fieldOffset );
+        }
+        else
+            value = unsafe.getObject( source, fieldOffset );
+        return (T) value;
+    }
+
+    /**
+     * set property value using Unsafe tricks.
+     * 
+     * @param source
+     *            properties holder
+     * @param value
+     *            field value to set
+     * @param valueType
+     *            field type
+     * @param fieldOffset
+     *            field offset
+     */
+    public static <T> void setPropertyValueUnsafe(final Object source,
+                                                  final T value,
+                                                  final Class<T> valueType,
+                                                  final long fieldOffset) {
+        Unsafe unsafe = Util.getUnsafe();
+
+        if ( valueType.isPrimitive() ) {
+            if ( valueType == int.class )
+                unsafe.putInt( source, fieldOffset, ( (Integer) value ).intValue() );
+            if ( valueType == short.class )
+                unsafe.putShort( source, fieldOffset, ( (Short) value ).shortValue() );
+            else if ( valueType == long.class )
+                unsafe.putLong( source, fieldOffset, ( (Long) value ).longValue() );
+            else if ( valueType == float.class )
+                unsafe.putFloat( source, fieldOffset, ( (Float) value ).floatValue() );
+            else if ( valueType == double.class )
+                unsafe.putDouble( source, fieldOffset, ( (Double) value ).doubleValue() );
+            else if ( valueType == char.class )
+                unsafe.putChar( source, fieldOffset, ( (Character) value ).charValue() );
+            else if ( valueType == byte.class )
+                unsafe.putByte( source, fieldOffset, ( (Byte) value ).byteValue() );
+            else if ( valueType == boolean.class )
+                unsafe.putBoolean( source, fieldOffset, ( (Boolean) value ).booleanValue() );
+        }
+        else
+            unsafe.putObject( source, fieldOffset, value );
     }
 
     /**

@@ -15,10 +15,12 @@
  */
 package com.turbospaces.serialization;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
+import com.lmax.disruptor.util.Util;
 
 /**
  * Controls how a property/field will be serialized. This class needs to be considered as library internal.
@@ -29,6 +31,7 @@ final class CachedSerializationProperty {
     private final Class<?> type;
     private Serializer serializer;
     private final boolean canBeNull, isFinal;
+    private long fieldOffset;
 
     /**
      * create cached serialization binding for particular persistent property.
@@ -38,10 +41,12 @@ final class CachedSerializationProperty {
      *            the specified class will be used. Only set to a non-null value if the property type
      *            in the class definition is final or the values for this field will not vary.
      */
-    CachedSerializationProperty(final Class<?> type) {
+    CachedSerializationProperty(final Class<?> type, final Field field) {
         this.type = type;
         this.canBeNull = !type.isPrimitive();
         this.isFinal = Kryo.isFinal( type );
+        if ( field != null )
+            this.fieldOffset = Util.getUnsafe().objectFieldOffset( field );
     }
 
     /**
@@ -55,9 +60,16 @@ final class CachedSerializationProperty {
     }
 
     /**
+     * @return off-heap memory off-set for field
+     */
+    long getFieldOffset() {
+        return fieldOffset;
+    }
+
+    /**
      * @return true if this field's value can be null(meaning it is not primitive).
      */
-    public boolean canBeNull() {
+    boolean canBeNull() {
         return canBeNull;
     }
 
@@ -65,21 +77,22 @@ final class CachedSerializationProperty {
      * @return true if the type of associated field is final (meaning that there is no need to write which exact field
      *         value's class is serialized and of course saves bytes).
      */
-    public boolean isFinal() {
+    boolean isFinal() {
         return isFinal;
     }
 
     /**
      * @return field's value property class.
      */
-    public Class<?> getPropertyType() {
+    @SuppressWarnings("rawtypes")
+    Class getPropertyType() {
         return type;
     }
 
     /**
      * @return kryo serializer associated with this field.
      */
-    public Serializer getSerializer() {
+    Serializer getSerializer() {
         return serializer;
     }
 

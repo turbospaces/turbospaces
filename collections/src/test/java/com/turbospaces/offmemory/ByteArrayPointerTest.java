@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
+import java.beans.IntrospectionException;
+
 import org.junit.Test;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
@@ -22,7 +24,8 @@ public class ByteArrayPointerTest {
     public void verify()
                         throws SecurityException,
                         NoSuchMethodException,
-                        ClassNotFoundException {
+                        ClassNotFoundException,
+                        IntrospectionException {
         DecoratedKryo kryo = new DecoratedKryo();
         BO bo = TestEntity1.getPersistentEntity();
         BO.registerPersistentClasses( kryo, bo.getOriginalPersistentEntity() );

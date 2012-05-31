@@ -48,14 +48,14 @@
         <slf4j-revision>1.6.4</slf4j-revision>
         <!-- actual turbospaces dependencies -->
         <spring-revision>3.1.1.RELEASE</spring-revision>
-        <jgroups-revision>3.0.10.Final</jgroups-revision>
-        <spring-data-commons-revision>1.3.0.RELEASE</spring-data-commons-revision>
-        <kryo-revision>1.04</kryo-revision>
-        <sigar-revision>1.6.4</sigar-revision>
-        <cglib-revision>2.2.2</cglib-revision>
-        <spring-data-revision>1.0.1.RELEASE</spring-data-revision>
         <guava-revision>12.0</guava-revision>
         <disruptor-revision>2.10</disruptor-revision>
+        <asm-revision>3.3.1</asm-revision>
+        <jgroups-revision>3.0.10.Final</jgroups-revision>
+        <kryo-revision>1.04</kryo-revision>
+        <cglib-revision>2.2.2</cglib-revision>
+        <spring-data-revision>1.0.1.RELEASE</spring-data-revision>
+        <spring-data-commons-revision>1.3.0.RELEASE</spring-data-commons-revision>
         <!-- sonar -->
         <sonar.java.source>1.6</sonar.java.source>
         <sonar.java.target>1.6</sonar.java.target>
@@ -102,6 +102,11 @@
                 </exclusions>
             </dependency>
             <dependency>
+                <groupId>asm</groupId>
+                <artifactId>asm</artifactId>
+                <version>${asm-revision}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-asm</artifactId>
                 <version>${spring-revision}</version>
@@ -120,11 +125,27 @@
                 <groupId>com.googlecode</groupId>
                 <artifactId>kryo</artifactId>
                 <version>${kryo-revision}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>asm</artifactId>
+                        <groupId>asm</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>reflectasm</artifactId>
+                        <groupId>com.googlecode</groupId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>cglib</groupId>
                 <artifactId>cglib</artifactId>
                 <version>${cglib-revision}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>asm</artifactId>
+                        <groupId>asm</groupId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.jgroups</groupId>
@@ -166,7 +187,8 @@
             <groupId>com.carrotsearch</groupId>
             <artifactId>junit-benchmarks</artifactId>
             <version>${junit-benchmarks-revision}</version>
-        </dependency>
+            <scope>test</scope>
+        </dependency>        
     </dependencies>
     <build>
         <resources>

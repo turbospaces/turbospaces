@@ -19,7 +19,6 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.AbstractCache.SimpleStatsCounter;
@@ -33,9 +32,11 @@ import com.turbospaces.api.SpaceExpirationListener;
 import com.turbospaces.core.EffectiveMemoryManager;
 import com.turbospaces.core.MutableObject;
 import com.turbospaces.core.UnsafeMemoryManager;
+import com.turbospaces.model.BasicBO;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.serialization.DecoratedKryo;
 import com.turbospaces.serialization.ExplicitCacheEntrySerializer;
+import com.turbospaces.serialization.FieldsSerializer;
 import com.turbospaces.serialization.MatchingSerializer;
 
 /**
@@ -176,6 +177,7 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
      * 
      * @return new off-heap linear probing cache having the requested features
      */
+    @SuppressWarnings("rawtypes")
     public GuavaOffHeapCache<K, V> build(final Class<V> clazz) {
         if ( executorService == null )
             executorService = MoreExecutors.sameThreadExecutor();
@@ -183,7 +185,7 @@ public final class GuavaOffHeapCacheBuilder<K, V> {
             kryo = new DecoratedKryo();
         if ( memoryManager == null )
             memoryManager = new UnsafeMemoryManager();
-        kryo.register( clazz, new FieldSerializer( kryo, clazz ) );
+        kryo.register( clazz, new FieldsSerializer( kryo, new BasicBO( clazz ) ) );
         MatchingSerializer<?> serializer = new ExplicitCacheEntrySerializer( kryo );
         final MutableObject<SimpleStatsCounter> statsCounter = new MutableObject<AbstractCache.SimpleStatsCounter>();
         if ( recordStats )

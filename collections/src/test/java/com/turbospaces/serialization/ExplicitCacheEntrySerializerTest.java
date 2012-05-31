@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowire;
 
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
+import com.turbospaces.model.BasicBO;
 import com.turbospaces.model.ExplicitCacheEntry;
 import com.turbospaces.model.TestEntity1;
 
@@ -22,11 +22,12 @@ public class ExplicitCacheEntrySerializerTest {
     DecoratedKryo kryo;
     ExplicitCacheEntrySerializer serializer;
 
+    @SuppressWarnings("rawtypes")
     @Before
     public void setup()
                        throws ClassNotFoundException {
         kryo = new DecoratedKryo();
-        kryo.register( TestEntity1.class, new FieldSerializer( kryo, TestEntity1.class ) );
+        kryo.register( TestEntity1.class, new FieldsSerializer( kryo, new BasicBO( TestEntity1.class ) ) );
 
         Class<?> cl1 = Class.forName( "[L" + RoundingMode.class.getName() + ";" );
         Class<?> cl2 = Class.forName( "[L" + Autowire.class.getName() + ";" );

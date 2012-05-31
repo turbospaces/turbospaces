@@ -44,13 +44,11 @@ import com.esotericsoftware.kryo.serialize.BigIntegerSerializer;
 import com.esotericsoftware.kryo.serialize.CollectionSerializer;
 import com.esotericsoftware.kryo.serialize.DateSerializer;
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.esotericsoftware.kryo.serialize.MapSerializer;
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import com.google.common.collect.Maps;
 import com.turbospaces.model.CacheStoreEntryWrapper;
 import com.turbospaces.model.ExplicitCacheEntry;
-import com.turbospaces.offmemory.ByteArrayPointer;
 
 /**
  * This is decorated version of {@link Kryo} - adds some more user predictable behavior (like registering JDK
@@ -105,7 +103,6 @@ public class DecoratedKryo extends Kryo {
         register( Long[].class, new SingleDimensionArraySerializer( Long[].class, this ) );
         register( String[].class, new SingleDimensionArraySerializer( String[].class, this ) );
 
-        register( ByteArrayPointer.class, new FieldSerializer( this, ByteArrayPointer.class ) );
         register( CacheStoreEntryWrapper.class, new SimpleSerializer<CacheStoreEntryWrapper>() {
             @Override
             public CacheStoreEntryWrapper read(final ByteBuffer buffer) {
@@ -199,5 +196,51 @@ public class DecoratedKryo extends Kryo {
             builder.append( "\n" );
         }
         return "Kryo(" + builder.toString();
+    }
+
+    static void writePropertyValue(final DecoratedKryo kryo,
+                                   final CachedSerializationProperty cachedProperty,
+                                   final Object value,
+                                   final ByteBuffer buffer) {
+        Serializer serializer = cachedProperty.getSerializer();
+
+        if ( cachedProperty.isFinal() ) {
+            if ( serializer == null )
+                cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
+            cachedProperty.write( buffer, value );
+        }
+        else {
+            if ( value == null ) {
+                kryo.writeClass( buffer, null );
+                return;
+            }
+            RegisteredClass registeredClass = kryo.writeClass( buffer, value.getClass() );
+
+            if ( serializer == null )
+                serializer = registeredClass.getSerializer();
+            serializer.writeObjectData( buffer, value );
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    static Object readPropertyValue(final DecoratedKryo kryo,
+                                    final CachedSerializationProperty cachedProperty,
+                                    final ByteBuffer buffer) {
+        Object value = null;
+        Serializer serializer = cachedProperty.getSerializer();
+        if ( cachedProperty.isFinal() ) {
+            if ( serializer == null )
+                cachedProperty.setSerializer( kryo.getRegisteredClass( cachedProperty.getPropertyType() ).getSerializer() );
+            value = cachedProperty.read( buffer, cachedProperty.getPropertyType() );
+        }
+        else {
+            RegisteredClass registeredClass = kryo.readClass( buffer );
+            if ( registeredClass != null ) {
+                if ( serializer == null )
+                    serializer = registeredClass.getSerializer();
+                value = serializer.readObjectData( buffer, registeredClass.getType() );
+            }
+        }
+        return value;
     }
 }

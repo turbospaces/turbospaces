@@ -15,6 +15,7 @@
  */
 package com.turbospaces.core;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -35,7 +36,6 @@ import org.springframework.data.mapping.model.BasicPersistentEntity;
 import org.springframework.util.ObjectUtils;
 
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingConcurrentMap;
@@ -48,6 +48,8 @@ import com.turbospaces.api.SpaceErrors;
 import com.turbospaces.api.SpaceOperation;
 import com.turbospaces.api.SpaceTopology;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.BasicBO;
+import com.turbospaces.network.MethodCall;
 import com.turbospaces.network.MethodCall.BeginTransactionMethodCall;
 import com.turbospaces.network.MethodCall.CommitRollbackMethodCall;
 import com.turbospaces.network.MethodCall.EvictAllMethodCall;
@@ -60,6 +62,7 @@ import com.turbospaces.network.MethodCall.GetSpaceTopologyMethodCall;
 import com.turbospaces.network.MethodCall.NotifyListenerMethodCall;
 import com.turbospaces.network.MethodCall.WriteMethodCall;
 import com.turbospaces.serialization.DecoratedKryo;
+import com.turbospaces.serialization.FieldsSerializer;
 import com.turbospaces.spaces.EntryKeyLockQuard;
 import com.turbospaces.spaces.KeyLocker;
 import com.turbospaces.spaces.tx.TransactionScopeKeyLocker;
@@ -131,28 +134,31 @@ public abstract class SpaceUtility {
      *             re-throw cglib exceptions
      * @throws SecurityException
      *             re-throw cglib exceptions
+     * @throws IntrospectionException
+     *             re-throw introspection results
      */
     @SuppressWarnings("rawtypes")
     public static void registerSpaceClasses(final AbstractSpaceConfiguration configuration,
                                             final DecoratedKryo kryo)
                                                                      throws ClassNotFoundException,
                                                                      SecurityException,
-                                                                     NoSuchMethodException {
+                                                                     NoSuchMethodException,
+                                                                     IntrospectionException {
         kryo.register( SpaceOperation.class, new EnumSerializer( SpaceOperation.class ) );
         kryo.register( SpaceTopology.class, new EnumSerializer( SpaceTopology.class ) );
 
-        kryo.register( com.turbospaces.network.MethodCall.class, new FieldSerializer( kryo, com.turbospaces.network.MethodCall.class ) );
-        kryo.register( WriteMethodCall.class, new FieldSerializer( kryo, WriteMethodCall.class ) );
-        kryo.register( FetchMethodCall.class, new FieldSerializer( kryo, FetchMethodCall.class ) );
-        kryo.register( BeginTransactionMethodCall.class, new FieldSerializer( kryo, BeginTransactionMethodCall.class ) );
-        kryo.register( CommitRollbackMethodCall.class, new FieldSerializer( kryo, CommitRollbackMethodCall.class ) );
-        kryo.register( GetSpaceTopologyMethodCall.class, new FieldSerializer( kryo, GetSpaceTopologyMethodCall.class ) );
-        kryo.register( GetMbUsedMethodCall.class, new FieldSerializer( kryo, GetMbUsedMethodCall.class ) );
-        kryo.register( GetSizeMethodCall.class, new FieldSerializer( kryo, GetSizeMethodCall.class ) );
-        kryo.register( NotifyListenerMethodCall.class, new FieldSerializer( kryo, NotifyListenerMethodCall.class ) );
-        kryo.register( EvictAllMethodCall.class, new FieldSerializer( kryo, EvictAllMethodCall.class ) );
-        kryo.register( EvictPercentageMethodCall.class, new FieldSerializer( kryo, EvictPercentageMethodCall.class ) );
-        kryo.register( EvictElementsMethodCall.class, new FieldSerializer( kryo, EvictElementsMethodCall.class ) );
+        kryo.register( MethodCall.class, new FieldsSerializer( kryo, new BasicBO( MethodCall.class ) ) );
+        kryo.register( WriteMethodCall.class, new FieldsSerializer( kryo, new BasicBO( WriteMethodCall.class ) ) );
+        kryo.register( FetchMethodCall.class, new FieldsSerializer( kryo, new BasicBO( FetchMethodCall.class ) ) );
+        kryo.register( BeginTransactionMethodCall.class, new FieldsSerializer( kryo, new BasicBO( BeginTransactionMethodCall.class ) ) );
+        kryo.register( CommitRollbackMethodCall.class, new FieldsSerializer( kryo, new BasicBO( CommitRollbackMethodCall.class ) ) );
+        kryo.register( GetSpaceTopologyMethodCall.class, new FieldsSerializer( kryo, new BasicBO( GetSpaceTopologyMethodCall.class ) ) );
+        kryo.register( GetMbUsedMethodCall.class, new FieldsSerializer( kryo, new BasicBO( GetMbUsedMethodCall.class ) ) );
+        kryo.register( GetSizeMethodCall.class, new FieldsSerializer( kryo, new BasicBO( GetSizeMethodCall.class ) ) );
+        kryo.register( NotifyListenerMethodCall.class, new FieldsSerializer( kryo, new BasicBO( NotifyListenerMethodCall.class ) ) );
+        kryo.register( EvictAllMethodCall.class, new FieldsSerializer( kryo, new BasicBO( EvictAllMethodCall.class ) ) );
+        kryo.register( EvictPercentageMethodCall.class, new FieldsSerializer( kryo, new BasicBO( EvictPercentageMethodCall.class ) ) );
+        kryo.register( EvictElementsMethodCall.class, new FieldsSerializer( kryo, new BasicBO( EvictElementsMethodCall.class ) ) );
 
         Collection persistentEntities = configuration.getMappingContext().getPersistentEntities();
         BasicPersistentEntity[] persistentEntitiesAsArray = (BasicPersistentEntity[]) persistentEntities

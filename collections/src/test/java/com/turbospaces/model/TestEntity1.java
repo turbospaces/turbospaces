@@ -19,6 +19,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
+import java.beans.IntrospectionException;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,9 +46,15 @@ public class TestEntity1 implements InitializingBean, Cloneable {
     public Date dt1, dt2, dt3, dt4;
     public Double d1, d2, d3, d4;
     public Float f1, f2, f3, f4;
-
-    public int fi1, fi2;
     public Integer fin1, fin2;
+
+    public boolean b1, b2, b3, b4;
+    public short sh1, sh2, sh3, sh4;
+    public double dp1, dp2, dp3, dp4;
+    public float fp1, fp2, fp3, fp4;
+    public char cp1, cp2, cp3, cp4;
+    public int fi1, fi2;
+    public long lp1, lp2;
 
     @Id
     public String uniqueIdentifier;
@@ -109,6 +116,34 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         longs.add( Long.valueOf( 1L ) );
         longs.add( Long.valueOf( 2L ) );
         longs.add( Long.valueOf( 3L ) );
+
+        b1 = random.nextBoolean();
+        b2 = random.nextBoolean();
+        b3 = random.nextBoolean();
+        b4 = random.nextBoolean();
+
+        sh1 = (short) random.nextInt();
+        sh2 = (short) random.nextInt();
+        sh3 = (short) random.nextInt();
+        sh4 = (short) random.nextInt();
+
+        dp1 = random.nextDouble();
+        dp2 = random.nextDouble();
+        dp3 = random.nextDouble();
+        dp4 = random.nextDouble();
+
+        fp1 = random.nextFloat();
+        fp2 = random.nextFloat();
+        fp3 = random.nextFloat();
+        fp4 = random.nextFloat();
+
+        cp1 = (char) random.nextInt();
+        cp2 = (char) random.nextInt();
+        cp3 = (char) random.nextInt();
+        cp4 = (char) random.nextInt();
+
+        lp1 = random.nextLong();
+        lp2 = random.nextLong();
     }
 
     public RoundingMode getMode() {
@@ -200,6 +235,34 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         autowire = null;
         routing = null;
         longs = null;
+
+        b1 = false;
+        b2 = false;
+        b3 = false;
+        b4 = false;
+
+        sh1 = 0;
+        sh2 = 0;
+        sh3 = 0;
+        sh4 = 0;
+
+        dp1 = 0.0d;
+        dp2 = 0.0d;
+        dp3 = 0.0d;
+        dp4 = 0.0d;
+
+        fp1 = 0.0f;
+        fp2 = 0.0f;
+        fp3 = 0.0f;
+        fp4 = 0.0f;
+
+        cp1 = 0;
+        cp2 = 0;
+        cp3 = 0;
+        cp4 = 0;
+
+        lp1 = 0;
+        lp2 = 0;
     }
 
     @Override
@@ -245,6 +308,35 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         e1.roundingModes = roundingModes;
         e1.autowire = autowire;
         e1.longs = longs;
+
+        e1.b1 = b1;
+        e1.b2 = b2;
+        e1.b3 = b3;
+        e1.b4 = b4;
+
+        e1.sh1 = sh1;
+        e1.sh2 = sh2;
+        e1.sh3 = sh3;
+        e1.sh4 = sh4;
+
+        e1.dp1 = dp1;
+        e1.dp2 = dp2;
+        e1.dp3 = dp3;
+        e1.dp4 = dp4;
+
+        e1.dp1 = fp1;
+        e1.fp2 = fp2;
+        e1.fp3 = fp3;
+        e1.fp4 = fp4;
+
+        e1.cp1 = cp1;
+        e1.cp2 = cp2;
+        e1.cp3 = cp3;
+        e1.cp4 = cp4;
+
+        e1.lp1 = lp1;
+        e1.lp2 = lp2;
+
         return e1;
     }
 
@@ -273,6 +365,140 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         assertThat( data2.data2, is( nullValue() ) );
         assertThat( data2.data2, is( nullValue() ) );
         assertThat( data2.getLongs().size(), is( 3 ) );
+        assertThat( data2.getB1(), is( getB1() ) );
+        assertThat( data2.getB2(), is( getB2() ) );
+        assertThat( data2.getB3(), is( getB3() ) );
+        assertThat( data2.getB4(), is( getB4() ) );
+        assertThat( data2.getSh1(), is( getSh1() ) );
+        assertThat( data2.getSh2(), is( getSh2() ) );
+        assertThat( data2.getSh3(), is( getSh3() ) );
+        assertThat( data2.getSh4(), is( getSh4() ) );
+        assertThat( data2.getDp1(), is( getDp1() ) );
+        assertThat( data2.getDp2(), is( getDp2() ) );
+        assertThat( data2.getDp3(), is( getDp3() ) );
+        assertThat( data2.getDp4(), is( getDp4() ) );
+        assertThat( data2.getFp1(), is( getFp1() ) );
+        assertThat( data2.getFp2(), is( getFp2() ) );
+        assertThat( data2.getFp3(), is( getFp3() ) );
+        assertThat( data2.getFp4(), is( getFp4() ) );
+        assertThat( data2.getCp1(), is( getCp1() ) );
+        assertThat( data2.getCp2(), is( getCp2() ) );
+        assertThat( data2.getCp3(), is( getCp3() ) );
+        assertThat( data2.getCp4(), is( getCp4() ) );
+        assertThat( data2.getLp1(), is( getLp1() ) );
+        assertThat( data2.getLp2(), is( getLp2() ) );
+    }
+
+    public long getLp1() {
+        return lp1;
+    }
+
+    public void setLp1(final long lp1) {
+        this.lp1 = lp1;
+    }
+
+    public long getLp2() {
+        return lp2;
+    }
+
+    public void setLp2(final long lp2) {
+        this.lp2 = lp2;
+    }
+
+    public char getCp1() {
+        return cp1;
+    }
+
+    public void setCp1(final char cp1) {
+        this.cp1 = cp1;
+    }
+
+    public char getCp2() {
+        return cp2;
+    }
+
+    public void setCp2(final char cp2) {
+        this.cp2 = cp2;
+    }
+
+    public char getCp3() {
+        return cp3;
+    }
+
+    public void setCp3(final char cp3) {
+        this.cp3 = cp3;
+    }
+
+    public char getCp4() {
+        return cp4;
+    }
+
+    public void setCp4(final char cp4) {
+        this.cp4 = cp4;
+    }
+
+    public float getFp1() {
+        return fp1;
+    }
+
+    public void setFp1(final float fp1) {
+        this.fp1 = fp1;
+    }
+
+    public float getFp2() {
+        return fp2;
+    }
+
+    public void setFp2(final float fp2) {
+        this.fp2 = fp2;
+    }
+
+    public float getFp3() {
+        return fp3;
+    }
+
+    public void setFp3(final float fp3) {
+        this.fp3 = fp3;
+    }
+
+    public float getFp4() {
+        return fp4;
+    }
+
+    public void setFp4(final float fp4) {
+        this.fp4 = fp4;
+    }
+
+    public double getDp1() {
+        return dp1;
+    }
+
+    public void setDp1(final double dp1) {
+        this.dp1 = dp1;
+    }
+
+    public double getDp2() {
+        return dp2;
+    }
+
+    public void setDp2(final double dp2) {
+        this.dp2 = dp2;
+    }
+
+    public double getDp3() {
+        return dp3;
+    }
+
+    public void setDp3(final double dp3) {
+        this.dp3 = dp3;
+    }
+
+    public double getDp4() {
+        return dp4;
+    }
+
+    public void setDp4(final double dp4) {
+        this.dp4 = dp4;
     }
 
     public String getS1() {
@@ -491,6 +717,70 @@ public class TestEntity1 implements InitializingBean, Cloneable {
         this.routing = routing;
     }
 
+    public boolean getB1() {
+        return b1;
+    }
+
+    public void setB1(final boolean b1) {
+        this.b1 = b1;
+    }
+
+    public boolean getB2() {
+        return b2;
+    }
+
+    public void setB2(final boolean b2) {
+        this.b2 = b2;
+    }
+
+    public boolean getB3() {
+        return b3;
+    }
+
+    public void setB3(final boolean b3) {
+        this.b3 = b3;
+    }
+
+    public boolean getB4() {
+        return b4;
+    }
+
+    public void setB4(final boolean b4) {
+        this.b4 = b4;
+    }
+
+    public short getSh1() {
+        return sh1;
+    }
+
+    public void setSh1(final short sh1) {
+        this.sh1 = sh1;
+    }
+
+    public short getSh2() {
+        return sh2;
+    }
+
+    public void setSh2(final short sh2) {
+        this.sh2 = sh2;
+    }
+
+    public short getSh3() {
+        return sh3;
+    }
+
+    public void setSh3(final short sh3) {
+        this.sh3 = sh3;
+    }
+
+    public short getSh4() {
+        return sh4;
+    }
+
+    public void setSh4(final short sh4) {
+        this.sh4 = sh4;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hashCode( getUniqueIdentifier(), getOptimisticLockVersion(), getRouting() );
@@ -520,7 +810,8 @@ public class TestEntity1 implements InitializingBean, Cloneable {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static BO getPersistentEntity()
                                           throws SecurityException,
-                                          NoSuchMethodException {
+                                          NoSuchMethodException,
+                                          IntrospectionException {
         SimpleMappingContext mappingContext = new SimpleMappingContext();
         mappingContext.setInitialEntitySet( Collections.singleton( TestEntity1.class ) );
         mappingContext.afterPropertiesSet();

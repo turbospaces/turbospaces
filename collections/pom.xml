@@ -11,6 +11,10 @@
     <name>${project.artifactId}</name>
     <dependencies>
         <dependency>
+            <groupId>asm</groupId>
+            <artifactId>asm</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.googlecode</groupId>
             <artifactId>kryo</artifactId>
         </dependency>
@@ -21,7 +25,7 @@
         <dependency>
             <groupId>com.googlecode.disruptor</groupId>
             <artifactId>disruptor</artifactId>
-        </dependency>
+        </dependency>        
         <!-- optional dependencies -->
         <dependency>
             <artifactId>slf4j-api</artifactId>

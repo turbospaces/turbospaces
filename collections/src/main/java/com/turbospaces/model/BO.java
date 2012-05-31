@@ -15,6 +15,7 @@
  */
 package com.turbospaces.model;
 
+import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -43,7 +44,6 @@ import org.springframework.data.mapping.model.BeanWrapper;
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
 import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.turbospaces.api.CapacityRestriction;
 import com.turbospaces.serialization.DecoratedKryo;
@@ -58,10 +58,9 @@ import com.turbospaces.serialization.SingleDimensionArraySerializer;
 @ThreadSafe
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public final class BO {
-
     private final BasicPersistentEntity delegate;
-    private PersistentProperty optimisticLockVersionProperty, routingProperty;
     private final FastConstructor fastConstructor;
+    private PersistentProperty optimisticLockVersionProperty, routingProperty;
     private BulkBean bulkBean, idVersionRoutingBulkBean;
     private final Set<PersistentProperty> brokenProperties = new HashSet<PersistentProperty>();
     private PersistentProperty[] orderedProperties;
@@ -76,26 +75,37 @@ public final class BO {
      *             re-throw cglib exception
      * @throws SecurityException
      *             re-throw cglib exception
+     * @throws IntrospectionException
+     *             re-throw exceptions
      */
-    public BO(final BasicPersistentEntity delegate) throws SecurityException, NoSuchMethodException {
+    public BO(final BasicPersistentEntity delegate) throws SecurityException, NoSuchMethodException, IntrospectionException {
         this.delegate = delegate;
         this.fastConstructor = FastClass.create( delegate.getType() ).getConstructor( delegate.getType().getConstructor() );
 
-        // find optimistic lock version field
+        // find optimistic lock version/routing fields
         {
             final Collection<PersistentProperty> versionCandidates = Lists.newLinkedList();
             final Collection<PersistentProperty> routingCandidates = Lists.newLinkedList();
             delegate.doWithProperties( new PropertyHandler() {
-
                 @Override
                 public void doWithPersistentProperty(final PersistentProperty persistentProperty) {
+                    PropertyDescriptor propertyDescriptor = persistentProperty.getPropertyDescriptor();
                     Field field = persistentProperty.getField();
-                    Version annotation1 = field.getAnnotation( Version.class );
-                    Routing annotation2 = field.getAnnotation( Routing.class );
-                    if ( annotation1 != null )
+
+                    if ( hasAnnotation( propertyDescriptor, field, Version.class ) )
                         versionCandidates.add( persistentProperty );
-                    if ( annotation2 != null )
+                    if ( hasAnnotation( propertyDescriptor, field, Routing.class ) )
                         routingCandidates.add( persistentProperty );
+                }
+
+                private boolean hasAnnotation(final PropertyDescriptor descriptor,
+                                              final Field field,
+                                              final Class annotation) {
+                    if ( descriptor != null && descriptor.getReadMethod() != null && descriptor.getReadMethod().getAnnotation( annotation ) != null )
+                        return true;
+                    if ( field != null && field.getAnnotation( annotation ) != null )
+                        return true;
+                    return false;
                 }
             } );
             Preconditions.checkArgument( versionCandidates.size() <= 1, "too many fields marked with @Version annotation, candidates = "
@@ -119,7 +129,6 @@ public final class BO {
 
             for ( PersistentProperty<?> persistentProperty : getOrderedProperties() ) {
                 PropertyDescriptor propertyDescriptor = persistentProperty.getPropertyDescriptor();
-
                 if ( propertyDescriptor != null ) {
                     if ( propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null ) {
                         setters.add( propertyDescriptor.getWriteMethod().getName() );
@@ -253,14 +262,13 @@ public final class BO {
      * @return new instance of {@link BO}'s underlying type
      */
     public Object newInstance() {
-        for ( ;; )
-            try {
-                return fastConstructor.newInstance();
-            }
-            catch ( InvocationTargetException e ) {
-                Log.error( e.getMessage(), e );
-                Throwables.propagate( e );
-            }
+        try {
+            return fastConstructor.newInstance();
+        }
+        catch ( InvocationTargetException e ) {
+            Log.error( e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
     }
 
     /**
@@ -404,12 +412,15 @@ public final class BO {
      *             re-throw cglib's exception
      * @throws SecurityException
      *             re-throw cglib's exception
+     * @throws IntrospectionException
+     *             re-throw introspection exception
      */
     public static void registerPersistentClasses(final DecoratedKryo kryo,
                                                  final BasicPersistentEntity... persistentEntities)
                                                                                                    throws ClassNotFoundException,
                                                                                                    SecurityException,
-                                                                                                   NoSuchMethodException {
+                                                                                                   NoSuchMethodException,
+                                                                                                   IntrospectionException {
         for ( BasicPersistentEntity<?, ?> e : persistentEntities ) {
             BO bo = new BO( e );
             bo.getOriginalPersistentEntity().doWithProperties( new PropertyHandler() {

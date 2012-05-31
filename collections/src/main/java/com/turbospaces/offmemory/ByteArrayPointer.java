@@ -62,15 +62,17 @@ public final class ByteArrayPointer {
         private int offset;
     }
 
+    private static final int INTERNAL_BYTES_OCCUPATION;
+
     static {
         int offset = 0;
         for ( FormatFields f : FormatFields.values() ) {
             f.offset = offset;
             offset += f.lenght;
         }
+        INTERNAL_BYTES_OCCUPATION = FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght + FormatFields.TIME_TO_LIVE.lenght
+                + FormatFields.LAST_ACCESS_DATE.lenght;
     }
-    private static int INTERNAL_BYTES_OCCUPATION = FormatFields.LENGTH.lenght + FormatFields.CREATION_TIMESTAMP.lenght
-            + FormatFields.TIME_TO_LIVE.lenght + FormatFields.LAST_ACCESS_DATE.lenght;
 
     private final EffectiveMemoryManager memoryManager;
     private byte[] serializedBytes;

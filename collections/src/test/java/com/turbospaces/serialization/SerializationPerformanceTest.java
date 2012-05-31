@@ -1,5 +1,6 @@
 package com.turbospaces.serialization;
 
+import java.beans.IntrospectionException;
 import java.math.RoundingMode;
 import java.util.Collections;
 
@@ -12,9 +13,9 @@ import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import com.esotericsoftware.kryo.ObjectBuffer;
 import com.esotericsoftware.kryo.serialize.EnumSerializer;
-import com.esotericsoftware.kryo.serialize.FieldSerializer;
 import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.BO;
+import com.turbospaces.model.BasicBO;
 import com.turbospaces.model.SimpleMappingContext;
 import com.turbospaces.model.TestEntity1;
 
@@ -30,6 +31,7 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         entity1.afterPropertiesSet();
     }
 
+    @SuppressWarnings("rawtypes")
     @BenchmarkOptions(warmupRounds = 1, benchmarkRounds = 1)
     @Test
     public void runDefaultKryoSerialization()
@@ -41,7 +43,7 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
         kryo.register( cl1, s1 );
         kryo.register( cl2, s2 );
         kryo.register( Autowire.class, new EnumSerializer( Autowire.class ) );
-        kryo.register( TestEntity1.class, new FieldSerializer( kryo, TestEntity1.class ) );
+        kryo.register( TestEntity1.class, new FieldsSerializer( kryo, new BasicBO( TestEntity1.class ) ) );
         run( true );
     }
 
@@ -51,7 +53,8 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
     public void runTurbospaceKryoSerialization()
                                                 throws SecurityException,
                                                 NoSuchMethodException,
-                                                ClassNotFoundException {
+                                                ClassNotFoundException,
+                                                IntrospectionException {
         SimpleMappingContext mappingContext = new SimpleMappingContext();
         mappingContext.setInitialEntitySet( Collections.singleton( TestEntity1.class ) );
         mappingContext.afterPropertiesSet();
@@ -69,7 +72,6 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
             @Override
             public void run() {
                 ObjectBuffer buffer = new ObjectBuffer( kryo );
-                buffer.setKryo( kryo );
                 buffer.writeObjectData( entity1 );
             }
         } );
@@ -87,7 +89,6 @@ public class SerializationPerformanceTest extends AbstractBenchmark {
             @Override
             public void run() {
                 ObjectBuffer buffer = new ObjectBuffer( kryo );
-                buffer.setKryo( kryo );
                 buffer.readObjectData( data, TestEntity1.class );
             }
         } );

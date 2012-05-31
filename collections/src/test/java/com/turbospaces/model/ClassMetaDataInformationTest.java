@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import java.beans.IntrospectionException;
 import java.util.Collections;
 
 import org.junit.Before;
@@ -35,7 +36,8 @@ public class ClassMetaDataInformationTest {
     @SuppressWarnings("unchecked")
     public void verifyTypeInformation()
                                        throws SecurityException,
-                                       NoSuchMethodException {
+                                       NoSuchMethodException,
+                                       IntrospectionException {
         bo = TestEntity1.getPersistentEntity();
         bo.getOriginalPersistentEntity().verify();
         PersistentProperty idProperty = bo.getIdProperty();
@@ -75,7 +77,8 @@ public class ClassMetaDataInformationTest {
     @Test
     public void verifyCGlibOptimization()
                                          throws SecurityException,
-                                         NoSuchMethodException {
+                                         NoSuchMethodException,
+                                         IntrospectionException {
         bo = TestEntity1.getPersistentEntity();
         assertThat( bo.getBrokenProperties().size(), is( 0 ) );
 

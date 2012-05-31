@@ -104,7 +104,7 @@ public class PropertiesSerializerTest {
     }
 
     @Test
-    public void cantMatchByTemplateIfPrimitivesDidntMatch() {
+    public void cantMatchByTemplateAndIgnorePrimitives() {
         ObjectBuffer objectBuffer = new ObjectBuffer( kryo );
         byte[] data = objectBuffer.writeObjectData( CacheStoreEntryWrapper.writeValueOf( bo, entity1 ) );
 
@@ -112,7 +112,7 @@ public class PropertiesSerializerTest {
         template.cleanBeanProperties();
 
         CacheStoreEntryWrapper cacheStoreEntryWrapper = CacheStoreEntryWrapper.writeValueOf( bo, template );
-        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), cacheStoreEntryWrapper ) );
     }
 
     @Test
@@ -209,14 +209,10 @@ public class PropertiesSerializerTest {
         template.dt1 = entity1.dt1;
         template.dt4 = entity1.dt4;
 
-        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
-
-        template ) ) );
+        Assert.assertTrue( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
 
         template.dt2 = new Date( System.currentTimeMillis() );
-        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo,
-
-        template ) ) );
+        Assert.assertFalse( serializer.matches( ByteBuffer.wrap( data ), CacheStoreEntryWrapper.writeValueOf( bo, template ) ) );
     }
 
     @Test

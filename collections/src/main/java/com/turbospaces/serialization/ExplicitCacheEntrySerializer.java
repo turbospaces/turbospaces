@@ -17,6 +17,7 @@ package com.turbospaces.serialization;
 
 import java.nio.ByteBuffer;
 
+import com.turbospaces.core.JVMUtil;
 import com.turbospaces.model.ExplicitCacheEntry;
 
 /**
@@ -32,23 +33,23 @@ public final class ExplicitCacheEntrySerializer extends MatchingSerializer<Expli
      * 
      * @param kryo
      *            serialization provider
+     * @throws SecurityException
      */
     public ExplicitCacheEntrySerializer(final DecoratedKryo kryo) {
-        super( kryo, new CachedSerializationProperty[] //
-                { new CachedSerializationProperty( Object.class ), // key
-                        new CachedSerializationProperty( Integer.class ), // version
-                        new CachedSerializationProperty( Object.class ), // routing
-                        new CachedSerializationProperty( Object.class ) // object
-                } );
+        super( kryo, new CachedSerializationProperty[] {
+                new CachedSerializationProperty( Object.class, JVMUtil.fieldFor( ExplicitCacheEntry.class, "key" ) ),
+                new CachedSerializationProperty( Integer.class, JVMUtil.fieldFor( ExplicitCacheEntry.class, "version" ) ),
+                new CachedSerializationProperty( Object.class, JVMUtil.fieldFor( ExplicitCacheEntry.class, "routing" ) ),
+                new CachedSerializationProperty( Object.class, JVMUtil.fieldFor( ExplicitCacheEntry.class, "bean" ) ) } );
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public ExplicitCacheEntry<?, ?> read(final ByteBuffer buffer) {
-        Object id = readPropertyValue( cachedProperties[0], buffer ); // key
-        Integer version = (Integer) readPropertyValue( cachedProperties[1], buffer ); // version
-        Object routing = readPropertyValue( cachedProperties[2], buffer ); // routing
-        Object bean = readPropertyValue( cachedProperties[3], buffer ); // object
+        Object id = DecoratedKryo.readPropertyValue( kryo, cachedProperties[0], buffer ); // key
+        Integer version = (Integer) DecoratedKryo.readPropertyValue( kryo, cachedProperties[1], buffer ); // version
+        Object routing = DecoratedKryo.readPropertyValue( kryo, cachedProperties[2], buffer ); // routing
+        Object bean = DecoratedKryo.readPropertyValue( kryo, cachedProperties[3], buffer ); // bean
 
         return new ExplicitCacheEntry( id, bean ).withRouting( routing ).withVersion( version );
     }
@@ -61,16 +62,16 @@ public final class ExplicitCacheEntrySerializer extends MatchingSerializer<Expli
         Object routing = object.getRouting();
         Object bean = object.getBean();
 
-        writePropertyValue( cachedProperties[0], id, buffer ); // key
-        writePropertyValue( cachedProperties[1], version, buffer ); // version
-        writePropertyValue( cachedProperties[2], routing, buffer ); // routing
-        writePropertyValue( cachedProperties[3], bean, buffer ); // obj
+        DecoratedKryo.writePropertyValue( kryo, cachedProperties[0], id, buffer ); // key
+        DecoratedKryo.writePropertyValue( kryo, cachedProperties[1], version, buffer ); // version
+        DecoratedKryo.writePropertyValue( kryo, cachedProperties[2], routing, buffer ); // routing
+        DecoratedKryo.writePropertyValue( kryo, cachedProperties[3], bean, buffer ); // bean
     }
 
     @Override
     public Object readID(final ByteBuffer buffer) {
         buffer.clear();
-        Object id = readPropertyValue( cachedProperties[0], buffer ); // key
+        Object id = DecoratedKryo.readPropertyValue( kryo, cachedProperties[0], buffer ); // key
         buffer.clear();
         return id;
     }
