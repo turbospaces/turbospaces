@@ -9,8 +9,7 @@ public interface EffectiveMemoryManager {
     /**
      * allocate given amount of bytes in the off-heap memory store.
      * 
-     * @param bytes
-     *            how many bytes to allocate
+     * @param bytes - how many bytes to allocate
      * @return the unique pointer that later can be used for reading underlying data back
      */
     long allocateMemory(int bytes);

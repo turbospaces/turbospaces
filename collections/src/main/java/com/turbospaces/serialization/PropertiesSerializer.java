@@ -73,7 +73,6 @@ public final class PropertiesSerializer extends MatchingSerializer {
 
     @Override
     public Object readID(final ByteBuffer buffer) {
-        buffer.clear();
         final CachedSerializationProperty idProperty = cachedProperties[BO.getIdIndex()];
         Object id = DecoratedKryo.readPropertyValue( kryo, idProperty, buffer );
         buffer.clear();
@@ -96,12 +95,10 @@ public final class PropertiesSerializer extends MatchingSerializer {
      * @return de-serialized entry
      */
     public SerializationEntry readToSerializedEntry(final ByteBuffer buffer) {
-        buffer.clear();
         final Object values[] = new Object[cachedProperties.length];
         for ( int i = 0, n = cachedProperties.length; i < n; i++ )
             values[i] = DecoratedKryo.readPropertyValue( kryo, cachedProperties[i], buffer );
         buffer.clear();
-
         return new SerializationEntry( buffer, entityMetadata.setBulkPropertyValues( entityMetadata.newInstance(), values ), values );
     }
 

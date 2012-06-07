@@ -94,3 +94,4 @@ enums
 restrictor
 namespace
 stats
+init

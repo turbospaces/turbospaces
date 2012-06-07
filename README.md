@@ -33,7 +33,8 @@ turbospaces achieves 2-3M in-memory transaction on typical hardware on a single 
 + 2 CPU Intel(R) Xeon(R) Processor E5540 @ 2.53GHz
 + RAM 24Gb DDR2-1066
 + Oracle Enterprise Linux 5.6
-+ java options: `-server -Xmx128m -XX:+HeapDumpOnOutOfMemoryError -ea -XX:+TieredCompilation -XX:+UseNUMA -XX:+UseCondCardMark -XX:-UseBiasedLocking -XX:+UseTLAB -XX:+DoEscapeAnalysis`
++ java options: `-server -Xmx128m -XX:+HeapDumpOnOutOfMemoryError -ea -XX:+TieredCompilation -XX:+UseNUMA 
+                 -XX:+UseCondCardMark -XX:-UseBiasedLocking -XX:+UseTLAB -XX:+DoEscapeAnalysis`
 + maven test:  `mvn test -Dtest=CombinedPerformanceTest`
 
 ##### randomize test results - typical output

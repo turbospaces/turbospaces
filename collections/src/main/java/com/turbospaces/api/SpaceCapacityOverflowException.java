@@ -15,7 +15,6 @@
  */
 package com.turbospaces.api;
 
-
 /**
  * signals that cache exceeded it's max capacity and it is not possible to add more elements.
  * 
@@ -32,10 +31,8 @@ public class SpaceCapacityOverflowException extends RuntimeException {
      * create new space overflow exception and specify space's max capacity and object that attempted to be added to the
      * space.
      * 
-     * @param maxElements
-     *            space's capacity
-     * @param obj
-     *            object that attempted to be added.
+     * @param maxElements - space's capacity
+     * @param obj - object that attempted to be added.
      */
     public SpaceCapacityOverflowException(final long maxElements, final Object obj) {
         super( String.format( "Space exceeded it's capacity %s, attempt to add %s rejected.", maxElements, obj ) );

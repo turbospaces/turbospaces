@@ -6,13 +6,11 @@ package com.turbospaces.collections;
  * @since 0.1
  */
 public interface EvictableCache {
-
     /**
      * evict at maximum {@code size * percentage / 100} entries from collection.</p>
      * 
-     * @param percentage
-     *            how many entries to evict in absolute percent value
-     * @return the number of evicted objects
+     * @param percentage - how many entries to evict in absolute percent value.
+     * @return the number of evicted objects.
      */
     long evictPercentage(int percentage);
 
@@ -20,9 +18,8 @@ public interface EvictableCache {
      * evict at maximum given elements count(at maximum means that probably there are no so much entries to remove due
      * to automatic eviction(in case of entry lease expiration) for example).</p>
      * 
-     * @param elements
-     *            how many entries to evict from cache
-     * @return how many element evicted from cache(at maximum = given elements to evict, potentially smaller number)
+     * @param elements - how many entries to evict from cache.
+     * @return how many element evicted from cache(at maximum = given elements to evict, potentially smaller number).
      */
     long evictElements(long elements);
 

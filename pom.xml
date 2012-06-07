@@ -30,6 +30,20 @@
         <name>${project.name}</name>
         <url>${project.url}</url>
     </organization>
+	<developers>
+        <developer>
+            <id>aborisov</id>
+            <name>Andrey Borisov</name>
+            <email>aandrey.borisov@gmail.com</email>
+            <url>${project.url}</url>
+            <organization>${projectname}</organization>
+            <timezone>+2:00</timezone>
+        </developer>
+    </developers>
+    <scm>
+      <connection>scm:git:git://github.com/turbospaces/turbospaces.git</connection>
+      <url>https://github.com/turbospaces/turbospaces</url>
+    </scm>
     <prerequisites>
         <maven>2.2.1</maven>
     </prerequisites>
@@ -343,8 +357,8 @@
                         <configuration>
                             <runOrder>hourly</runOrder>
                             <forkMode>always</forkMode>
-                            <argLine>-server -verbose:gc -Xloggc:gc.log -XX:+PrintGCTimeStamps
-                                -XX:+HeapDumpOnOutOfMemoryError -ea -server -XX:+TieredCompilation -XX:+UseNUMA
+                            <argLine>-server -verbose:gc -Xloggc:gc.log -XX:+PrintGCTimeStamps -XX:CompileThreshold=100
+                                -XX:+HeapDumpOnOutOfMemoryError -server -XX:+TieredCompilation -XX:+UseNUMA
                                 -XX:+UseCondCardMark -XX:-UseBiasedLocking -XX:+UseTLAB -XX:+DoEscapeAnalysis</argLine>
                             <includes>
                                 <include>**/*PerformanceTest.java</include>
@@ -367,8 +381,8 @@
                         <configuration>
                             <runOrder>hourly</runOrder>
                             <forkMode>always</forkMode>
-                            <argLine>-server -verbose:gc -Xloggc:gc.log -XX:+PrintGCTimeStamps
-                                -XX:+HeapDumpOnOutOfMemoryError -ea -server -XX:+TieredCompilation -XX:+UseNUMA
+                            <argLine>-server -verbose:gc -Xloggc:gc.log -XX:+PrintGCTimeStamps -XX:CompileThreshold=100
+                                -XX:+HeapDumpOnOutOfMemoryError -server -XX:+TieredCompilation -XX:+UseNUMA
                                 -XX:-UseBiasedLocking -XX:+UseTLAB -XX:+DoEscapeAnalysis</argLine>
                             <includes>
                                 <include>**/*PerformanceTest.java</include>

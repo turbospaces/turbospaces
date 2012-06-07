@@ -33,13 +33,10 @@ public class SpaceMemoryOverflowException extends RuntimeException {
 
     /**
      * create new space memory overflow exception and specify space's max memory capacity and object's state that
-     * attempted to be added to the
-     * space.
+     * attempted to be added to the space.
      * 
-     * @param bytes
-     *            max megabytes of off-heap memory used by space in bytes
-     * @param serializedState
-     *            bytes representation of object
+     * @param bytes - max megabytes of off-heap memory used by space in bytes.
+     * @param serializedState - bytes representation of object
      */
     public SpaceMemoryOverflowException(final long bytes, final byte[] serializedState) {
         super( String.format( "Space exceeded it's memory capacity %s bytes, attempt to add %s rejected.", bytes, Arrays.toString( serializedState ) ) );
