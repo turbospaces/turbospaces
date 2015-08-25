@@ -29,7 +29,7 @@ turbospaces achieves 2-3M in-memory transaction on typical hardware on a single 
 
 ##### software-hardware used
 
-+ JDK 1.7.03
++ JDK 1.7.04
 + 2 CPU Intel(R) Xeon(R) Processor E5540 @ 2.53GHz
 + RAM 24Gb DDR2-1066
 + Oracle Enterprise Linux 5.6
